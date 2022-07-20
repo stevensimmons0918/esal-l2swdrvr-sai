@@ -19,13 +19,13 @@
 #include <map>
 #include <string>
 
-#include <esal_vendor_api/esal_vendor_api.h>
+#include <esal-vendor-api/esal_vendor_api.h>
 #include "lib/swerr.h"
 #ifndef UTS
 extern "C" {
-#include "sai_vendor_api/sai.h"
-#include "sai_vendor_api/saiport.h"
-#include "sai_vendor_api/saivlan.h"
+#include "sai-vendor-api/sai.h"
+#include "sai-vendor-api/saiport.h"
+#include "sai-vendor-api/saivlan.h"
 }
 
 #ifndef LARCH_ENVIRON

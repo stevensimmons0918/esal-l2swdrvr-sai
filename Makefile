@@ -8,11 +8,12 @@ BASE_DIR = .
 CFLAGS = 
 CFLAGS += -fPIC -Wall -Werror -Wno-unused -std=c++11 -g -Og -DDEBUG
 LDFLAGS =
-OBJ_PATH = $(PWD)
+OBJ_PATH = $(PWD)/obj
+OUT_DIR = $(OBJ_PATH)
 
-SAI_H_DIR := $(BASE_DIR)/sai_vendor_api/
-ESAL_H_DIR := $(BASE_DIR)/esalsai/headers/ 
-ESAL_SRC_DIR := $(BASE_DIR)/esalsai/
+SAI_H_DIR := $(BASE_DIR)/sai-vendor-api/
+ESAL_H_DIR := $(BASE_DIR)/headers/
+ESAL_SRC_DIR := $(BASE_DIR)/
 
 CFLAGS += \
     -I. \
@@ -38,10 +39,12 @@ FILES := \
   esalSaiTag.cc \
   esalSaiVlan.cc
 
+
 MKDIR_P = mkdir -p
 define compile
 @# Create ouput folder
   $(MKDIR_P) $(dir $@)
+  $(MKDIR_P) $(OBJ_PATH)
 @#create dependency file
   $(CC) -MM -c $1 $< -o $2/$*.d
 @#Duplicate it
@@ -56,11 +59,11 @@ define compile
   $(CC) -c $1 $< -o $@
 endef
 
-ESAL_OBJECTS := $(patsubst %.cc,%.o,$(FILES))
+ESAL_OBJECTS := $(patsubst %.cc,$(OUT_DIR)/%.o,$(FILES))
 ESAL_DEP = $(patsubst %.o,%.d,$(ESAL_OBJECTS))
 
-%.o:%.cc
-	$(call compile,$(CFLAGS),$(OBJ_PATH))
+$(OUT_DIR)/%.o:%.cc
+	$(call compile,$(CFLAGS),$(OUT_DIR))
 #-L. -lsai -lXdkCpss 
 esal_lib: $(ESAL_OBJECTS)
 	echo ESAL objects: $(ESAL_OBJECTS)

@@ -18,12 +18,12 @@
 #include <mutex>
 #include <vector>
 
-#include "esal_vendor_api/esal_vendor_api.h"
+#include "esal-vendor-api/esal_vendor_api.h"
 #include "lib/swerr.h"
 
 #ifndef UTS
-#include "sai_vendor_api/sai.h"
-#include "sai_vendor_api/saiport.h"
+#include "sai-vendor-api/sai.h"
+#include "sai-vendor-api/saiport.h"
 #ifndef LARCH_ENVIRON
 #include "sfp_vendor_api/sfp_vendor_api.h"
 #endif

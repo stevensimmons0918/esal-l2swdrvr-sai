@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "lib/swerr.h"
-#include "esal_vendor_api/esal_vendor_api.h"
+#include "esal-vendor-api/esal_vendor_api.h"
 #ifndef LARCH_ENVIRON
 #include "sfp_vendor_api/sfp_vendor_api.h"
 #include "threadutils/dll_util.h"
@@ -30,9 +30,9 @@
 
 
 #ifndef UTS
-#include "sai_vendor_api/sai.h"
-#include "sai_vendor_api/saiswitch.h"
-#include "sai_vendor_api/saihostif.h"
+#include "sai-vendor-api/sai.h"
+#include "sai-vendor-api/saiswitch.h"
+#include "sai-vendor-api/saihostif.h"
 #endif
 
 extern "C" {
@@ -287,7 +287,7 @@ void VendorDbg(const char *args) {
 esal_vendor_api_version_t VendorApiGetVersion() {
     return ((esal_vendor_api_version_t) {
             ESAL_VENDOR_API_VERSION_MAJOR,
-            ESAL_VENDOR_API_VERSION_MINOR});
+            ESAL_VENDOR_API_VERSION_MAJOR});
 }
 
 bool switchStateUp = false; 

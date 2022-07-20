@@ -27,7 +27,7 @@
 #include "esal-vendor-api/headers/esalUnitTestDefs.h"
 #else
 extern "C" {
-#include "sai_vendor_api/sai.h"
+#include "sai-vendor-api/sai.h"
 }
 #endif
 

@@ -16,14 +16,14 @@
 #include <string>
 #include <cinttypes>
 
-#include <esal_vendor_api/esal_vendor_api.h>
+#include <esal-vendor-api/esal_vendor_api.h>
 #include "lib/swerr.h"
 #ifndef LARCH_ENVIRON
 #include "pf_proto/esal_pm.pb.h" 
 #endif
 #ifndef UTS
-#include "sai_vendor_api/sai.h"
-#include "sai_vendor_api/saistp.h"
+#include "sai-vendor-api/sai.h"
+#include "sai-vendor-api/saistp.h"
 #endif
 
 extern "C" {
