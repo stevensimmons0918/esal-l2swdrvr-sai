@@ -10,6 +10,7 @@ CFLAGS += -fPIC -Wall -Werror -Wno-unused -std=c++11 -g -Og -DDEBUG
 LDFLAGS =
 OBJ_PATH = $(PWD)/obj
 OUT_DIR = $(OBJ_PATH)
+BIN_DIR = $(PWD)/bin
 
 SAI_H_DIR := $(BASE_DIR)/sai-vendor-api/
 ESAL_H_DIR := $(BASE_DIR)/headers/
@@ -65,11 +66,14 @@ ESAL_DEP = $(patsubst %.o,%.d,$(ESAL_OBJECTS))
 $(OUT_DIR)/%.o:%.cc
 	$(call compile,$(CFLAGS),$(OUT_DIR))
 #-L. -lsai -lXdkCpss 
-esal_lib: $(ESAL_OBJECTS)
-	echo ESAL objects: $(ESAL_OBJECTS)
-	$(CC) -shared -o libesal.so $(LDFLAGS) $(ESAL_OBJECTS) -ldl -lpthread -lrt -ldl -lstdc++ -lm -L. -lsai
 
 esal_app: esal_lib
-	$(CC) -o esal_app $(CFLAGS) $(LDFLAGS) esalMain.cc -L. -lesal
+	$(MKDIR_P) $(BIN_DIR)
+	$(CC) -o $(BIN_DIR)/esal_app $(CFLAGS) $(LDFLAGS) esalMain.cc -lesal
+
+esal_lib: $(ESAL_OBJECTS)
+	echo ESAL objects: $(ESAL_OBJECTS)
+	$(CC) -shared -o $(OUT_DIR)/libesal.so $(LDFLAGS) $(ESAL_OBJECTS) -ldl -lpthread -lrt -ldl -lstdc++ -lm -lsai
+	sudo cp $(OUT_DIR)/libesal.so /usr/lib
 
 -include $(ESAL_DEP)

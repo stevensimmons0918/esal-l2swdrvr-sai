@@ -149,10 +149,17 @@ bool esalPortTableAddEntry(uint16_t portId, sai_object_id_t *portSai){
     retcode = saiPortApi->create_port(
         portSai, esalSwitchId, attributes.size(), attributes.data());
     if (retcode) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-              SWERR_FILELINE, "create_port Fail in esalPortTableAddEntry\n"));
-        std::cout << "create_port fail: " << esalSaiError(retcode) << "\n";
-        return false; 
+        if (retcode == SAI_STATUS_ITEM_ALREADY_EXISTS)
+        {
+            *portSai = 16325548649218047;
+        }
+        else
+        {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE, "create_port Fail in esalPortTableAddEntry\n"));
+            std::cout << "create_port fail: " << esalSaiError(retcode) << "\n";
+            return false;
+        }
     }
 #else
     *portSai = ESAL_UNITTEST_MAGIC_NUM;
@@ -633,6 +640,7 @@ int VendorEnablePort(uint16_t port) {
  
     // Set the port attributes
     //
+    portSai = 281474976710684;
     retcode = saiPortApi->set_port_attribute(portSai, &attr);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,

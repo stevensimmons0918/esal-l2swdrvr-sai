@@ -212,7 +212,7 @@ int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t port
             }
         }
         
-        if (!fnd) continue;
+        if (fnd) continue;
 
 #ifndef UTS
         // Now,, add objects.
