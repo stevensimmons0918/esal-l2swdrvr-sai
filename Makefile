@@ -69,7 +69,7 @@ $(OUT_DIR)/%.o:%.cc
 
 esal_app: esal_lib
 	$(MKDIR_P) $(BIN_DIR)
-	$(CC) -o $(BIN_DIR)/esal_app $(CFLAGS) $(LDFLAGS) esalMain.cc -lesal
+	$(CC) -o esalApp $(CFLAGS) $(LDFLAGS) esalMain.cc -lesal
 
 esal_lib: $(ESAL_OBJECTS)
 	echo ESAL objects: $(ESAL_OBJECTS)
