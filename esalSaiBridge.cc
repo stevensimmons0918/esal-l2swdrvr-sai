@@ -41,7 +41,7 @@ extern "C" {
 //    used for protecting PORT-ID VLAN-ID pairs.  The following
 //    assumptions are built into the mutex design:
 // 
-//         - Port ID, Member SAI, and VLAN ID must be keys for look-up.
+//         - Port ID, BridgePort SAI, and VLAN ID must be keys for look-up.
 //         - A typical port configuration is ~128 port-vlan pairs, maximum is 1024.
 //         - Cannot use operating system primitives for FDB Updates
 //         - Can use operating system primitives for provisioning.
@@ -60,7 +60,7 @@ struct BridgeMember{
     uint16_t portId;
     uint16_t vlanId; 
     sai_object_id_t portSai;
-    sai_object_id_t memberSai;
+    sai_object_id_t bridgePortSai;
 };
 
 static std::mutex bridgeMutex;
@@ -71,12 +71,12 @@ static BridgeMember bridgePortTable[BRIDGE_PORT_TABLE_MAXSIZE];
 
 static sai_object_id_t bridgeSai = SAI_NULL_OBJECT_ID; 
 
-bool esalFindBridgePortId(sai_object_id_t memberSai, uint16_t *portId) {
+bool esalFindBridgePortId(sai_object_id_t bridgePortSai, uint16_t *portId) {
     
     // Iterate over the Bridge Port.
     // 
     for (auto i = 0; i < bridgePortTableSize; i++) {
-        if (bridgePortTable[i].memberSai == memberSai) {
+        if (bridgePortTable[i].bridgePortSai == bridgePortSai) {
             *portId = bridgePortTable[i].portId; 
             return true; 
         }
@@ -84,6 +84,34 @@ bool esalFindBridgePortId(sai_object_id_t memberSai, uint16_t *portId) {
 
     return false; 
 
+}
+
+bool esalFindBridgePortSaiFromPortSai(sai_object_id_t portSai, sai_object_id_t *bridgePortSai) {
+   
+    // Iterate over the Bridge Port.
+    // 
+    for (auto i = 0; i < bridgePortTableSize; i++) {
+        if (bridgePortTable[i].portSai == portSai) {
+            *bridgePortSai = bridgePortTable[i].bridgePortSai; 
+            return true; 
+        }
+    }
+
+    return false; 
+}
+
+bool esalFindBridgePortSaiFromPortId(uint16_t portId, sai_object_id_t *bridgePortSai) {
+   
+    // Iterate over the Bridge Port.
+    // 
+    for (auto i = 0; i < bridgePortTableSize; i++) {
+        if (bridgePortTable[i].portId == portId) {
+            *bridgePortSai = bridgePortTable[i].bridgePortSai; 
+            return true; 
+        }
+    }
+
+    return false; 
 }
 
 bool esalBridgeCreate(void) {
@@ -144,6 +172,17 @@ bool esalBridgeCreate(void) {
 
 }
 
+bool esalSetDefaultBridge(sai_object_id_t defaultBridgeSai) {
+    
+    // Grab mutex.
+    //
+    std::unique_lock<std::mutex> lock(bridgeMutex);
+
+    bridgeSai = defaultBridgeSai;
+    return true;
+
+}
+
 bool esalBridgeRemove(void) {
 
     // Grab mutex.
@@ -185,13 +224,12 @@ bool esalBridgeRemove(void) {
     return true; 
 } 
 
-bool esalBridgePortCreate(uint16_t portId, sai_object_id_t portSai, uint16_t vlanId) {
+bool esalBridgePortCreate(sai_object_id_t portSai, sai_object_id_t *bridgePortSai, uint16_t vlanId) {
 
     // Grab mutex.
     //
     std::unique_lock<std::mutex> lock(bridgeMutex);
-    sai_object_id_t bridgePortSai = 0; 
-
+    
     // Check to be sure that bridge was instantiated.
     //
     if (bridgeSai == SAI_NULL_OBJECT_ID) {
@@ -204,7 +242,7 @@ bool esalBridgePortCreate(uint16_t portId, sai_object_id_t portSai, uint16_t vla
     // Check to see if bridge port already exists.
     //
     for (auto i = 0; i < bridgePortTableSize; i++) {
-        if ((bridgePortTable[i].portId == portId) && 
+        if ((bridgePortTable[i].portSai == portSai) && 
             (bridgePortTable[i].vlanId == vlanId)){
                 return true; 
         }
@@ -215,7 +253,7 @@ bool esalBridgePortCreate(uint16_t portId, sai_object_id_t portSai, uint16_t vla
     if (bridgePortTableSize >= BRIDGE_PORT_TABLE_MAXSIZE) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "table full in esalBridgePortCreate\n"));
-        std::cout << "Bridge Prt Tab Exceed:" << portId << " " << vlanId << "\n";
+        std::cout << "Bridge Prt Tab Exceed:" << portSai << " " << vlanId << "\n";
         return false;
     }
 
@@ -265,7 +303,7 @@ bool esalBridgePortCreate(uint16_t portId, sai_object_id_t portSai, uint16_t vla
     attributes.push_back(attr);
 
     attr.id = SAI_BRIDGE_PORT_ATTR_TAGGING_MODE;
-    attr.value.s32 = (portId == esalHostPortId) ? 
+    attr.value.s32 = (portSai == esalHostPortId) ? 
         SAI_BRIDGE_PORT_TAGGING_MODE_UNTAGGED : SAI_BRIDGE_PORT_TAGGING_MODE_TAGGED;
     attributes.push_back(attr);
 
@@ -273,8 +311,8 @@ bool esalBridgePortCreate(uint16_t portId, sai_object_id_t portSai, uint16_t vla
     //
     retcode = 
         saiBridgeApi->create_bridge_port(
-            &bridgePortSai, esalSwitchId, attributes.size(), attributes.data());
-    if (retcode) {
+            bridgePortSai, esalSwitchId, attributes.size(), attributes.data());
+    if (retcode && retcode != SAI_STATUS_ITEM_ALREADY_EXISTS) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "create_bridge_port fail in esalBridgePortCreate\n"));
         std::cout << "create_bridge_port fail: " << esalSaiError(retcode) << "\n";;
@@ -285,16 +323,21 @@ bool esalBridgePortCreate(uint16_t portId, sai_object_id_t portSai, uint16_t vla
     // Update the bridge port table in the shadow.  Then bump counter.
     //
     BridgeMember &mbr = bridgePortTable[bridgePortTableSize]; 
-    mbr.portId = portId;
-    mbr.vlanId = vlanId;
     mbr.portSai = portSai;
-    mbr.memberSai = bridgePortSai;
+    mbr.vlanId = vlanId;
+    mbr.bridgePortSai = *bridgePortSai;
+    if (!esalPortTableFindId(portSai, &mbr.portId)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "esalPortTableFindId fail VendorAddPortsToVlan\n"));
+        std::cout << "can't find portid for portSai:" << portSai << "\n";
+              return ESAL_RC_FAIL;    
+    }
     bridgePortTableSize++; 
 
     return true;    
 }
 
-bool esalBridgePortRemove(uint16_t portId, uint16_t vlanId) {
+bool esalBridgePortRemove(sai_object_id_t portSai, uint16_t vlanId) {
 
     // Grab mutex.
     //
@@ -305,7 +348,7 @@ bool esalBridgePortRemove(uint16_t portId, uint16_t vlanId) {
     auto idx = 0;
     for (; idx < bridgePortTableSize; idx++) {
         BridgeMember &mbr = bridgePortTable[idx]; 
-        if ((mbr.portId ==  portId) && (mbr.vlanId == vlanId)) {
+        if ((mbr.portSai == portSai) && (mbr.vlanId == vlanId)) {
             break;
         }
     }
@@ -331,7 +374,7 @@ bool esalBridgePortRemove(uint16_t portId, uint16_t vlanId) {
 
     // Delete the member.
     //    
-    retcode = saiBridgeApi->remove_bridge_port(bridgePortTable[idx].memberSai); 
+    retcode = saiBridgeApi->remove_bridge_port(bridgePortTable[idx].bridgePortSai); 
     if (retcode){
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "remove_bridge_port fail in esalBridgePortRemove\n"));
@@ -388,7 +431,7 @@ static int setMacLearning(uint16_t portId, bool enabled) {
             (enabled ? SAI_BRIDGE_PORT_FDB_LEARNING_MODE_HW :
                        SAI_BRIDGE_PORT_FDB_LEARNING_MODE_DISABLE);
 
-        retcode = saiBridgeApi->set_bridge_port_attribute(bridgeMbr.memberSai, &attr); 
+        retcode = saiBridgeApi->set_bridge_port_attribute(bridgeMbr.bridgePortSai, &attr); 
         if (retcode){
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                 SWERR_FILELINE, "set_bridge_port_attribute fail in setMacLearning\n"));

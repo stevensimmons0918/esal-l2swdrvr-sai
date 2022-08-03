@@ -13,9 +13,9 @@ int main()
         printf("error");
     }
 
-    uint16_t ports[] = {0};
+    uint16_t ports[] = {0, 1, 2, 5};
 
-    rc = VendorAddPortsToVlan(vlan, 1, ports);
+    rc = VendorAddPortsToVlan(vlan, 4, ports);
 
     if(rc != ESAL_RC_OK)
     {
@@ -29,8 +29,14 @@ int main()
         printf("error");
     }
 
+    rc = VendorEnablePort(1);
 
-	while (1)
+    if(rc != ESAL_RC_OK)
+    {
+        printf("error");
+    }
+
+    while (1)
     {
         usleep(2000000);
     }

@@ -224,17 +224,17 @@ int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t port
         attr.value.oid = entry.vlanSai;
         attributes.push_back(attr); 
 
-        sai_object_id_t portSai;
-        if (!esalPortTableFindSai(ports[i], &portSai)) {
-            // If not found, create a port.
-            //
-            if (!esalPortTableAddEntry(ports[i], &portSai)){
-                std::cout << "VendorAddMemberPort failport:" << ports[i] << "\n";
-                return ESAL_RC_FAIL; 
-            }
-         }
+        sai_object_id_t bridgePortSai;
+        
+        if (!esalFindBridgePortSaiFromPortId(ports[i], &bridgePortSai)) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                  SWERR_FILELINE, "esalFindBridgePortSai fail VendorAddPortsToVlan\n"));
+            std::cout << "can't find bridge port object for port:" << ports[i] << "\n";
+                return ESAL_RC_FAIL;    
+        }
+        
          attr.id = SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID;
-         attr.value.oid = portSai;
+         attr.value.oid = bridgePortSai;
          attributes.push_back(attr); 
 
          attr.id = SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE;

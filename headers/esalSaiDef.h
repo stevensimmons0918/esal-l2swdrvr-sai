@@ -34,15 +34,20 @@ extern "C" {
 extern "C" {
 
 extern sai_object_id_t esalSwitchId;
-extern bool esalPortTableFindId(sai_object_id_t port_sai, uint16_t* port_id);
-extern bool esalPortTableFindSai(uint16_t port_id, sai_object_id_t *port_sai);
-extern bool esalPortTableAddEntry(uint16_t port_id, sai_object_id_t *port_sai);
-extern void esalPortTableState(sai_object_id_t port_id, bool port_state);
+extern bool esalPortTableFindId(sai_object_id_t portSai, uint16_t* portId);
+extern bool esalPortTableFindSai(uint16_t portId, sai_object_id_t *portSai);
+extern bool esalPortTableAddEntry(uint16_t portId, sai_object_id_t *portSai);
+extern void esalPortTableState(sai_object_id_t portId, bool portState);
 bool esalAddAclToPort(
     sai_object_id_t portSai, sai_object_id_t aclSai, bool ingr);
 bool esalHandleSaiHostRxPacket(
     const void *buffer, sai_size_t bufferSz, uint32_t attrCnt, const sai_attribute_t *attrList);
-extern bool esalFindBridgePortId(sai_object_id_t memberSai, uint16_t *portId);
+extern bool esalFindBridgePortId(sai_object_id_t bridgePortSai, uint16_t *portId);
+extern bool esalFindBridgePortSaiFromPortSai(sai_object_id_t portSai, sai_object_id_t *bridgePortSai);
+extern bool esalFindBridgePortSaiFromPortId(uint16_t portId, sai_object_id_t *bridgePortSai);
+extern bool esalPortTableSet(uint16_t tableIndex, sai_object_id_t portSai, uint16_t portId);
+extern bool esalBridgePortCreate(sai_object_id_t portSai, sai_object_id_t *bridgePortSai, uint16_t vlanId);
+extern bool esalBridgePortRemove(sai_object_id_t portSai, uint16_t vlanId);
 extern void esalAlterForwardingTable(sai_fdb_event_notification_data_t *fdbNotify);
 
 
@@ -53,6 +58,7 @@ extern int esalCreateSaiHost(uint16_t portId, const char *name);
 extern int esalRemoveSaiHost(void);
 extern bool esalBridgeCreate(void);
 extern bool esalBridgeRemove(void);
+extern bool esalSetDefaultBridge(sai_object_id_t defaultBridgeSai);
 extern const char *esalSaiError(sai_status_t rc);
 #ifndef LARCH_ENVIRON
 extern SFPLibInitialize_fp_t esalSFPLibInitialize;

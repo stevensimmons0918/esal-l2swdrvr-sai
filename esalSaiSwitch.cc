@@ -380,9 +380,9 @@ int DllInit(void) {
     attr.value.booldata = true;
     attributes.push_back(attr); 
 
-    // attr.id = SAI_SWITCH_ATTR_SWITCH_STATE_CHANGE_NOTIFY;
-    // attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onSwitchStateChange);
-    // attributes.push_back(attr); 
+    attr.id = SAI_SWITCH_ATTR_SWITCH_STATE_CHANGE_NOTIFY;
+    attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onSwitchStateChange);
+    attributes.push_back(attr); 
 
     // attr.id = SAI_SWITCH_ATTR_SHUTDOWN_REQUEST_NOTIFY;
     // attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onShutdownRequest);
@@ -396,9 +396,9 @@ int DllInit(void) {
     attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onPortStateChange);
     attributes.push_back(attr); 
 
-    // attr.id = SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY;
-    // attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onPacketEvent);
-    // attributes.push_back(attr);
+    attr.id = SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY;
+    attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onPacketEvent);
+    attributes.push_back(attr);
 
     attr.id = SAI_SWITCH_ATTR_SWITCH_PROFILE_ID;
     attr.value.u32 = 0;
@@ -448,7 +448,87 @@ int DllInit(void) {
         std::cout << "create failed: " << esalSaiError(retcode) << "\n"; 
         return 0;
     } 
-#if 0
+
+    attr.id = SAI_SWITCH_ATTR_DEFAULT_1Q_BRIDGE_ID;
+    
+    retcode =  saiSwitchApi->get_switch_attribute(esalSwitchId, 1, &attr);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "get_switch_attribute Fail in DllInit\n"));
+        std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
+        return 0;
+    } 
+    
+    if (!esalSetDefaultBridge(attr.value.oid)) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                  SWERR_FILELINE, "esalSetDefaultBridge fail VendorAddPortsToVlan\n"));
+            std::cout << "can't set default bridge object:" << "\n";
+                return ESAL_RC_FAIL;
+            
+    }
+     
+    attr.id = SAI_SWITCH_ATTR_PORT_NUMBER;
+    
+    retcode =  saiSwitchApi->get_switch_attribute(esalSwitchId, 1, &attr);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "get_switch_attribute Fail in DllInit\n"));
+        std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
+        return 0;
+    } 
+    uint32_t port_number = attr.value.u32;
+
+    // Get port list //
+    std::vector<sai_object_id_t> port_list;
+    port_list.resize(port_number);
+
+    attr.id = SAI_SWITCH_ATTR_PORT_LIST;
+    attr.value.objlist.count = (uint32_t)port_list.size();
+    attr.value.objlist.list = port_list.data();
+    
+    retcode =  saiSwitchApi->get_switch_attribute(esalSwitchId, 1, &attr);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "get_switch_attribute Fail in DllInit\n"));
+        std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
+        return 0;
+    } 
+
+    for (uint32_t i = 0; i < port_number; i++) {
+        if (!esalPortTableSet(i, attr.value.objlist.list[i], i)) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                  SWERR_FILELINE, "esalPortTableSet fail VendorAddPortsToVlan\n"));
+            std::cout << "esalPortTableSet fail:" << "\n";
+                return ESAL_RC_FAIL;
+            
+        }
+    }
+
+    // Create all bridge ports
+    sai_object_id_t bridgePortSai;
+    sai_object_id_t portSai;
+    for (uint32_t i = 0; i < port_number; i++) {
+        
+        if (!esalPortTableFindSai(i, &portSai)) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                  SWERR_FILELINE, "esalPortTableFindSai fail VendorAddPortsToVlan\n"));
+            std::cout << "esalPortTableFindSai fail:" << "\n";
+                return ESAL_RC_FAIL;
+            
+        }
+                
+        if (!esalBridgePortCreate(portSai, &bridgePortSai, 0)) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                  SWERR_FILELINE, "esalBridgePortCreate fail VendorAddPortsToVlan\n"));
+            std::cout << "esalBridgePortCreate fail:" << "\n";
+                return ESAL_RC_FAIL;
+            
+        }
+    }
+
+#if 0 
+    // Default Bridge already here after create_switch function.
+    // Marvell sai plugin supports only one bridge
     // Create Bridge 
     //
     esalBridgeCreate(); 
@@ -472,86 +552,6 @@ int DllInit(void) {
         }
     } else {
        std::cout << "Marvell cfg file not found: " << marvellScript << "\n";
-    }
-
-#endif 
-#if 0
-      if (XP_CONFIG.withHw)
-    {
-        if (xpAppConf.createdemoports)
-        {
-            sai_api_query(SAI_API_HOSTIF, (void**) &xpSaiHostInterfaceApi);
-            sai_attribute_t attr, portList, hifAttr[3];
-            sai_object_id_t hifId = 0, portId = 0;
-            uint16_t totalPortsNum = 0;
-            char intfName[SAI_HOSTIF_NAME_SIZE] = {0};
-            uint8_t i = 0;
-
-            // Get number of ports on the switch
-            attr.id = SAI_SWITCH_ATTR_PORT_NUMBER;
-            attr.value.u32 = 0;
-            saiStatus = xpSaiSwitchApi->get_switch_attribute(switch_id, 1, &attr);
-            if (saiStatus != SAI_STATUS_SUCCESS)
-            {
-                printf("ERROR: Fail to call xpSaiSwitchApi->get_switch_attribute: %d\n",
-                       saiStatus);
-                return saiStatus;
-            }
-            totalPortsNum = attr.value.u32;
-
-            // Get the port list
-            portList.id = SAI_SWITCH_ATTR_PORT_LIST;
-            portList.value.objlist.count = totalPortsNum;
-            portList.value.objlist.list = (sai_object_id_t*)malloc(sizeof(
-                                                                       sai_object_id_t)*totalPortsNum);
-            if (portList.value.objlist.list == NULL)
-            {
-                printf("ERROR: Failed to allocate memory to get total inited ports\n");
-                return XP_ERR_MEM_ALLOC_ERROR;
-            }
-            memset(portList.value.objlist.list, 0, sizeof(sai_object_id_t)*totalPortsNum);
-
-            saiStatus = xpSaiSwitchApi->get_switch_attribute(switch_id, 1, &portList);
-            if (saiStatus != SAI_STATUS_SUCCESS)
-            {
-                printf("ERROR: Fail to call xpSaiSwitchApi->get_switch_attribute: %d\n",
-                       saiStatus);
-                free(portList.value.objlist.list);
-                return saiStatus;
-            }
-
-            // Create netdev interfaces based on SKU
-            for (i = 0; i < portList.value.objlist.count; i++)
-            {
-                portId = portList.value.objlist.list[i];
-                uint32_t portNum = (uint32_t)xpSaiObjIdValueGet(portId);
-                sprintf(intfName, "sw%dp%d", devId, portNum);  // Name of netdev
-
-                count = 0;
-                hifAttr[count].id = SAI_HOSTIF_ATTR_TYPE;
-                hifAttr[count++].value.s32 = SAI_HOSTIF_TYPE_NETDEV;
-                hifAttr[count].id = SAI_HOSTIF_ATTR_NAME;
-                strncpy((char *)hifAttr[count++].value.chardata, intfName,
-                        SAI_HOSTIF_NAME_SIZE);
-                hifAttr[count].id = SAI_HOSTIF_ATTR_OBJ_ID;
-                hifAttr[count++].value.oid = portId;
-
-                saiStatus = xpSaiHostInterfaceApi->create_hostif(&hifId, switch_id, count,
-                                                                 hifAttr);
-                if (saiStatus != SAI_STATUS_SUCCESS)
-                {
-                    printf("ERROR: SAI Host interface is not created for port : %d\n", portNum);
-                    free(portList.value.objlist.list);
-                    return saiStatus;
-                }
-                memset(intfName, 0x0, sizeof(intfName));
-                printf("SAI Host interface is created with intf id : %ld and with name: %s\n",
-                       (long)hifId, hifAttr[1].value.chardata);
-            }
-            free(portList.value.objlist.list);
-        }
-        xpSaiAppPopulateData(devId, NULL);
-        xpSaiAppSendPackets(devId);
     }
 
 #endif 
@@ -651,7 +651,7 @@ uint16_t VendorGetMaxPorts(void) {
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "get_switch_attribute Fail in VendorGetMaxPorts\n"));
-        std::cout << "set_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
+        std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
         return ESAL_RC_FAIL;
     } 
 
