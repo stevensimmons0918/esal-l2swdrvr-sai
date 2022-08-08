@@ -240,7 +240,7 @@ static bool searchFilterTable(
                 }
             }
         }
-#if 0                     
+#ifndef LARCH_ENVIRON
         // Check Raw Data
         // 
         if (fltr.rawdata_size() && matching) {
@@ -356,7 +356,7 @@ int VendorAddPacketFilter(const char *buf, uint16_t length) {
     //  Get App registration message.  It must be set pkt filter message. 
     //
     EsalAppsRegMessage regMsg;
-#if 0
+#ifndef LARCH_ENVIRON
 #ifndef UTS
     regMsg.ParseFromArray(buf, length); 
     if ((regMsg.type() == EsalAppsRequestType::SET_PKT_FILTER) &&
@@ -397,7 +397,7 @@ int VendorAddPacketFilter(const char *buf, uint16_t length) {
             convertMacStringToAddr(macMaskString, newEntry->macMask);
         }
         filterTableSize++;
-#if 0
+#ifndef LARCH_ENVIRON
 #ifndef UTS
     }
 #endif

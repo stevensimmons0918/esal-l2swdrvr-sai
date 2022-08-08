@@ -37,7 +37,7 @@
 
 extern "C" {
 
-#if 0
+#ifndef LARCH_ENVIRON
 SFPLibInitialize_fp_t esalSFPLibInitialize;
 SFPLibUninitialize_fp_t esalSFPLibUninitialize;
 SFPLibraryRestart_fp_t esalSFPLibraryRestart;
@@ -47,14 +47,14 @@ SFPSetPort_fp_t esalSFPSetPort;
 SFPGetPort_fp_t esalSFPGetPort;
 #endif
 #ifndef SFP_RDY
-#if 0
+#ifndef LARCH_ENVIRON
 static DllUtil *sfpDll = 0;
 #endif
 #endif
 uint16_t esalHostPortId;
 char esalHostIfName[SAI_HOSTIF_NAME_SIZE];
 static std::map<std::string, std::string> esalProfileMap;
-#if 0
+#ifndef LARCH_ENVIRON
 static void loadSFPLibrary(void) {
 
     // Instantiate DLL Object.
@@ -350,7 +350,7 @@ int DllInit(void) {
 
     // Unload the SFP Library.
     //
-#if 0
+#ifndef LARCH_ENVIRON
     loadSFPLibrary();
 #endif
 
@@ -526,7 +526,7 @@ int DllInit(void) {
         }
     }
 
-#if 0 
+#ifndef LARCH_ENVIRON
     // Default Bridge already here after create_switch function.
     // Marvell sai plugin supports only one bridge
     // Create Bridge 
@@ -604,7 +604,7 @@ int DllDestroy(void) {
 
     // Unload the SFP Library.
     //
-#if 0
+#ifndef LARCH_ENVIRON
     unloadSFPLibrary();
 #endif
 
@@ -668,7 +668,7 @@ int VendorWarmRestartRequest(void) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
     switchStateUp = false; 
 
-#if 0
+#ifndef LARCH_ENVIRON
      // Inform SFP about cold restart. 
      //
      if (esalSFPLibraryRestart) {

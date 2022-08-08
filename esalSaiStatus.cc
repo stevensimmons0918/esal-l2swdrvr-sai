@@ -119,7 +119,7 @@ int VendorGetL2Pm(uint16_t *usedLen, uint16_t maxLen, char* gpbBuf) {
 #ifdef UTS
     rc = ESAL_RC_FAIL; 
 #else
-#if 0
+#ifndef LARCH_ENVIRON
     VendorEsalPmBuf msg;
 
     // Unpack the message to determine for PMs.

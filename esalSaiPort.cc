@@ -234,7 +234,7 @@ int VendorSetPortRate(
 
     std::cout << __PRETTY_FUNCTION__ << " " << port << std::endl;
     int rc  = ESAL_RC_OK;
-#if 0
+#ifndef LARCH_ENVIRON
     // First check to see if supported by SFP library.
     //
     if (esalSFPLibrarySupport && esalSFPLibrarySupport(port)) {
@@ -329,7 +329,7 @@ int VendorGetPortRate(uint16_t port, vendor_speed_t *speed) {
 #endif
     int rc  = ESAL_RC_OK;
 
-#if 0
+#ifndef LARCH_ENVIRON
     // First check to see if supported by SFP library.
     //
     if (esalSFPLibrarySupport && esalSFPLibrarySupport(port)) {
@@ -411,7 +411,7 @@ int VendorGetPortDuplex(uint16_t port, vendor_duplex_t *duplex) {
     std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
 #endif
     int rc  = ESAL_RC_OK;
-#if 0
+#ifndef LARCH_ENVIRON
     // First check to see if supported by SFP library.
     //
     if (esalSFPLibrarySupport && esalSFPLibrarySupport(port)) {
@@ -479,7 +479,7 @@ int VendorGetPortAutoNeg(uint16_t port, bool *aneg) {
 #endif
 
     int rc  = ESAL_RC_OK;
-#if 0
+#ifndef LARCH_ENVIRON
     // First check to see if supported by SFP library.
     //
     if (esalSFPLibrarySupport && esalSFPLibrarySupport(port)) {
@@ -547,7 +547,7 @@ int VendorGetPortLinkState(uint16_t port, bool *ls) {
 #endif
 
     int rc  = ESAL_RC_OK;
-#if 0
+#ifndef LARCH_ENVIRON
     // First check to see if supported by SFP library.
     //
     if (esalSFPLibrarySupport && esalSFPLibrarySupport(port)) {
@@ -811,7 +811,7 @@ int VendorGetFrameMax(uint16_t port, uint16_t *size) {
 int VendorSetPortAdvertAbility(uint16_t port, uint16_t cap) {
     
     std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
-#if 0 
+#ifndef LARCH_ENVIRON
     // Set Port Advertising Capability
     //
     if (esalSFPLibrarySupport && esalSFPLibrarySupport(port)) {
@@ -920,7 +920,7 @@ int VendorGetPortAdvertAbility(uint16_t port, uint16_t *advert) {
     std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
     int rc  = ESAL_RC_OK;
 
-#if 0
+#ifndef LARCH_ENVIRON
     // First check to see if supported by SFP library.
     //
     if (esalSFPLibrarySupport && esalSFPLibrarySupport(port)) {
@@ -1042,7 +1042,7 @@ int VendorRegisterL2ParamChangeCb(VendorL2ParamChangeCb_fp_t cb, void *cbId) {
     std::unique_lock<std::mutex> lock(portTableMutex);
     portStateChangeCb = cb;
     portStateCbData = cbId;
-#if 0
+#ifndef LARCH_ENVIRON
     if (!esalSFPRegisterL2ParamChangeCb || 
          esalSFPRegisterL2ParamChangeCb(cb, cbId)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
@@ -1067,7 +1067,7 @@ void esalPortTableState(sai_object_id_t portSai, bool portState){
         return; 
     }
 
-#if 0
+#ifndef LARCH_ENVIRON
     // Check to see if the SFP supported by SFP Library. If so, just call
     // set link state, and let SFP library handle callback. 
     //
