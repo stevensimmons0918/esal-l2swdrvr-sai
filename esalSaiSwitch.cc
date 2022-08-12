@@ -406,9 +406,9 @@ int DllInit(void) {
     
     attr.id = SAI_SWITCH_ATTR_SWITCH_HARDWARE_INFO;
     attr.value.s8list.list = (sai_int8_t*)malloc(sizeof(sai_int8_t) *
-                                                              (strlen("ALDRIN2XL")+1));
-    memset(attr.value.s8list.list, 0, strlen("ALDRIN2XL") + 1);
-    strcpy((char*)attr.value.s8list.list, "ALDRIN2XL");
+                                                              (strlen("ALDRIN2XLFL")+1));
+    memset(attr.value.s8list.list, 0, strlen("ALDRIN2XLFL") + 1);
+    strcpy((char*)attr.value.s8list.list, "ALDRIN2XLFL");
      
     attributes.push_back(attr); 
     

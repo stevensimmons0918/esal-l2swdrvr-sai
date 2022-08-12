@@ -220,7 +220,7 @@ int VendorPurgeMacEntriesPerPort(uint16_t port) {
     // Find port sai.
     //
     sai_object_id_t portSai;
-    if (esalPortTableFindSai(port, &portSai)) {
+    if (!esalFindBridgePortSaiFromPortId(port, &portSai)) {
         std::cout << "port_table_find_sai fail:" << port << "\n";
         return ESAL_RC_FAIL; 
     }

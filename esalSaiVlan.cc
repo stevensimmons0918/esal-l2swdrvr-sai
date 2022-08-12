@@ -238,8 +238,13 @@ int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t port
          attributes.push_back(attr); 
 
          attr.id = SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE;
+#ifndef LARCH_ENVIRON
          attr.value.s32 = (ports[i] == esalHostPortId) ? 
-             SAI_VLAN_TAGGING_MODE_UNTAGGED :  SAI_VLAN_TAGGING_MODE_TAGGED; 
+                 SAI_VLAN_TAGGING_MODE_UNTAGGED :  SAI_VLAN_TAGGING_MODE_TAGGED; 
+#else
+        // TODO FIXME
+         attr.value.s32 = SAI_VLAN_TAGGING_MODE_UNTAGGED;
+#endif
          attributes.push_back(attr); 
 
          sai_object_id_t memberSai;

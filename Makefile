@@ -20,7 +20,9 @@ CFLAGS += \
     -I. \
     -I$(SAI_H_DIR) \
     -I$(ESAL_H_DIR) \
-    -I../sai_cpss/plugins/sai/SAI/xpSai/
+    -I../sai_cpss/plugins/sai/SAI/xpSai/ \
+    -I../sai-marvell-api/xps/include \
+    -Ipy/
 
 
 SHARED_OBJECTS = $(BASE_DIR)/libsai.so \
@@ -69,11 +71,15 @@ $(OUT_DIR)/%.o:%.cc
 
 esal_app: esal_lib
 	$(MKDIR_P) $(BIN_DIR)
-	$(CC) -o esalApp $(CFLAGS) $(LDFLAGS) esalMain.cc -lesal
+	$(CC) -o esalApp $(CFLAGS) $(LDFLAGS) -DABSOLUTE_PATH='"$(ABSOLUTE_DIR_PATH)"' esalMain.cc py/xpPyEmbed.c -I/usr/include/python2.7 -lpython2.7 -lesal -lpthread
 
 esal_lib: $(ESAL_OBJECTS)
 	echo ESAL objects: $(ESAL_OBJECTS)
 	$(CC) -shared -o $(OUT_DIR)/libesal.so $(LDFLAGS) $(ESAL_OBJECTS) -ldl -lpthread -lrt -ldl -lstdc++ -lm -lsai
 	sudo cp $(OUT_DIR)/libesal.so /usr/lib
+
+clean:
+	rm $(OBJ_PATH)/*
+
 
 -include $(ESAL_DEP)
