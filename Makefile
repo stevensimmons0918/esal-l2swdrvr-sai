@@ -5,7 +5,7 @@ CC = g++
 LD ?= $(CROSS_COMPILE)gcc
 AR ?= $(CROSS_COMPILE)ar
 BASE_DIR = .
-CFLAGS = 
+CFLAGS =
 CFLAGS += -fPIC -Wall -Werror -Wno-unused -std=c++11 -g -Og -DDEBUG
 LDFLAGS =
 OBJ_PATH = $(PWD)/obj
@@ -52,7 +52,7 @@ define compile
   $(CC) -MM -c $1 $< -o $2/$*.d
 @#Duplicate it
   cp $2/$*.d $2/$*.tmp
-@# Create empty rule per file in dependency rule to avoid "No rule to make target ..." Errors 
+@# Create empty rule per file in dependency rule to avoid "No rule to make target ..." Errors
   sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/d' -e 's/$$/ :/' < $2/$*.d >> $2/$*.tmp
 @# Change object filename to include full path
   sed -e 's/$(subst .,\.,$(notdir $@))/$(subst /,\/,$@)/'  < $2/$*.tmp > $2/$*.d
@@ -67,11 +67,11 @@ ESAL_DEP = $(patsubst %.o,%.d,$(ESAL_OBJECTS))
 
 $(OUT_DIR)/%.o:%.cc
 	$(call compile,$(CFLAGS),$(OUT_DIR))
-#-L. -lsai -lXdkCpss 
+#-L. -lsai -lXdkCpss
 
 esal_app: esal_lib
 	$(MKDIR_P) $(BIN_DIR)
-	$(CC) -o esalApp $(CFLAGS) $(LDFLAGS) -DABSOLUTE_PATH='"$(ABSOLUTE_DIR_PATH)"' esalMain.cc py/xpPyEmbed.c -I/usr/include/python2.7 -lpython2.7 -lesal -lpthread
+	$(CC) -o esalApp $(CFLAGS) $(LDFLAGS) esalMain.cc -lesal -I/usr/include/python2.7 -lpython2.7
 
 esal_lib: $(ESAL_OBJECTS)
 	echo ESAL objects: $(ESAL_OBJECTS)
