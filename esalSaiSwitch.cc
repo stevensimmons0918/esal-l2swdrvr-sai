@@ -345,8 +345,10 @@ int DllInit(void) {
     int rc = 1;
     std::cout << __PRETTY_FUNCTION__ <<  std::endl;
 
-    std::string fn(determineCfgFile("sai"));
-    handleProfileMap(fn);
+    // std::string fn(determineCfgFile("sai"));
+    // handleProfileMap(fn);
+    std::string profile_file = "/usr/local/fnc/esal/sai.profile.ini";
+    handleProfileMap(profile_file);
 
     // Unload the SFP Library.
     //
@@ -404,14 +406,11 @@ int DllInit(void) {
     attr.value.u32 = 0;
     attributes.push_back(attr); 
     
-    attr.id = SAI_SWITCH_ATTR_SWITCH_HARDWARE_INFO;
-    attr.value.s8list.list = (sai_int8_t*)malloc(sizeof(sai_int8_t) *
-                                                              (strlen("ALDRIN2XLFL")+1));
-    memset(attr.value.s8list.list, 0, strlen("ALDRIN2XLFL") + 1);
-    strcpy((char*)attr.value.s8list.list, "ALDRIN2XLFL");
-     
-    attributes.push_back(attr); 
-    
+    // attr.id = SAI_SWITCH_ATTR_SWITCH_HARDWARE_INFO;
+    // attr.value.s8list.list = (sai_int8_t*)calloc(param_value.length() + 1, sizeof(sai_int8_t));
+    // std::copy(param_value.begin(), param_value.end(), attr.value.s8list.list);
+    // attributes.push_back(attr);
+
     attr.id = SAI_SWITCH_ATTR_FDB_AGING_TIME;
     attr.value.u32 = 0;
     attributes.push_back(attr); 
