@@ -1,6 +1,3 @@
 [submodule "esal-vendor-api"]
 	path = esal-vendor-api
-	url = git@gitlab.larch:fujitsu/esal-vendor-api.git
-[submodule "sai-vendor-api"]
-	path = sai-vendor-api
-	url = git@gitlab.larch:fujitsu/sai-vendor-api.git
+	url = git@github.com:KostiantynBuravchenkoMarvell/esal-vendor-api.git
