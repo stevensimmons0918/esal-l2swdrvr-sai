@@ -524,17 +524,15 @@ int esalCreateSaiHost(uint16_t portId, const char *name) {
     memcpy((char *)&attr.value.chardata, name, SAI_HOSTIF_NAME_SIZE);
     attrList.push_back(attr);
     
-    attr.id = SAI_HOSTIF_ATTR_OBJ_ID;
-    attr.value.s32 = SAI_HOSTIF_ATTR_OBJ_ID;
-    attrList.push_back(attr);
+    // Current implementation of MRVL SAI does not support these attributes
+    // attr.id = SAI_HOSTIF_ATTR_OPER_STATUS;
+    // attr.value.booldata = true;
+    // attrList.push_back(attr);
     
-    attr.id = SAI_HOSTIF_ATTR_OPER_STATUS;
-    attr.value.booldata = true;
-    attrList.push_back(attr);
+    // attr.id = SAI_HOSTIF_ATTR_VLAN_TAG;
+    // attr.value.u32 = SAI_HOSTIF_VLAN_TAG_ORIGINAL;
+    // attrList.push_back(attr);
     
-    attr.id = SAI_HOSTIF_ATTR_VLAN_TAG;
-    attr.value.u32 = SAI_HOSTIF_VLAN_TAG_ORIGINAL;
-    attrList.push_back(attr);
     
     retcode = sai_hostif_api->create_hostif(
         &hostInterface, esalSwitchId, attrList.size(), attrList.data());

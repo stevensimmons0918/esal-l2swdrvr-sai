@@ -333,7 +333,8 @@ void onPacketEvent(sai_object_id_t sid,
                    sai_size_t bufferSize,
                    uint32_t attrCount,
                    const sai_attribute_t *attrList) {
-    std::cout << "onPacketEvent: " << sid << "\n";
+    std::cout << "onPacketEvent: ";
+    std::cout.write((const char*)buffer, bufferSize);
     (void) esalHandleSaiHostRxPacket(buffer, bufferSize, attrCount, attrList); 
 }
 
@@ -414,6 +415,12 @@ int DllInit(void) {
     attr.id = SAI_SWITCH_ATTR_FDB_AGING_TIME;
     attr.value.u32 = 0;
     attributes.push_back(attr); 
+    // Adding fake mac address to debug purposes
+    // In normal situation this mac
+    // will be derived from sai.profile
+    attr.id = SAI_SWITCH_ATTR_SRC_MAC_ADDRESS;
+    attr.value.mac[5] = 2;
+    attributes.push_back(attr);
 
     // attr.id = SAI_SWITCH_ATTR_TYPE;
     // attr.value.u32 = SAI_SWITCH_TYPE_NPU;
@@ -526,6 +533,8 @@ int DllInit(void) {
     }
 
 #ifndef LARCH_ENVIRON
+    // Creating debug Host if
+    esalCreateSaiHost(24, "Ethernet28");
     // Default Bridge already here after create_switch function.
     // Marvell sai plugin supports only one bridge
     // Create Bridge 
