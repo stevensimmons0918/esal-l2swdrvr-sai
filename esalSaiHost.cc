@@ -21,8 +21,8 @@
 #include "string"
 
 #ifndef UTS
-#include "sai-vendor-api/sai.h"
-#include "sai-vendor-api/saihostif.h"
+#include "sai/sai.h"
+#include "sai/saihostif.h"
 #ifndef LARCH_ENVIRON
 #include "sfp_vendor_api/sfp_vendor_api.h"
 #endif

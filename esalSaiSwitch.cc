@@ -30,9 +30,9 @@
 
 
 #ifndef UTS
-#include "sai-vendor-api/sai.h"
-#include "sai-vendor-api/saiswitch.h"
-#include "sai-vendor-api/saihostif.h"
+#include "sai/sai.h"
+#include "sai/saiswitch.h"
+#include "sai/saihostif.h"
 #endif
 
 extern "C" {

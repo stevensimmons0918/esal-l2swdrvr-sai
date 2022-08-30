@@ -20,10 +20,10 @@
 #include <map>
 
 #ifndef UTS
-#include "sai-vendor-api/sai.h"
-#include "sai-vendor-api/saiport.h"
-#include "sai-vendor-api/saibridge.h"
-#include "sai-vendor-api/saifdb.h"
+#include "sai/sai.h"
+#include "sai/saiport.h"
+#include "sai/saibridge.h"
+#include "sai/saifdb.h"
 #ifndef LARCH_ENVIRON
 #include "sfp_vendor_api/sfp_vendor_api.h"
 #endif

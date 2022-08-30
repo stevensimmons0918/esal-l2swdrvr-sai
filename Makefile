@@ -12,7 +12,7 @@ OBJ_PATH = $(PWD)/obj
 OUT_DIR = $(OBJ_PATH)
 BIN_DIR = $(PWD)/bin
 
-SAI_H_DIR := $(BASE_DIR)/sai-vendor-api/
+SAI_H_DIR := $(BASE_DIR)/sai/
 ESAL_H_DIR := $(BASE_DIR)/headers/
 ESAL_SRC_DIR := $(BASE_DIR)/
 

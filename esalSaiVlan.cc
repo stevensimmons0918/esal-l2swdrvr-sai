@@ -23,9 +23,9 @@
 #include "lib/swerr.h"
 #ifndef UTS
 extern "C" {
-#include "sai-vendor-api/sai.h"
-#include "sai-vendor-api/saiport.h"
-#include "sai-vendor-api/saivlan.h"
+#include "sai/sai.h"
+#include "sai/saiport.h"
+#include "sai/saivlan.h"
 }
 
 #ifndef LARCH_ENVIRON

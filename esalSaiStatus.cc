@@ -22,8 +22,8 @@
 #include "pf_proto/esal_pm.pb.h" 
 #endif
 #ifndef UTS
-#include "sai-vendor-api/sai.h"
-#include "sai-vendor-api/saistp.h"
+#include "sai/sai.h"
+#include "sai/saistp.h"
 #endif
 
 extern "C" {
