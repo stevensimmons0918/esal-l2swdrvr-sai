@@ -344,7 +344,6 @@ void onPacketEvent(sai_object_id_t sid,
 sai_object_id_t esalSwitchId = SAI_NULL_OBJECT_ID;
 
 int DllInit(void) {
-    int rc = ESAL_RC_OK;
     std::cout << __PRETTY_FUNCTION__ <<  std::endl;
 
     // std::string fn(determineCfgFile("sai"));
@@ -386,7 +385,7 @@ int DllInit(void) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "API Query Fail in DllInit\n"));
         std::cout << "sai_api_query failed: " << esalSaiError(retcode) << "\n"; 
-        return 0;
+        return ESAL_RC_FAIL;
     } 
 
     // Determine which switch attributes to set. 
@@ -499,7 +498,7 @@ int DllInit(void) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "get_switch_attribute Fail in DllInit\n"));
         std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
-        return 0;
+        return ESAL_RC_FAIL;
     } 
     uint32_t port_number = attr.value.u32;
 
@@ -579,7 +578,7 @@ int DllInit(void) {
     }
 
 #endif 
-    return rc;
+    return ESAL_RC_OK;
 }
 
 int DllDestroy(void) {
@@ -632,7 +631,7 @@ int DllDestroy(void) {
     unloadSFPLibrary();
 #endif
 
-    return 1;
+    return ESAL_RC_OK;
 }
 
 void DllGetName(char *dllname) {
