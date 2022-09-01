@@ -231,16 +231,16 @@ static int profileGetNextValue(
 }
 #endif
 
-static void handleProfileMap(const std::string& profileMapFile) {
+static int handleProfileMap(const std::string& profileMapFile) {
 
     if (profileMapFile.size() == 0) {
-        return;
+        return ESAL_RC_FAIL;
     }
 
     std::ifstream profile(profileMapFile);
 
     if (!profile.is_open()) {
-        return; 
+        return ESAL_RC_FAIL; 
     }
 
     std::string line;
@@ -266,6 +266,7 @@ static void handleProfileMap(const std::string& profileMapFile) {
             memcpy(esalHostIfName, value.c_str(), SAI_HOSTIF_NAME_SIZE);
         }
     }
+    return ESAL_RC_OK;
 }
 
 #ifndef UTS
@@ -343,13 +344,28 @@ void onPacketEvent(sai_object_id_t sid,
 sai_object_id_t esalSwitchId = SAI_NULL_OBJECT_ID;
 
 int DllInit(void) {
-    int rc = 1;
+    int rc = ESAL_RC_OK;
     std::cout << __PRETTY_FUNCTION__ <<  std::endl;
 
     // std::string fn(determineCfgFile("sai"));
     // handleProfileMap(fn);
     std::string profile_file = "/usr/local/fnc/esal/sai.profile.ini";
-    handleProfileMap(profile_file);
+
+#ifndef LARCH_ENVIRON
+    if (handleProfileMap(profile_file) != ESAL_RC_OK) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+            SWERR_FILELINE, "handleProfileMap Fail in DllInit\n"));
+        std::cout << "Configuration file not found at " << profile_file << std::endl;
+        return ESAL_RC_FAIL;
+    }
+
+    if (!esalProfileMap.count("hwId")) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+            SWERR_FILELINE, "hwId read Fail in DllInit\n"));
+        std::cout << "Configuration file must contain at least hwId setting" << profile_file << std::endl;
+        return ESAL_RC_FAIL;
+    }
+#endif
 
     // Unload the SFP Library.
     //
@@ -406,11 +422,14 @@ int DllInit(void) {
     attr.id = SAI_SWITCH_ATTR_SWITCH_PROFILE_ID;
     attr.value.u32 = 0;
     attributes.push_back(attr); 
-    
-    // attr.id = SAI_SWITCH_ATTR_SWITCH_HARDWARE_INFO;
-    // attr.value.s8list.list = (sai_int8_t*)calloc(param_value.length() + 1, sizeof(sai_int8_t));
-    // std::copy(param_value.begin(), param_value.end(), attr.value.s8list.list);
-    // attributes.push_back(attr);
+
+#ifdef LARCH_ENVIRON
+    attr.id = SAI_SWITCH_ATTR_SWITCH_HARDWARE_INFO;
+    std::string hwid_value = "ALDRIN2XLFL";  
+    attr.value.s8list.list = (sai_int8_t*)calloc(hwid_value.length() + 1, sizeof(sai_int8_t));
+    std::copy(hwid_value.begin(), hwid_value.end(), attr.value.s8list.list);
+    attributes.push_back(attr);
+#endif
 
     attr.id = SAI_SWITCH_ATTR_FDB_AGING_TIME;
     attr.value.u32 = 0;
@@ -452,7 +471,7 @@ int DllInit(void) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "create_switch Fail in DllInit\n"));
         std::cout << "create failed: " << esalSaiError(retcode) << "\n"; 
-        return 0;
+        return ESAL_RC_FAIL;
     } 
 
     attr.id = SAI_SWITCH_ATTR_DEFAULT_1Q_BRIDGE_ID;
@@ -462,7 +481,7 @@ int DllInit(void) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "get_switch_attribute Fail in DllInit\n"));
         std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
-        return 0;
+        return ESAL_RC_FAIL;
     } 
     
     if (!esalSetDefaultBridge(attr.value.oid)) {
@@ -497,7 +516,7 @@ int DllInit(void) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "get_switch_attribute Fail in DllInit\n"));
         std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
-        return 0;
+        return ESAL_RC_FAIL;
     } 
 
     for (uint32_t i = 0; i < port_number; i++) {
@@ -506,7 +525,6 @@ int DllInit(void) {
                   SWERR_FILELINE, "esalPortTableSet fail VendorAddPortsToVlan\n"));
             std::cout << "esalPortTableSet fail:" << "\n";
                 return ESAL_RC_FAIL;
-            
         }
     }
 
@@ -520,7 +538,6 @@ int DllInit(void) {
                   SWERR_FILELINE, "esalPortTableFindSai fail VendorAddPortsToVlan\n"));
             std::cout << "esalPortTableFindSai fail:" << "\n";
                 return ESAL_RC_FAIL;
-            
         }
                 
         if (!esalBridgePortCreate(portSai, &bridgePortSai, 0)) {
@@ -528,7 +545,6 @@ int DllInit(void) {
                   SWERR_FILELINE, "esalBridgePortCreate fail VendorAddPortsToVlan\n"));
             std::cout << "esalBridgePortCreate fail:" << "\n";
                 return ESAL_RC_FAIL;
-            
         }
     }
 
@@ -718,7 +734,4 @@ int VendorWarmRestartRequest(void) {
     return ESAL_RC_OK;
 }
 
-
 }
-
-

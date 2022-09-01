@@ -21,9 +21,9 @@ void run_cli ()
 int main()
 {
 
-    DllInit();
-
-    run_cli();
+    if (DllInit() == ESAL_RC_OK) {
+        run_cli();
+    }
 
 #if 0 // Undef for testing
 
@@ -71,13 +71,13 @@ int main()
     {
         printf("port %d,", ports1[i]);
     }
-#endif
-
 
     while (1)
     {
         usleep(2000000);
     }
+
+#endif
 
 	return 0;
 }
