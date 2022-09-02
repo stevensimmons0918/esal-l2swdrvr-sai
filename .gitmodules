@@ -1,3 +1,3 @@
-[submodule "esal-vendor-api"]
-	path = esal-vendor-api
-	url = git@github.com:KostiantynBuravchenkoMarvell/esal-vendor-api.git
+[submodule "esal_vendor_api"]
+	path = esal_vendor_api
+	url = git@github.com:KostiantynBuravchenkoMarvell/esal_vendor_api.git

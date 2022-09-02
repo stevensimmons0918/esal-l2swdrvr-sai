@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <stdio.h>
 
-#include <esal-vendor-api/esal_vendor_api.h>
+#include <esal_vendor_api/esal_vendor_api.h>
 #include "headers/esalSaiDef.h"
 
 void run_cli ()
