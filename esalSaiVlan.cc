@@ -20,7 +20,7 @@
 #include <string>
 
 #include <esal_vendor_api/esal_vendor_api.h>
-#include "lib/swerr.h"
+
 #ifndef UTS
 extern "C" {
 #include "sai/sai.h"
@@ -427,15 +427,11 @@ int VendorSetPortDefaultVlan(uint16_t portId, uint16_t vlanid) {
     //
     sai_object_id_t portSai;
     if (!esalPortTableFindSai(portId, &portSai)) {
-        
-        // If not found, create a port.
-        //
-        if (!esalPortTableAddEntry(portId, &portSai)){
-            std::cout << "VendorSetPortDefaultVlan fail port: " << portId << "\n";
-            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                SWERR_FILELINE, "invalid port in VendorSetPortDefaultVlan\n"));
-            return ESAL_RC_FAIL; 
-        }
+
+        std::cout << "VendorSetPortDefaultVlan fail port: " << portId << "\n";
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "invalid port in VendorSetPortDefaultVlan\n"));
+        return ESAL_RC_FAIL;
     }
 
     retcode = saiPortApi->set_port_attribute(portSai, &attr);

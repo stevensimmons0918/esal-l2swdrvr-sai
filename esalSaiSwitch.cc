@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-#include "lib/swerr.h"
+
 #include "esal_vendor_api/esal_vendor_api.h"
 #ifndef LARCH_ENVIRON
 #include "sfp_vendor_api/sfp_vendor_api.h"
@@ -303,7 +303,9 @@ static void onSwitchStateChange(sai_object_id_t sid, sai_switch_oper_status_t sw
     std::cout << "onSwitchStateChange: " << switchOp << " " << sid << "\n";
     if ((switchOp == SAI_SWITCH_OPER_STATUS_DOWN) && switchStateUp) {
         switchStateUp = false; 
+#if 0
         VendorWarmRestartRequest();
+#endif
     } else {
         switchStateUp = true;
     }
@@ -512,9 +514,9 @@ int DllInit(void) {
     } 
 
     for (uint32_t i = 0; i < port_number; i++) {
-        if (!esalPortTableSet(i, attr.value.objlist.list[i], i)) {
+        if (!esalPortTableAddEntry(i, &attr.value.objlist.list[i])) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                  SWERR_FILELINE, "esalPortTableSet fail VendorAddPortsToVlan\n"));
+                  SWERR_FILELINE, "esalPortTableAddEntry fail VendorAddPortsToVlan\n"));
             std::cout << "esalPortTableSet fail:" << "\n";
                 return ESAL_RC_FAIL;
         }

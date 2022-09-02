@@ -16,7 +16,7 @@
 #include <cinttypes>
 
 #include <esal_vendor_api/esal_vendor_api.h>
-#include "lib/swerr.h"
+
 
 #ifndef UTS
 #include "sai/sai.h"

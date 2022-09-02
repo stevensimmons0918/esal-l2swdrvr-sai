@@ -30,7 +30,6 @@
 #endif
 
 #include "esal_vendor_api/esal_vendor_api.h"
-#include "lib/swerr.h"
 
 
 // Updates to the table comes from a notification in SAI Switch which is a single 

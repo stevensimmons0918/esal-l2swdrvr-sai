@@ -16,7 +16,7 @@
 #include <string>
 #include <cinttypes>
 
-#include "lib/swerr.h"
+
 #include "esal_vendor_api/esal_vendor_api.h"
 
 extern "C" {

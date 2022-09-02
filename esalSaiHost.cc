@@ -29,7 +29,6 @@
 #endif
 
 #include "esal_vendor_api/esal_vendor_api.h"
-#include "lib/swerr.h"
 #ifndef UTS 
 #ifndef LARCH_ENVIRON
 #include "pf_proto/esal_apps.pb.h"

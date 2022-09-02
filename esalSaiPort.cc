@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "esal_vendor_api/esal_vendor_api.h"
-#include "lib/swerr.h"
 
 #ifndef UTS
 #include "sai/sai.h"
@@ -97,17 +96,6 @@ bool esalPortTableFindSai(uint16_t portId, sai_object_id_t *portSai) {
 
 }
 
-bool esalPortTableSet(uint16_t tableIndex, sai_object_id_t portSai, uint16_t portId) {
-   
-   portTable[tableIndex].portId = portId;
-   portTable[tableIndex].portSai = portSai;
-
-   portTableSize++;
-   
-   return true; 
-
-}
-
 bool esalPortTableAddEntry(uint16_t portId, sai_object_id_t *portSai){
 
     // Grab mutex.
@@ -158,15 +146,18 @@ bool esalPortTableAddEntry(uint16_t portId, sai_object_id_t *portSai){
     attr.value.booldata = false;
     attributes.push_back(attr);
 
-    // Create a port.
-    //
-    retcode = saiPortApi->create_port(
-        portSai, esalSwitchId, attributes.size(), attributes.data());
-    if (retcode) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                    SWERR_FILELINE, "create_port Fail in esalPortTableAddEntry\n"));
-        std::cout << "create_port fail: " << esalSaiError(retcode) << "\n";
-        return false;
+    if (portSai == SAI_NULL_OBJECT_ID) {
+        // Create a port.
+        //
+        retcode = saiPortApi->create_port(
+            portSai, esalSwitchId, attributes.size(), attributes.data());
+        if (retcode)
+        {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE, "create_port Fail in esalPortTableAddEntry\n"));
+            std::cout << "create_port fail: " << esalSaiError(retcode) << "\n";
+            return false;
+        }
     }
 #else
     *portSai = ESAL_UNITTEST_MAGIC_NUM;
@@ -701,12 +692,10 @@ int VendorDisablePort(uint16_t port) {
     //
     sai_object_id_t portSai;
     if (!esalPortTableFindSai(port, &portSai)) {
-        if (!esalPortTableAddEntry(port, &portSai)){
-            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                SWERR_FILELINE, "esalPortTableFindSai fail in VendorDisablePort\n"));
-            std::cout << "VendorAddMemberPort failport:" << port << "\n";
-            return ESAL_RC_FAIL;
-        }
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "esalPortTableFindSai fail in VendorDisablePort\n"));
+        std::cout << "VendorAddMemberPort failport:" << port << "\n";
+        return ESAL_RC_FAIL;
     }
 
     // Add attributes. 
@@ -752,12 +741,10 @@ int VendorSetFrameMax(uint16_t port, uint16_t size) {
     //
     sai_object_id_t portSai;
     if (!esalPortTableFindSai(port, &portSai)) {
-        if (!esalPortTableAddEntry(port, &portSai)){
-            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                SWERR_FILELINE, "esalPortTableAddEntry fail in VendorSetFrameMax\n"));
-            std::cout << "VendorAddMemberPort failport:" << port << "\n";
-            return ESAL_RC_FAIL;
-        }
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "esalPortTableAddEntry fail in VendorSetFrameMax\n"));
+        std::cout << "VendorAddMemberPort failport:" << port << "\n";
+        return ESAL_RC_FAIL;
     }
 
     // Add attributes. 
@@ -1173,20 +1160,12 @@ int VendorReadReg(uint16_t port, uint16_t reg, uint16_t *val) {
 }
 
 int VendorWriteReg(uint16_t port, uint16_t reg, uint16_t val) {
-<<<<<<< HEAD
     uint32_t devNum = 0;
     if (cpssDxChPhyPortSmiRegisterWrite(devNum, port, reg, val) != 0) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "VendorWriteReg fail in cpssDxChPhyPortSmiRegisterWrite\n"));
         std::cout << "VendorWriteReg fail, for port: " << port << "\n";
         return ESAL_RC_FAIL;
-=======
-    (void) reg;
-    (void) val; 
-    std::cout << __PRETTY_FUNCTION__ << port << " is NYI" << std::endl;
-    if (!useSaiFlag){
-        return ESAL_RC_OK;
->>>>>>> Introduce runtime flag to use SAI or appDemo
     }
     return ESAL_RC_OK;
 }

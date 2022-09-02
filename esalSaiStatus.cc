@@ -17,7 +17,6 @@
 #include <cinttypes>
 
 #include <esal_vendor_api/esal_vendor_api.h>
-#include "lib/swerr.h"
 #ifndef LARCH_ENVIRON
 #include "pf_proto/esal_pm.pb.h" 
 #endif
