@@ -142,6 +142,9 @@ int VendorSetIngressVlanTranslation(uint16_t portId,
                                     vendor_vlan_translation_t trans) {
     std::cout << __PRETTY_FUNCTION__ << " " << portId << " " << std::endl;
 
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     // Grab mutex.
     //
     std::unique_lock<std::mutex> lock(aclMutex);
@@ -234,6 +237,9 @@ int VendorGetIngressVlanTranslation(uint16_t portId, int *size,
                                     vendor_vlan_translation_t trans[]) {
     std::cout << __PRETTY_FUNCTION__ << " " << portId << " " << std::endl;
 
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     // Upon entryi to the routine, size should tell max size for the trans array.i    //  The returned value is the actual size.
     //
     if (!size) {
@@ -265,6 +271,9 @@ int VendorGetIngressVlanTranslation(uint16_t portId, int *size,
 int VendorDeleteIngressVlanTranslation(uint16_t portId,
                                        vendor_vlan_translation_t trans) {
     std::cout << __PRETTY_FUNCTION__ << " " << portId << " " << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int idx = 0;
 
     // Iterate through the Port Trans Map, and match on three-way key 
@@ -297,6 +306,9 @@ int VendorSetEgressVlanTranslation(uint16_t portId,
 
     std::cout << __PRETTY_FUNCTION__ << " " << portId << " " << std::endl;
 
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     // Grab mutex.
     //
     std::unique_lock<std::mutex> lock(aclMutex);
@@ -385,6 +397,9 @@ int VendorGetEgressVlanTranslation(uint16_t portId, int *size,
                                     vendor_vlan_translation_t trans[]) {
     std::cout << __PRETTY_FUNCTION__ << " " << portId << " " << std::endl;
 
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     // Size should tell max size for the trans array. The returned value 
     // is the actual size.
     //
@@ -415,6 +430,9 @@ int VendorDeleteEgressVlanTranslation(uint16_t portId,
                                        vendor_vlan_translation_t trans) {
     std::cout << __PRETTY_FUNCTION__ << " " << portId << " " << std::endl;
 
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     // Iterate through the Port Trans Map, and match on three-way key 
     // of port, newVLAN, and oldVLAN. 
     //

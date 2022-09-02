@@ -51,6 +51,7 @@ SFPGetPort_fp_t esalSFPGetPort;
 static DllUtil *sfpDll = 0;
 #endif
 #endif
+bool useSaiFlag;
 uint16_t esalHostPortId;
 char esalHostIfName[SAI_HOSTIF_NAME_SIZE];
 static std::map<std::string, std::string> esalProfileMap;
@@ -282,6 +283,9 @@ static const char* EVAL_DRIVER_NAME =  "esal_l2_swdrvr_sai";
 
 void VendorDbg(const char *args) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
+    if (!useSaiFlag){
+        return;
+    }
     std::cout << std::string(args) << std::endl;
 }
 
@@ -344,7 +348,24 @@ void onPacketEvent(sai_object_id_t sid,
 sai_object_id_t esalSwitchId = SAI_NULL_OBJECT_ID;
 
 int DllInit(void) {
-    std::cout << __PRETTY_FUNCTION__ <<  std::endl;
+    // Verify that a config file is present first. 
+    //
+    std::string marvellScript(determineCfgFile("mvll"));
+    auto fptr = fopen(marvellScript.c_str(), "r");
+    if (fptr) {
+        // Now, send the appDemo command if file exists. 
+        //
+        fclose(fptr);
+        std::string cmdLine("/usr/bin/appDemo -daemon -config ");
+        cmdLine.append(marvellScript);
+        if (auto retcode = std::system(cmdLine.c_str())) {
+            std::cout << "appdemo failed: " << retcode << "\n";
+        }
+        return ESAL_RC_OK;
+    } else {
+       std::cout << "Marvell cfg file not found: " << marvellScript << "\n";
+       useSaiFlag = true;
+    }
 
     // std::string fn(determineCfgFile("sai"));
     // handleProfileMap(fn);
@@ -402,10 +423,6 @@ int DllInit(void) {
     attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onSwitchStateChange);
     attributes.push_back(attr); 
 
-    // attr.id = SAI_SWITCH_ATTR_SHUTDOWN_REQUEST_NOTIFY;
-    // attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onShutdownRequest);
-    // attributes.push_back(attr); 
-
     attr.id = SAI_SWITCH_ATTR_FDB_EVENT_NOTIFY;
     attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onFdbEvent);
     attributes.push_back(attr); 
@@ -439,30 +456,6 @@ int DllInit(void) {
     attr.id = SAI_SWITCH_ATTR_SRC_MAC_ADDRESS;
     attr.value.mac[5] = 2;
     attributes.push_back(attr);
-
-    // attr.id = SAI_SWITCH_ATTR_TYPE;
-    // attr.value.u32 = SAI_SWITCH_TYPE_NPU;
-    // attributes.push_back(attr); 
-
-//   These are mandatory in the following condition... SAI_SWITCH_TYPE_PHY
-//     as well as SAI_SWITCH_ATTR_REGISTER_READ and SAI_SWITCH_ATTR_REGISTER_WRITE.
-//    attr.id = SAI_SWITCH_ATTR_HARDWARE_ACCESS_BUS;
-//    attr.value.u32 = SAI_SWITCH_HARDWARE_ACCESS_BUS_MDIO;
-//    attributes.push_back(attr); 
-//
-//    attr.id = SAI_SWITCH_ATTR_PLATFROM_CONTEXT;
-//    attr.value.u64 = 1;
-//    attributes.push_back(attr); 
-
-//  These are mandatory SAI_SWITCH_TYPE_VOQ
-//    attr.id = SAI_SWITCH_ATTR_SWITCH_ID;
-//    attr.value.u32 = 1;
-//    attributes.push_back(attr); 
-
-    // attr.id = SAI_SWITCH_ATTR_MAX_SYSTEM_CORES;
-    // attr.value.u32 = 1;
-    // attributes.push_back(attr); 
-
 
     retcode =  saiSwitchApi->create_switch(
         &esalSwitchId, attributes.size(), attributes.data());
@@ -558,25 +551,6 @@ int DllInit(void) {
     // Bridge already here
 #endif
 #else
-
-    // Verify that a config file is present first. 
-    //
-    std::string marvellScript(determineCfgFile("mvll"));
-    auto fptr = fopen(marvellScript.c_str(), "r");
-    if (fptr) {
-
-        // Now, send the appDemo command if file exists. 
-        //
-        fclose(fptr);
-        std::string cmdLine("/usr/bin/appDemo -daemon -config ");
-        cmdLine.append(marvellScript);
-        if (auto retcode = std::system(cmdLine.c_str())) {
-            std::cout << "appdemo failed: " << retcode << "\n";
-        }
-    } else {
-       std::cout << "Marvell cfg file not found: " << marvellScript << "\n";
-    }
-
 #endif 
     return ESAL_RC_OK;
 }
@@ -642,6 +616,9 @@ void DllGetName(char *dllname) {
 
 int VendorBoardInit(void) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
 
     // WARNING: VendorBoardInit is different than DLL calls. 
     //    In this case, the returned value of "0" is SUCCESS, and all other
@@ -652,6 +629,9 @@ int VendorBoardInit(void) {
 
 uint16_t VendorGetMaxPorts(void) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     uint16_t rc = 0; 
 
 #ifndef UTS
@@ -689,6 +669,9 @@ uint16_t VendorGetMaxPorts(void) {
 
 int VendorWarmRestartRequest(void) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     switchStateUp = false; 
 
 #ifndef LARCH_ENVIRON

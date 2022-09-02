@@ -41,6 +41,7 @@ extern "C" {
 extern "C" {
 
 extern sai_object_id_t esalSwitchId;
+extern bool useSaiFlag;
 extern bool esalPortTableFindId(sai_object_id_t portSai, uint16_t* portId);
 extern bool esalPortTableFindSai(uint16_t portId, sai_object_id_t *portSai);
 extern bool esalPortTableAddEntry(uint16_t portId, sai_object_id_t *portSai);

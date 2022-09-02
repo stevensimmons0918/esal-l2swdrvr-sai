@@ -28,6 +28,9 @@ extern "C" {
 int VendorSetPortStpState(uint16_t port, vendor_stp_state_t stpState) {
     (void) stpState;
     std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
     return rc;
 }
@@ -35,6 +38,9 @@ int VendorSetPortStpState(uint16_t port, vendor_stp_state_t stpState) {
 int VendorGetPortStpState(uint16_t port, vendor_stp_state_t *stpState) {
     (void) stpState;
     std::cout << __PRETTY_FUNCTION__ << " " << port  << " is NYI" << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
     return rc;
 }

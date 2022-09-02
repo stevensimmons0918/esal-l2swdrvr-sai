@@ -236,6 +236,9 @@ int VendorSetPortRate(
     uint16_t port, bool autoneg, vendor_speed_t speed, vendor_duplex_t duplex) {
 
     std::cout << __PRETTY_FUNCTION__ << " " << port << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
 #ifndef LARCH_ENVIRON
     // First check to see if supported by SFP library.
@@ -330,6 +333,9 @@ int VendorGetPortRate(uint16_t port, vendor_speed_t *speed) {
 #ifdef DEBUG
     std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
 #endif
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
 
 #ifndef LARCH_ENVIRON
@@ -413,6 +419,9 @@ int VendorGetPortDuplex(uint16_t port, vendor_duplex_t *duplex) {
 #ifdef DEBUG
     std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
 #endif
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
 #ifndef LARCH_ENVIRON
     // First check to see if supported by SFP library.
@@ -481,6 +490,9 @@ int VendorGetPortAutoNeg(uint16_t port, bool *aneg) {
     std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
 #endif
 
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
 #ifndef LARCH_ENVIRON
     // First check to see if supported by SFP library.
@@ -549,6 +561,9 @@ int VendorGetPortLinkState(uint16_t port, bool *ls) {
     std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
 #endif
 
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
 #ifndef LARCH_ENVIRON
     // First check to see if supported by SFP library.
@@ -614,6 +629,9 @@ int VendorGetPortLinkState(uint16_t port, bool *ls) {
 
 int VendorEnablePort(uint16_t port) {
     std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
 
 #ifndef UTS
@@ -661,6 +679,9 @@ int VendorEnablePort(uint16_t port) {
 
 int VendorDisablePort(uint16_t port) {
     std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
 
 #ifndef UTS
@@ -711,6 +732,9 @@ int VendorDisablePort(uint16_t port) {
 int VendorSetFrameMax(uint16_t port, uint16_t size) {
     std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
 
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
 #ifndef UTS
     // Get port table api
     //
@@ -764,6 +788,9 @@ int VendorGetFrameMax(uint16_t port, uint16_t *size) {
     std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
 #endif
 
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
 #ifndef UTS
 
     // Get api interface. 
@@ -814,6 +841,9 @@ int VendorGetFrameMax(uint16_t port, uint16_t *size) {
 int VendorSetPortAdvertAbility(uint16_t port, uint16_t cap) {
     
     std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
 #ifndef LARCH_ENVIRON
     // Set Port Advertising Capability
     //
@@ -921,6 +951,9 @@ int VendorSetPortAdvertAbility(uint16_t port, uint16_t cap) {
 int VendorGetPortAdvertAbility(uint16_t port, uint16_t *advert) {
     
     std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
 
 #ifndef LARCH_ENVIRON
@@ -1040,6 +1073,9 @@ void *portStateCbData = 0;
 int VendorRegisterL2ParamChangeCb(VendorL2ParamChangeCb_fp_t cb, void *cbId) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
 
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     // Register global callback used for autoneg and link status. 
     //
     std::unique_lock<std::mutex> lock(portTableMutex);
@@ -1117,6 +1153,9 @@ void esalPortTableState(sai_object_id_t portSai, bool portState){
 
 int VendorResetPort(uint16_t port) {
     std::cout << __PRETTY_FUNCTION__ << port << " is NYI" << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     VendorDisablePort(port);
     VendorEnablePort(port);
     return ESAL_RC_OK;
@@ -1134,18 +1173,29 @@ int VendorReadReg(uint16_t port, uint16_t reg, uint16_t *val) {
 }
 
 int VendorWriteReg(uint16_t port, uint16_t reg, uint16_t val) {
+<<<<<<< HEAD
     uint32_t devNum = 0;
     if (cpssDxChPhyPortSmiRegisterWrite(devNum, port, reg, val) != 0) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "VendorWriteReg fail in cpssDxChPhyPortSmiRegisterWrite\n"));
         std::cout << "VendorWriteReg fail, for port: " << port << "\n";
         return ESAL_RC_FAIL;
+=======
+    (void) reg;
+    (void) val; 
+    std::cout << __PRETTY_FUNCTION__ << port << " is NYI" << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+>>>>>>> Introduce runtime flag to use SAI or appDemo
     }
     return ESAL_RC_OK;
 }
 
 int VendorDropTaggedPacketsOnIngress(uint16_t port) {
     std::cout << __PRETTY_FUNCTION__ << " " << port << " " << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
 
 #ifndef UTS
     // Get port table api
@@ -1192,6 +1242,9 @@ int VendorDropTaggedPacketsOnIngress(uint16_t port) {
 
 int VendorDropUntaggedPacketsOnIngress(uint16_t port) {
     std::cout << __PRETTY_FUNCTION__ << " " << port << " " << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
 
 #ifndef UTS
     

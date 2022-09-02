@@ -52,6 +52,9 @@ static std::map<uint16_t, VlanEntry> vlanMap;
 
 int VendorCreateVlan(uint16_t vlanid) {
     std::cout << __PRETTY_FUNCTION__ << " " << vlanid  << " is NYI" << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
 
     // Grab mutex.
@@ -118,6 +121,9 @@ int VendorCreateVlan(uint16_t vlanid) {
 
 int VendorDeleteVlan(uint16_t vlanid) {
     std::cout << __PRETTY_FUNCTION__ << " " << vlanid  << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
 
     // Grab mutex.
@@ -168,6 +174,9 @@ int VendorDeleteVlan(uint16_t vlanid) {
 int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t ports[]) {
 
     std::cout << __PRETTY_FUNCTION__ << " " << vlanid  << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
 
     // Grab mutex.
@@ -272,6 +281,9 @@ int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t port
 int VendorDeletePortsFromVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t ports[]) {
 
     std::cout << __PRETTY_FUNCTION__ << " " << vlanid  << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
 
     // Grab mutex.
@@ -342,6 +354,9 @@ int VendorGetPortsInVlan(uint16_t vlanid,
         uint16_t *numPorts, uint16_t ports[]) {
     
     std::cout << __PRETTY_FUNCTION__ << " " << vlanid  << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
 
     // Grab mutex.
@@ -370,6 +385,9 @@ int VendorGetPortsInVlan(uint16_t vlanid,
 int VendorSetPortDefaultVlan(uint16_t portId, uint16_t vlanid) {
 
     std::cout << __PRETTY_FUNCTION__ << " " << vlanid  << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
 
     // Grab mutex.
@@ -436,6 +454,9 @@ int VendorSetPortDefaultVlan(uint16_t portId, uint16_t vlanid) {
 int VendorGetPortDefaultVlan(uint16_t portId, uint16_t *vlanid) {
 
     std::cout << __PRETTY_FUNCTION__ << " " << portId << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
 
     // Grab mutex.
@@ -484,6 +505,9 @@ int VendorGetPortDefaultVlan(uint16_t portId, uint16_t *vlanid) {
 
 int VendorDeletePortDefaultVlan(uint16_t port, uint16_t vlanid) {
     std::cout << __PRETTY_FUNCTION__ << " " << vlanid << " " << port << " is NYI" << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     
     return VendorSetPortDefaultVlan(port, 0);
 
@@ -498,6 +522,9 @@ int VendorDeletePortDefaultVlan(uint16_t port, uint16_t vlanid) {
 //
 int VendorTagPacketsOnIngress(uint16_t port) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
 
     // Grab mutex.
     //
@@ -547,6 +574,9 @@ int VendorTagPacketsOnIngress(uint16_t port) {
 
 int VendorStripTagsOnEgress(uint16_t port) {
     std::cout << __PRETTY_FUNCTION__ << " " << port << " " << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     return VendorTagPacketsOnIngress(port);
 }
 
@@ -603,11 +633,17 @@ static int setVLANLearning(uint16_t vlanId, bool enabled) {
 
 int VendorDisableMacLearningPerVlan(uint16_t vlanId) {
     std::cout << __PRETTY_FUNCTION__ << vlanId << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     return setVLANLearning(vlanId, false);
 }
 
 int VendorEnableMacLearningPerVlan(uint16_t vlanId) {
     std::cout << __PRETTY_FUNCTION__ << vlanId << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     return setVLANLearning(vlanId, true);
 }
 
