@@ -18,7 +18,7 @@
 #include <map>
 
 #include "lib/swerr.h"
-#include "esal-vendor-api/esal_vendor_api.h"
+#include "esal_vendor_api/esal_vendor_api.h"
 
 struct portVlanTransMap {
     uint16_t portid; 
