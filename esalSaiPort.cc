@@ -53,7 +53,10 @@ extern "C" {
 //  	o Writing to the C Array
 //  	o Bumping the C Array Size
 //
-
+extern unsigned int cpssDxChPhyPortSmiRegisterWrite(uint8_t devNum, uint32_t portNum,
+                    uint8_t phyReg, uint16_t data);
+extern unsigned int cpssDxChPhyPortSmiRegisterRead(uint8_t devNum, uint32_t portNum,
+                    uint8_t phyReg, uint16_t *data);
 struct SaiPortEntry{
     uint16_t portId;
     sai_object_id_t portSai;
@@ -1120,16 +1123,24 @@ int VendorResetPort(uint16_t port) {
 }
 
 int VendorReadReg(uint16_t port, uint16_t reg, uint16_t *val) {
-    (void) reg;
-    (void) val; 
-    std::cout << __PRETTY_FUNCTION__ << port << " is NYI" << std::endl;
+    uint32_t devNum = 0;
+    if (cpssDxChPhyPortSmiRegisterRead(devNum, port, reg, val) != 0) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+            SWERR_FILELINE, "VendorReadReg fail in cpssDxChPhyPortSmiRegisterRead\n"));
+        std::cout << "VendorReadReg fail, for port: " << port << "\n";
+        return ESAL_RC_FAIL;
+    }
     return ESAL_RC_OK;
 }
 
 int VendorWriteReg(uint16_t port, uint16_t reg, uint16_t val) {
-    (void) reg;
-    (void) val; 
-    std::cout << __PRETTY_FUNCTION__ << port << " is NYI" << std::endl;
+    uint32_t devNum = 0;
+    if (cpssDxChPhyPortSmiRegisterWrite(devNum, port, reg, val) != 0) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+            SWERR_FILELINE, "VendorWriteReg fail in cpssDxChPhyPortSmiRegisterWrite\n"));
+        std::cout << "VendorWriteReg fail, for port: " << port << "\n";
+        return ESAL_RC_FAIL;
+    }
     return ESAL_RC_OK;
 }
 
