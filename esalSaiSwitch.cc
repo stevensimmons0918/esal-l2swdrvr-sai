@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "lib/swerr.h"
-#include "esal-vendor-api/esal_vendor_api.h"
+#include "esal_vendor_api/esal_vendor_api.h"
 #ifndef LARCH_ENVIRON
 #include "sfp_vendor_api/sfp_vendor_api.h"
 #include "threadutils/dll_util.h"

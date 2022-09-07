@@ -28,7 +28,7 @@
 #endif
 #endif
 
-#include "esal-vendor-api/esal_vendor_api.h"
+#include "esal_vendor_api/esal_vendor_api.h"
 #include "lib/swerr.h"
 #ifndef UTS 
 #ifndef LARCH_ENVIRON

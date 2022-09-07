@@ -10,7 +10,6 @@
 
 #ifndef _ESAL_SAI_DEFS_H_ 
 #define _ESAL_SAI_DEFS_H_
-#define LARCH_ENVIRON
 #include <stdint.h> 
 #include <string>
 #include <string.h>
@@ -20,15 +19,23 @@
 #include <mutex>
 #include <algorithm>
 #include <sys/stat.h>
+
 #ifndef LARCH_ENVIRON
 #include "sfp_vendor_api/sfp_vendor_api.h"
 #endif
+
 #ifdef UTS
 #include "esal-vendor-api/headers/esalUnitTestDefs.h"
 #else
 extern "C" {
 #include "sai/sai.h"
 }
+#endif
+
+#ifdef LARCH_ENVIRON
+#define SWERR(x)
+#else
+#define SWERR(x)  Swerr::generate(x)
 #endif
 
 extern "C" {

@@ -28,7 +28,7 @@
 #include "sfp_vendor_api/sfp_vendor_api.h"
 #endif
 #endif
-#include "esal-vendor-api/esal_vendor_api.h"
+#include "esal_vendor_api/esal_vendor_api.h"
 #include "lib/swerr.h"
 
 
