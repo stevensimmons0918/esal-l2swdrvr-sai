@@ -350,6 +350,14 @@ void onPacketEvent(sai_object_id_t sid,
 sai_object_id_t esalSwitchId = SAI_NULL_OBJECT_ID;
 
 int DllInit(void) {
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    // load the sfp library.
+    //
+#ifndef LARCH_ENVIRON
+    loadSFPLibrary();
+#endif
+
     // Verify that a config file is present first. 
     //
     std::string marvellScript(determineCfgFile("mvll"));
@@ -387,12 +395,6 @@ int DllInit(void) {
         std::cout << "Configuration file must contain at least hwId setting" << profile_file << std::endl;
         return ESAL_RC_FAIL;
     }
-#endif
-
-    // Unload the SFP Library.
-    //
-#ifndef LARCH_ENVIRON
-    loadSFPLibrary();
 #endif
 
 #ifndef UTS

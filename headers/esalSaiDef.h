@@ -35,6 +35,7 @@ extern "C" {
 #ifdef LARCH_ENVIRON
 #define SWERR(x)
 #else
+#include "lib/swerr.h"
 #define SWERR(x)  Swerr::generate(x)
 #endif
 
