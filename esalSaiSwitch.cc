@@ -422,13 +422,14 @@ int DllInit(void) {
     attr.value.u32 = 0;
     attributes.push_back(attr); 
 
-#ifdef LARCH_ENVIRON
+    // FIXME: Code needed for Eval Board to boot w/o crash.
+    // However the hwid_value must be determine at run time.
+    // http://rtx-swtl-jira.fnc.net.local/browse/LARCH-5
     attr.id = SAI_SWITCH_ATTR_SWITCH_HARDWARE_INFO;
     std::string hwid_value = "ALDRIN2XLFL";  
     attr.value.s8list.list = (sai_int8_t*)calloc(hwid_value.length() + 1, sizeof(sai_int8_t));
     std::copy(hwid_value.begin(), hwid_value.end(), attr.value.s8list.list);
     attributes.push_back(attr);
-#endif
 
     attr.id = SAI_SWITCH_ATTR_FDB_AGING_TIME;
     attr.value.u32 = 0;
@@ -436,6 +437,9 @@ int DllInit(void) {
     // Adding fake mac address to debug purposes
     // In normal situation this mac
     // will be derived from sai.profile
+    // FIXME: http://rtx-swtl-jira.fnc.net.local/browse/LARCH-4
+    // Value must be determine by reading lladdr for eth interface. 
+    //
     attr.id = SAI_SWITCH_ATTR_SRC_MAC_ADDRESS;
     attr.value.mac[5] = 2;
     attributes.push_back(attr);
