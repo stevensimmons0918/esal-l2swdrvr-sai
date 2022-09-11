@@ -276,7 +276,6 @@ int VendorSetPortRate(
         std::cout << "esalPortTableFindSai fail: " << port << "\n";
         return ESAL_RC_FAIL; 
     }
-#ifdef 
 
     // Add attributes. 
     //
@@ -287,7 +286,7 @@ int VendorSetPortRate(
     attributes.push_back(attr); 
 
 #ifdef NOT_SUPPORTED_BY_SAI
-    // 
+    // FIXME:  The following attributes are not yet supported. 
     // Documented here ... http://rtx-swtl-jira.fnc.net.local/browse/LARCH-3
     //
     attr.id = SAI_PORT_ATTR_SPEED;
@@ -836,7 +835,7 @@ int VendorSetPortAdvertAbility(uint16_t port, uint16_t cap) {
 #endif
 #ifndef UTS
 #ifdef NOT_SUPPORTED_BY_SAI
-    // 
+    // FIXME:  The following attributes are not yet supported. 
     // Documented here ... http://rtx-swtl-jira.fnc.net.local/browse/LARCH-3
     //
     // Get port table api
