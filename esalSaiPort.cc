@@ -284,6 +284,11 @@ int VendorSetPortRate(
     attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
     attr.value.booldata = autoneg;
     attributes.push_back(attr); 
+
+#ifdef NOT_SUPPORTED_BY_SAI
+    // FIXME:  The following attributes are not yet supported. 
+    // Documented here ... http://rtx-swtl-jira.fnc.net.local/browse/LARCH-3
+    //
     attr.id = SAI_PORT_ATTR_SPEED;
 
     switch (speed) {
@@ -309,6 +314,7 @@ int VendorSetPortRate(
     attr.id = SAI_PORT_ATTR_FULL_DUPLEX_MODE;
     attr.value.booldata = (duplex == VENDOR_DUPLEX_FULL) ? true : false; 
     attributes.push_back(attr); 
+#endif
  
     // Set the port attributes
     //
@@ -828,6 +834,10 @@ int VendorSetPortAdvertAbility(uint16_t port, uint16_t cap) {
     }
 #endif
 #ifndef UTS
+#ifdef NOT_SUPPORTED_BY_SAI
+    // FIXME:  The following attributes are not yet supported. 
+    // Documented here ... http://rtx-swtl-jira.fnc.net.local/browse/LARCH-3
+    //
     // Get port table api
     //
     sai_status_t retcode;
@@ -913,6 +923,7 @@ int VendorSetPortAdvertAbility(uint16_t port, uint16_t cap) {
         return ESAL_RC_FAIL; 
     }
 
+#endif
 #endif
     
     return ESAL_RC_OK;
