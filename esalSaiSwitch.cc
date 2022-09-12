@@ -81,7 +81,23 @@ static void loadSFPLibrary(void) {
     esalSFPGetPort =
         reinterpret_cast<SFPGetPort_fp_t>(sfpDll->getDllFunc("SFPGetPort"));
 #endif
-
+    
+    if (esalSFPSetPort) {
+#ifndef UTS
+        // Following sets read/write callbacks to access CPSS SMI Read/Write
+        // Registers.  This is needed support for PIU access for SFP
+        // functionality.
+        //
+        std::vector<SFPAttribute> values;
+        SFPAttribute val;
+        val.SFPAttr = SFPWordRead;
+        val.SFPVal.ReadWord = cpssDxChPhyPortSmiRegisterRead;
+        values.push_back(val);
+        val.SFPAttr = SFPWordWrite;
+        val.SFPVal.ReadWord = cpssDxChPhyPortSmiRegisterWrite;
+        values.push_back(val);
+        esalSFPSetPort(port, values.size(), values.data());
+#endif
     // Initialize the SFP library. 
     //
     if (esalSFPLibInitialize) esalSFPLibInitialize();
