@@ -673,7 +673,7 @@ uint16_t VendorGetMaxPorts(void) {
     // Set switch attribute
     // 
     sai_attribute_t attr;
-    attr.id = SAI_SWITCH_ATTR_NUMBER_OF_FABRIC_PORTS;
+    attr.id = SAI_SWITCH_ATTR_PORT_NUMBER;
     retcode =  saiSwitchApi->get_switch_attribute(esalSwitchId, 1, &attr);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
