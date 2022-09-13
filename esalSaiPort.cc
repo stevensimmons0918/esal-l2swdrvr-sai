@@ -91,9 +91,21 @@ bool esalPortTableFindSai(uint16_t portId, sai_object_id_t *portSai) {
             return true;
         }
     }
-    *portSai = 0;
+    *portSai = SAI_NULL_OBJECT_ID;
     return false; 
 
+}
+
+bool esalPortTableGetSaiByIdx(uint16_t idx, sai_object_id_t *portSai) {
+    
+    // Return port oid by idx if exist
+    //
+    if (portTable[idx].portSai != SAI_NULL_OBJECT_ID) {
+        *portSai = portTable[idx].portSai;
+        return true;
+    }
+    *portSai = SAI_NULL_OBJECT_ID;
+    return false;
 }
 
 bool esalPortTableAddEntry(uint16_t portId, sai_object_id_t *portSai){
@@ -102,7 +114,7 @@ bool esalPortTableAddEntry(uint16_t portId, sai_object_id_t *portSai){
     //
     std::unique_lock<std::mutex> lock(portTableMutex);
 
-    // Check for maz exceeded. 
+    // Check for max exceeded. 
     // 
     if (portTableSize >= MAX_PORT_TABLE_SIZE) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
@@ -124,29 +136,29 @@ bool esalPortTableAddEntry(uint16_t portId, sai_object_id_t *portSai){
         return false; 
     }
 
-    // Instantiate a new port sai. Mandatory attributes 
-    // Adding port speed now as 1G default, but assuming it will change.
-    //
-    std::vector<sai_attribute_t> attributes;
-    sai_attribute_t attr;
-
-    attr.id = SAI_PORT_ATTR_HW_LANE_LIST;
-    std::vector<sai_uint32_t> hwLanes;
-    hwLanes.push_back(portId); 
-
-    attr.value.u32list.list = const_cast<sai_uint32_t*>(hwLanes.data());;
-    attr.value.u32list.count = static_cast<sai_uint32_t>(hwLanes.size());
-    attributes.push_back(attr);
-
-    attr.id = SAI_PORT_ATTR_SPEED;
-    attr.value.u32 = 1000;
-    attributes.push_back(attr);
-
-    attr.id = SAI_PORT_ATTR_ADMIN_STATE;
-    attr.value.booldata = false;
-    attributes.push_back(attr);
-
     if (portSai == SAI_NULL_OBJECT_ID) {
+        // Instantiate a new port sai. Mandatory attributes 
+        // Adding port speed now as 1G default, but assuming it will change.
+        //
+        std::vector<sai_attribute_t> attributes;
+        sai_attribute_t attr;
+
+        attr.id = SAI_PORT_ATTR_HW_LANE_LIST;
+        std::vector<sai_uint32_t> hwLanes;
+        hwLanes.push_back(portId); 
+
+        attr.value.u32list.list = const_cast<sai_uint32_t*>(hwLanes.data());;
+        attr.value.u32list.count = static_cast<sai_uint32_t>(hwLanes.size());
+        attributes.push_back(attr);
+
+        attr.id = SAI_PORT_ATTR_SPEED;
+        attr.value.u32 = 1000;
+        attributes.push_back(attr);
+
+        attr.id = SAI_PORT_ATTR_ADMIN_STATE;
+        attr.value.booldata = false;
+        attributes.push_back(attr);
+
         // Create a port.
         //
         retcode = saiPortApi->create_port(
@@ -163,10 +175,13 @@ bool esalPortTableAddEntry(uint16_t portId, sai_object_id_t *portSai){
     *portSai = ESAL_UNITTEST_MAGIC_NUM;
 #endif
 
+    // Get id from oid
+    uint16_t _portId = (uint16_t)GET_OID_VAL(*portSai);
+
     // Store first in shadow area, and then bump count. 
     //
     portTable[portTableSize].portSai = *portSai;
-    portTable[portTableSize].portId = portId;
+    portTable[portTableSize].portId = _portId;
     portTableSize++;
 
     // Handle host interface condition

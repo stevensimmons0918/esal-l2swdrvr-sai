@@ -45,6 +45,7 @@ extern sai_object_id_t esalSwitchId;
 extern bool useSaiFlag;
 extern bool esalPortTableFindId(sai_object_id_t portSai, uint16_t* portId);
 extern bool esalPortTableFindSai(uint16_t portId, sai_object_id_t *portSai);
+extern bool esalPortTableGetSaiByIdx(uint16_t idx, sai_object_id_t *portSai);
 extern bool esalPortTableAddEntry(uint16_t portId, sai_object_id_t *portSai);
 extern void esalPortTableState(sai_object_id_t portId, bool portState);
 bool esalAddAclToPort(
@@ -81,6 +82,9 @@ extern SFPGetPort_fp_t esalSFPGetPort;
 
 }
 
+
+#define OID_VALUE_MASK 0x000000FFFFFFFFFFULL
+#define GET_OID_VAL(oid) ((oid) & OID_VALUE_MASK)
 
 
 const int ESAL_RC_OK = 0;

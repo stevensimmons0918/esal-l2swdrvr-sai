@@ -14,16 +14,16 @@ def run_tests():
     if ret['rc'] != 0:
         print 'error'
 
-    ports = [24, 25, 26, 5]
+    ports = [22, 23, 28, 5]
     ret = esal.VendorAddPortsToVlan(vlan, 4, ports)
     if ret['rc'] != 0:
         print 'error'
 
-    ret = esal.VendorEnablePort(24)
+    ret = esal.VendorEnablePort(28)
     if ret['rc'] != 0:
         print 'error'
 
-    ret = esal.VendorEnablePort(25)
+    ret = esal.VendorEnablePort(29)
     if ret['rc'] != 0:
         print 'error'
 

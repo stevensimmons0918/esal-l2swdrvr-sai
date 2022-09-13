@@ -538,7 +538,7 @@ int DllInit(void) {
     for (uint32_t i = 0; i < port_number; i++) {
         if (!esalPortTableAddEntry(i, &attr.value.objlist.list[i])) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                  SWERR_FILELINE, "esalPortTableAddEntry fail VendorAddPortsToVlan\n"));
+                  SWERR_FILELINE, "esalPortTableAddEntry fail in DllInit\n"));
             std::cout << "esalPortTableSet fail:" << "\n";
                 return ESAL_RC_FAIL;
         }
@@ -549,16 +549,16 @@ int DllInit(void) {
     sai_object_id_t portSai;
     for (uint32_t i = 0; i < port_number; i++) {
         
-        if (!esalPortTableFindSai(i, &portSai)) {
+        if (!esalPortTableGetSaiByIdx(i, &portSai)) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                  SWERR_FILELINE, "esalPortTableFindSai fail VendorAddPortsToVlan\n"));
+                  SWERR_FILELINE, "esalPortTableFindSai fail in DllInit\n"));
             std::cout << "esalPortTableFindSai fail:" << "\n";
                 return ESAL_RC_FAIL;
         }
                 
         if (!esalBridgePortCreate(portSai, &bridgePortSai, 0)) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                  SWERR_FILELINE, "esalBridgePortCreate fail VendorAddPortsToVlan\n"));
+                  SWERR_FILELINE, "esalBridgePortCreate fail in DllInit\n"));
             std::cout << "esalBridgePortCreate fail:" << "\n";
                 return ESAL_RC_FAIL;
         }
