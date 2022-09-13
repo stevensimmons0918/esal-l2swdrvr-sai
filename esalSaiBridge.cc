@@ -29,7 +29,6 @@
 #endif
 #endif
 #include "esal_vendor_api/esal_vendor_api.h"
-#include "lib/swerr.h"
 
 
 extern "C" {
@@ -445,11 +444,19 @@ static int setMacLearning(uint16_t portId, bool enabled) {
 
 int VendorDisableMacLearningPerPort(uint16_t portId) {
     std::cout << __PRETTY_FUNCTION__ << portId <<  " is NYI : FIXME " << std::endl;
+
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     return setMacLearning(portId, false);
 }
 
 int VendorEnableMacLearningPerPort(uint16_t portId) {
     std::cout << __PRETTY_FUNCTION__ << portId <<  " is NYI : FIXME " << std::endl;
+
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     return setMacLearning(portId, true);
 }
 

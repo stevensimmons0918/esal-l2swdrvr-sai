@@ -29,7 +29,6 @@
 #endif
 
 #include "esal_vendor_api/esal_vendor_api.h"
-#include "lib/swerr.h"
 #ifndef UTS 
 #ifndef LARCH_ENVIRON
 #include "pf_proto/esal_apps.pb.h"
@@ -336,6 +335,9 @@ bool esalHandleSaiHostRxPacket(
 
 int VendorRegisterRxCb(VendorRxCallback_fp_t cb, void *cbId) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     rcvrCb = cb;
     rcvrCbId = cbId; 
     return ESAL_RC_OK;
@@ -343,6 +345,9 @@ int VendorRegisterRxCb(VendorRxCallback_fp_t cb, void *cbId) {
 
 int VendorAddPacketFilter(const char *buf, uint16_t length) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     std::unique_lock<std::mutex> lock(filterTableMutex);
 
     // Make sure filter table is not exhausted.
@@ -409,6 +414,9 @@ int VendorAddPacketFilter(const char *buf, uint16_t length) {
 int VendorDeletePacketFilter(const char *filterName) {
 
     std::cout << __PRETTY_FUNCTION__ << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     std::unique_lock<std::mutex> lock(filterTableMutex);
 
     // Look for match first. 
@@ -439,6 +447,9 @@ int VendorDeletePacketFilter(const char *filterName) {
 
 int VendorSendPacket(uint16_t portId, uint16_t length, const void *buf) {
     std::cout << __PRETTY_FUNCTION__ << " " << portId << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
 #ifndef UTS
     sai_status_t retcode = SAI_STATUS_SUCCESS;
     sai_hostif_api_t *sai_hostif_api;

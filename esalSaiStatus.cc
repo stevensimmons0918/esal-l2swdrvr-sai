@@ -17,7 +17,6 @@
 #include <cinttypes>
 
 #include <esal_vendor_api/esal_vendor_api.h>
-#include "lib/swerr.h"
 #ifndef LARCH_ENVIRON
 #include "pf_proto/esal_pm.pb.h" 
 #endif
@@ -30,6 +29,9 @@ extern "C" {
 
 int VendorRcToString(int rc, char *strErr) {
     std::cout << __PRETTY_FUNCTION__ << " " << rc  << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
 
     const int MaxStrLen = 64; // FIXME: Change parm to (const char*) *strErr;
   
@@ -116,6 +118,9 @@ const char *esalSaiError(sai_status_t rc) {
 
 int VendorGetL2Pm(uint16_t *usedLen, uint16_t maxLen, char* gpbBuf) {
     int rc = ESAL_RC_OK;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
 #ifdef UTS
     rc = ESAL_RC_FAIL; 
 #else

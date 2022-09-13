@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-#include "lib/swerr.h"
+
 #include "esal_vendor_api/esal_vendor_api.h"
 #ifndef LARCH_ENVIRON
 #include "sfp_vendor_api/sfp_vendor_api.h"
@@ -51,6 +51,7 @@ SFPGetPort_fp_t esalSFPGetPort;
 static DllUtil *sfpDll = 0;
 #endif
 #endif
+bool useSaiFlag;
 uint16_t esalHostPortId;
 char esalHostIfName[SAI_HOSTIF_NAME_SIZE];
 static std::map<std::string, std::string> esalProfileMap;
@@ -80,7 +81,23 @@ static void loadSFPLibrary(void) {
     esalSFPGetPort =
         reinterpret_cast<SFPGetPort_fp_t>(sfpDll->getDllFunc("SFPGetPort"));
 #endif
-
+    
+    if (esalSFPSetPort) {
+#ifndef UTS
+        // Following sets read/write callbacks to access CPSS SMI Read/Write
+        // Registers.  This is needed support for PIU access for SFP
+        // functionality.
+        //
+        std::vector<SFPAttribute> values;
+        SFPAttribute val;
+        val.SFPAttr = SFPWordRead;
+        val.SFPVal.ReadWord = cpssDxChPhyPortSmiRegisterRead;
+        values.push_back(val);
+        val.SFPAttr = SFPWordWrite;
+        val.SFPVal.ReadWord = cpssDxChPhyPortSmiRegisterWrite;
+        values.push_back(val);
+        esalSFPSetPort(port, values.size(), values.data());
+#endif
     // Initialize the SFP library. 
     //
     if (esalSFPLibInitialize) esalSFPLibInitialize();
@@ -282,6 +299,9 @@ static const char* EVAL_DRIVER_NAME =  "esal_l2_swdrvr_sai";
 
 void VendorDbg(const char *args) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
+    if (!useSaiFlag){
+        return;
+    }
     std::cout << std::string(args) << std::endl;
 }
 
@@ -299,7 +319,9 @@ static void onSwitchStateChange(sai_object_id_t sid, sai_switch_oper_status_t sw
     std::cout << "onSwitchStateChange: " << switchOp << " " << sid << "\n";
     if ((switchOp == SAI_SWITCH_OPER_STATUS_DOWN) && switchStateUp) {
         switchStateUp = false; 
+#if 0
         VendorWarmRestartRequest();
+#endif
     } else {
         switchStateUp = true;
     }
@@ -344,7 +366,32 @@ void onPacketEvent(sai_object_id_t sid,
 sai_object_id_t esalSwitchId = SAI_NULL_OBJECT_ID;
 
 int DllInit(void) {
-    std::cout << __PRETTY_FUNCTION__ <<  std::endl;
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    // load the sfp library.
+    //
+#ifndef LARCH_ENVIRON
+    loadSFPLibrary();
+#endif
+
+    // Verify that a config file is present first. 
+    //
+    std::string marvellScript(determineCfgFile("mvll"));
+    auto fptr = fopen(marvellScript.c_str(), "r");
+    if (fptr) {
+        // Now, send the appDemo command if file exists. 
+        //
+        fclose(fptr);
+        std::string cmdLine("/usr/bin/appDemo -daemon -config ");
+        cmdLine.append(marvellScript);
+        if (auto retcode = std::system(cmdLine.c_str())) {
+            std::cout << "appdemo failed: " << retcode << "\n";
+        }
+        return ESAL_RC_OK;
+    } else {
+       std::cout << "Marvell cfg file not found: " << marvellScript << "\n";
+       useSaiFlag = true;
+    }
 
     // std::string fn(determineCfgFile("sai"));
     // handleProfileMap(fn);
@@ -364,12 +411,6 @@ int DllInit(void) {
         std::cout << "Configuration file must contain at least hwId setting" << profile_file << std::endl;
         return ESAL_RC_FAIL;
     }
-#endif
-
-    // Unload the SFP Library.
-    //
-#ifndef LARCH_ENVIRON
-    loadSFPLibrary();
 #endif
 
 #ifndef UTS
@@ -401,10 +442,6 @@ int DllInit(void) {
     attr.id = SAI_SWITCH_ATTR_SWITCH_STATE_CHANGE_NOTIFY;
     attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onSwitchStateChange);
     attributes.push_back(attr); 
-
-    // attr.id = SAI_SWITCH_ATTR_SHUTDOWN_REQUEST_NOTIFY;
-    // attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onShutdownRequest);
-    // attributes.push_back(attr); 
 
     attr.id = SAI_SWITCH_ATTR_FDB_EVENT_NOTIFY;
     attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onFdbEvent);
@@ -443,30 +480,6 @@ int DllInit(void) {
     attr.id = SAI_SWITCH_ATTR_SRC_MAC_ADDRESS;
     attr.value.mac[5] = 2;
     attributes.push_back(attr);
-
-    // attr.id = SAI_SWITCH_ATTR_TYPE;
-    // attr.value.u32 = SAI_SWITCH_TYPE_NPU;
-    // attributes.push_back(attr); 
-
-//   These are mandatory in the following condition... SAI_SWITCH_TYPE_PHY
-//     as well as SAI_SWITCH_ATTR_REGISTER_READ and SAI_SWITCH_ATTR_REGISTER_WRITE.
-//    attr.id = SAI_SWITCH_ATTR_HARDWARE_ACCESS_BUS;
-//    attr.value.u32 = SAI_SWITCH_HARDWARE_ACCESS_BUS_MDIO;
-//    attributes.push_back(attr); 
-//
-//    attr.id = SAI_SWITCH_ATTR_PLATFROM_CONTEXT;
-//    attr.value.u64 = 1;
-//    attributes.push_back(attr); 
-
-//  These are mandatory SAI_SWITCH_TYPE_VOQ
-//    attr.id = SAI_SWITCH_ATTR_SWITCH_ID;
-//    attr.value.u32 = 1;
-//    attributes.push_back(attr); 
-
-    // attr.id = SAI_SWITCH_ATTR_MAX_SYSTEM_CORES;
-    // attr.value.u32 = 1;
-    // attributes.push_back(attr); 
-
 
     retcode =  saiSwitchApi->create_switch(
         &esalSwitchId, attributes.size(), attributes.data());
@@ -523,9 +536,9 @@ int DllInit(void) {
     } 
 
     for (uint32_t i = 0; i < port_number; i++) {
-        if (!esalPortTableSet(i, attr.value.objlist.list[i], i)) {
+        if (!esalPortTableAddEntry(i, &attr.value.objlist.list[i])) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                  SWERR_FILELINE, "esalPortTableSet fail VendorAddPortsToVlan\n"));
+                  SWERR_FILELINE, "esalPortTableAddEntry fail VendorAddPortsToVlan\n"));
             std::cout << "esalPortTableSet fail:" << "\n";
                 return ESAL_RC_FAIL;
         }
@@ -562,25 +575,6 @@ int DllInit(void) {
     // Bridge already here
 #endif
 #else
-
-    // Verify that a config file is present first. 
-    //
-    std::string marvellScript(determineCfgFile("mvll"));
-    auto fptr = fopen(marvellScript.c_str(), "r");
-    if (fptr) {
-
-        // Now, send the appDemo command if file exists. 
-        //
-        fclose(fptr);
-        std::string cmdLine("/usr/bin/appDemo -daemon -config ");
-        cmdLine.append(marvellScript);
-        if (auto retcode = std::system(cmdLine.c_str())) {
-            std::cout << "appdemo failed: " << retcode << "\n";
-        }
-    } else {
-       std::cout << "Marvell cfg file not found: " << marvellScript << "\n";
-    }
-
 #endif 
     return ESAL_RC_OK;
 }
@@ -646,6 +640,9 @@ void DllGetName(char *dllname) {
 
 int VendorBoardInit(void) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
 
     // WARNING: VendorBoardInit is different than DLL calls. 
     //    In this case, the returned value of "0" is SUCCESS, and all other
@@ -656,6 +653,9 @@ int VendorBoardInit(void) {
 
 uint16_t VendorGetMaxPorts(void) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     uint16_t rc = 0; 
 
 #ifndef UTS
@@ -693,6 +693,9 @@ uint16_t VendorGetMaxPorts(void) {
 
 int VendorWarmRestartRequest(void) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     switchStateUp = false; 
 
 #ifndef LARCH_ENVIRON

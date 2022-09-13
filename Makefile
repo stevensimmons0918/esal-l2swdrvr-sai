@@ -6,7 +6,7 @@ LD ?= $(CROSS_COMPILE)gcc
 AR ?= $(CROSS_COMPILE)ar
 BASE_DIR = .
 CFLAGS =
-CFLAGS += -fPIC -Wall -Werror -Wno-unused -std=c++11 -g -Og -DDEBUG
+CFLAGS += -fPIC -Wall -Werror -Wno-unused -std=c++11 -g -Og -DDEBUG -DLARCH_ENVIRON -DSFP_RDY
 LDFLAGS =
 OBJ_PATH = $(PWD)/obj
 OUT_DIR = $(OBJ_PATH)
@@ -67,7 +67,7 @@ ESAL_DEP = $(patsubst %.o,%.d,$(ESAL_OBJECTS))
 
 $(OUT_DIR)/%.o:%.cc
 	$(call compile,$(CFLAGS),$(OUT_DIR))
-#-L. -lsai -lXdkCpss
+#-L. -lsai -lXdkCpssgit 
 
 esal_app: esal_lib
 	$(MKDIR_P) $(BIN_DIR)
@@ -75,7 +75,7 @@ esal_app: esal_lib
 
 esal_lib: $(ESAL_OBJECTS)
 	echo ESAL objects: $(ESAL_OBJECTS)
-	$(CC) -shared -o $(OUT_DIR)/libesal.so $(LDFLAGS) $(ESAL_OBJECTS) -ldl -lpthread -lrt -ldl -lstdc++ -lm -lsai
+	$(CC) -shared -o $(OUT_DIR)/libesal.so $(LDFLAGS) $(ESAL_OBJECTS) -ldl -lpthread -lrt -lstdc++ -lm -lsai -ldl
 	sudo cp $(OUT_DIR)/libesal.so /usr/lib
 
 clean:

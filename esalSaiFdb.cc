@@ -30,7 +30,6 @@
 #endif
 
 #include "esal_vendor_api/esal_vendor_api.h"
-#include "lib/swerr.h"
 
 
 // Updates to the table comes from a notification in SAI Switch which is a single 
@@ -202,6 +201,9 @@ void esalAlterForwardingTable(sai_fdb_event_notification_data_t *fdbNotify) {
 
 int VendorPurgeMacEntriesPerPort(uint16_t port) {
     std::cout << __PRETTY_FUNCTION__ << port << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
 
 #ifndef UTS
@@ -248,6 +250,9 @@ int VendorPurgeMacEntriesPerPort(uint16_t port) {
 
 int VendorPurgeMacEntries(void) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
 
 #ifndef UTS
@@ -281,6 +286,9 @@ int VendorPurgeMacEntries(void) {
 
 int VendorGetMacTbl(uint16_t port, uint16_t *numMacs, unsigned char *macs) {
     std::cout << __PRETTY_FUNCTION__ << port << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
     int maxMacs = (*numMacs > 256) ? *numMacs : 256;
     

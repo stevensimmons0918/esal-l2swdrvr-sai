@@ -18,7 +18,6 @@
 #include "sai/saistp.h"
 #endif
 #include "esal_vendor_api/esal_vendor_api.h"
-#include "lib/swerr.h"
 
 
 
@@ -26,6 +25,9 @@ extern "C" {
 
 int VendorSetPortEgress(uint16_t port,  uint16_t, const uint16_t[]) {
     std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
     return rc;
 }
@@ -33,12 +35,18 @@ int VendorSetPortEgress(uint16_t port,  uint16_t, const uint16_t[]) {
 
 int VendorMirrorPort(uint16_t srcPort, uint16_t dstPort) {
     std::cout << __PRETTY_FUNCTION__ << " " << srcPort << " " << dstPort  << " is NYI" << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
     return rc;
 }
 
 int VendorRemoveMirrorPort(uint16_t srcPort, uint16_t dstPort) {
     std::cout << __PRETTY_FUNCTION__ << " " << srcPort << " " << dstPort  << " is NYI" << std::endl;
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
     int rc  = ESAL_RC_OK;
     return rc;
 
