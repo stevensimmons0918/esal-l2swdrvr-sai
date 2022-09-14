@@ -25,7 +25,7 @@
 #endif
 
 #ifdef UTS
-#include "esal_vendor_api/headers/esalUnitTestDefs.h"
+#include "esal-vendor-api/headers/esalUnitTestDefs.h"
 #else
 extern "C" {
 #include "sai/sai.h"

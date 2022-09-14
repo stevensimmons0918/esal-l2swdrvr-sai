@@ -37,6 +37,13 @@
 
 extern "C" {
 
+int cpssDxChPhyPortSmiRegisterWrite(
+    unsigned char devNum, unsigned short portNum, unsigned char phyReg, unsigned short data);
+int cpssDxChPhyPortSmiRegisterRead(
+    unsigned char devNum, unsigned short portNum, unsigned char phyReg, unsigned short *data);
+
+
+
 #ifndef LARCH_ENVIRON
 SFPLibInitialize_fp_t esalSFPLibInitialize;
 SFPLibUninitialize_fp_t esalSFPLibUninitialize;
@@ -51,7 +58,7 @@ SFPGetPort_fp_t esalSFPGetPort;
 static DllUtil *sfpDll = 0;
 #endif
 #endif
-bool useSaiFlag;
+bool useSaiFlag = false;
 uint16_t esalHostPortId;
 char esalHostIfName[SAI_HOSTIF_NAME_SIZE];
 static std::map<std::string, std::string> esalProfileMap;
@@ -94,10 +101,12 @@ static void loadSFPLibrary(void) {
         val.SFPVal.ReadWord = cpssDxChPhyPortSmiRegisterRead;
         values.push_back(val);
         val.SFPAttr = SFPWordWrite;
-        val.SFPVal.ReadWord = cpssDxChPhyPortSmiRegisterWrite;
+        val.SFPVal.WriteWord = cpssDxChPhyPortSmiRegisterWrite;
         values.push_back(val);
-        esalSFPSetPort(port, values.size(), values.data());
+        esalSFPSetPort(0, values.size(), values.data());
 #endif
+    }
+
     // Initialize the SFP library. 
     //
     if (esalSFPLibInitialize) esalSFPLibInitialize();
@@ -208,13 +217,15 @@ std::string determineCfgFile(const std::string &fname) {
     if (FILE *file = fopen(path.c_str(), "r")) {
         fclose(file);
     } else {
-        path = basePath + "/" + fname + ".cfg";
+        path = basePath + "/" + fname;
         if (FILE *file1 = fopen(path.c_str(), "r")) {
             fclose(file1);
         } else {
             path = "";
         }
     }
+
+  
 
     return path; 
 }
@@ -248,7 +259,7 @@ static int profileGetNextValue(
 }
 #endif
 
-static int handleProfileMap(const std::string& profileMapFile) {
+int handleProfileMap(const std::string& profileMapFile) {
 
     if (profileMapFile.size() == 0) {
         return ESAL_RC_FAIL;
@@ -346,11 +357,6 @@ static void onPortStateChange(uint32_t count, sai_port_oper_status_notification_
     }
 }
 
-static void onShutdownRequest(sai_object_id_t sid)//
-{
-    std::cout << "onShutdownRequest: " << sid << "\n";
-}
-
 void onPacketEvent(sai_object_id_t sid,
                    const void *buffer,
                    sai_size_t bufferSize,
@@ -395,13 +401,19 @@ int DllInit(void) {
 
     // std::string fn(determineCfgFile("sai"));
     // handleProfileMap(fn);
-    std::string profile_file = "/usr/local/fnc/esal/sai.profile.ini";
+    std::string profile_file(determineCfgFile("sai.profile.ini"));
+    std::cout << "profile file: " << profile_file << "\n";
 
+
+    // FIXME... This needs to handle configuration file sai.profile.ini.
+    // http://rtx-swtl-jira.fnc.net.local/projects/LARCH/issues/LARCH-8
+#ifdef NOT_YET_FIXME
 #ifndef LARCH_ENVIRON
     if (handleProfileMap(profile_file) != ESAL_RC_OK) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "handleProfileMap Fail in DllInit\n"));
         std::cout << "Configuration file not found at " << profile_file << std::endl;
+        useSaiFlag = false;
         return ESAL_RC_FAIL;
     }
 
@@ -409,8 +421,10 @@ int DllInit(void) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "hwId read Fail in DllInit\n"));
         std::cout << "Configuration file must contain at least hwId setting" << profile_file << std::endl;
+        useSaiFlag = false;
         return ESAL_RC_FAIL;
     }
+#endif
 #endif
 
 #ifndef UTS
@@ -566,7 +580,9 @@ int DllInit(void) {
 
 #ifndef LARCH_ENVIRON
     // Creating debug Host if
-    esalCreateSaiHost(24, "Ethernet28");
+    // FIXME ... How interface be read from initfile. 
+    // http://rtx-swtl-jira.fnc.net.local/projects/LARCH/issues/LARCH-7
+    esalCreateSaiHost(47, "Ethernet28");
     // Default Bridge already here after create_switch function.
     // Marvell sai plugin supports only one bridge
     // Create Bridge 
@@ -576,12 +592,16 @@ int DllInit(void) {
 #endif
 #else
 #endif 
+
     return ESAL_RC_OK;
 }
 
 int DllDestroy(void) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
 
+    if (!useSaiFlag){
+        return ESAL_RC_OK;
+    }
 #ifndef UTS
 
     // Query to get switch_api
