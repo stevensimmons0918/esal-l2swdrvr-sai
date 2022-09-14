@@ -43,8 +43,10 @@ struct VlanMember{
 struct VlanEntry {
     sai_object_id_t vlanSai;
     std::vector<VlanMember> ports;
+    uint16_t defaultPortId = 0xffff;
 };
 
+std::vector<uint16_t> tagPorts;
 static std::mutex vlanMutex;
 
 static std::map<uint16_t, VlanEntry> vlanMap; 
@@ -248,10 +250,17 @@ int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t port
 
          attr.id = SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE;
 #ifndef LARCH_ENVIRON
-         attr.value.s32 = (ports[i] == esalHostPortId) ? 
-                 SAI_VLAN_TAGGING_MODE_UNTAGGED :  SAI_VLAN_TAGGING_MODE_TAGGED; 
+         bool placeTag = false;
+         for(auto tagPort : tagPorts){ 
+             if (tagPort == ports[i]){
+                 placeTag = true; 
+                 break;
+             }
+         }
+ 
+         attr.value.s32 = placeTag ?
+             SAI_VLAN_TAGGING_MODE_UNTAGGED : SAI_VLAN_TAGGING_MODE_TAGGED; 
 #else
-        // TODO FIXME
          attr.value.s32 = SAI_VLAN_TAGGING_MODE_UNTAGGED;
 #endif
          attributes.push_back(attr); 
@@ -442,8 +451,13 @@ int VendorSetPortDefaultVlan(uint16_t portId, uint16_t vlanid) {
         return ESAL_RC_FAIL;
     }
 
-#endif
+
+    // Check first to see if it is already stored as port. 
+    //
+    VlanEntry &entry = vlanMap[vlanid];
+    entry.defaultPortId = portId; 
       
+#endif
     return rc;
 }
 
@@ -547,7 +561,8 @@ int VendorTagPacketsOnIngress(uint16_t port) {
     // Iterate over the VLAN Map.
     //
     for (auto it = vlanMap.begin(); it != vlanMap.end(); ++it){
-        for (auto portEntry : it->second.ports){
+        auto &entry = it->second;
+        for (auto portEntry : entry.ports){
             if (portEntry.portId == port) {
 #ifndef UTS 
                 retcode = saiVlanApi->set_vlan_member_attribute(
@@ -562,7 +577,20 @@ int VendorTagPacketsOnIngress(uint16_t port) {
                 }
 #endif
             }
+               
         }
+    }
+
+    bool addTag = true; 
+    for(auto tagPort : tagPorts){ 
+        if (tagPort == port){
+            addTag = false;
+            break;
+        }
+    }
+
+    if (addTag) {
+        tagPorts.push_back(port);
     }
 
     return ESAL_RC_OK;
