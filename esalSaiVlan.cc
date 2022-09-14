@@ -250,15 +250,18 @@ int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t port
 
          attr.id = SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE;
 #ifndef LARCH_ENVIRON
-         bool placeTag = false;
+         // Check to see if traffic is UNTAGGED, and then mark it 
+         // that it needs a tag added.
+         //
+         bool mustAddTag = false;
          for(auto tagPort : tagPorts){ 
              if (tagPort == ports[i]){
-                 placeTag = true; 
+                 mustAddTag = true; 
                  break;
              }
          }
  
-         attr.value.s32 = placeTag ?
+         attr.value.s32 = mustAddTag ?
              SAI_VLAN_TAGGING_MODE_UNTAGGED : SAI_VLAN_TAGGING_MODE_TAGGED; 
 #else
          attr.value.s32 = SAI_VLAN_TAGGING_MODE_UNTAGGED;
