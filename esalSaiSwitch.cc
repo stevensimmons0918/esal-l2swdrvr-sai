@@ -37,6 +37,9 @@
 #include "sai/saihostif.h"
 #endif
 
+//Default STP ID 
+sai_object_id_t defStpId = 0;
+
 extern "C" {
 
 #ifndef LARCH_ENVIRON
@@ -552,6 +555,14 @@ int DllInit(void) {
         }
     }
 
+        // Create default STP
+    if (!esalStpCreate(&defStpId)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                SWERR_FILELINE, "esalStpCreate fail\n"));
+        std::cout << "esalStpCreate fail:" << "\n";
+            return ESAL_RC_FAIL;
+    }
+
     // Create all bridge ports and host interfaces
     sai_object_id_t bridgePortSai;
     sai_object_id_t portSai;
@@ -583,7 +594,6 @@ int DllInit(void) {
                 return ESAL_RC_FAIL;
         }
     }
-#endif
 
     return ESAL_RC_OK;
 }
