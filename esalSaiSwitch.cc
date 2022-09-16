@@ -88,6 +88,17 @@ static void loadSFPLibrary(void) {
         // Registers.  This is needed support for PIU access for SFP
         // functionality.
         //
+#ifdef NOT_YET_IMPLEMENTED
+        std::vector<SFPAttribute> values;
+        SFPAttribute val;
+        val.SFPAttr = SFPWordRead;
+        val.SFPVal.ReadWord = /* PUT Read Reg Routine Here */
+        values.push_back(val);
+        val.SFPAttr = SFPWordWrite;
+        val.SFPVal.WriteWord = /* PUT Write Reg Routine Here */
+        values.push_back(val);
+        esalSFPSetPort(0, values.size(), values.data());
+#endif
     }
 
     // Initialize the SFP library. 
