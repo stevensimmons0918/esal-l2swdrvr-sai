@@ -79,9 +79,7 @@ extern SFPRegisterL2ParamChangeCb_fp_t esalSFPRegisterL2ParamChangeCb;
 extern SFPSetPort_fp_t esalSFPSetPort;
 extern SFPGetPort_fp_t esalSFPGetPort;
 #endif
-
 }
-
 
 #define OID_VALUE_MASK 0x000000FFFFFFFFFFULL
 #define GET_OID_VAL(oid) ((oid) & OID_VALUE_MASK)

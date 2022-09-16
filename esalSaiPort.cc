@@ -10,7 +10,9 @@
  */
 
 #include "headers/esalSaiDef.h"
-
+#ifdef HAVE_MRVL
+#include "headers/esalCpssDefs.h"
+#endif
 #include <iostream>
 
 #include <string>
@@ -52,10 +54,10 @@ extern "C" {
 //  	o Writing to the C Array
 //  	o Bumping the C Array Size
 //
-extern unsigned int cpssDxChPhyPortSmiRegisterWrite(uint8_t devNum, uint32_t portNum,
-                    uint8_t phyReg, uint16_t data);
-extern unsigned int cpssDxChPhyPortSmiRegisterRead(uint8_t devNum, uint32_t portNum,
-                    uint8_t phyReg, uint16_t *data);
+
+
+
+
 struct SaiPortEntry{
     uint16_t portId;
     sai_object_id_t portSai;
@@ -292,14 +294,7 @@ int VendorSetPortRate(
     //
     std::vector<sai_attribute_t> attributes;
     sai_attribute_t attr;
-    attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
-    attr.value.booldata = autoneg;
-    attributes.push_back(attr); 
 
-#ifdef NOT_SUPPORTED_BY_SAI
-    // FIXME:  The following attributes are not yet supported. 
-    // Documented here ... http://rtx-swtl-jira.fnc.net.local/browse/LARCH-3
-    //
     attr.id = SAI_PORT_ATTR_SPEED;
 
     switch (speed) {
@@ -321,12 +316,49 @@ int VendorSetPortRate(
     }
 
     attributes.push_back(attr); 
-
+#ifdef NOT_SUPPORTED_BY_SAI
     attr.id = SAI_PORT_ATTR_FULL_DUPLEX_MODE;
     attr.value.booldata = (duplex == VENDOR_DUPLEX_FULL) ? true : false; 
     attributes.push_back(attr); 
+
+    attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
+    attr.value.booldata = autoneg;
+    attributes.push_back(attr);
+#else // NOT_SUPPORTED_BY_SAI
+#ifdef HAVE_MRVL
+    // XXX Direct cpss calls in Legacy mode, PortManager does not aware of this.
+    // Be carefull
+    uint32_t devNum = 0;
+    // Get portNum from oid
+    uint16_t portNum = (uint16_t)GET_OID_VAL(portSai);
+    int cpssDuplexMode;
+    if (duplex == VENDOR_DUPLEX_HALF)
+        cpssDuplexMode = CPSS_PORT_HALF_DUPLEX_E;
+    else
+        cpssDuplexMode = CPSS_PORT_FULL_DUPLEX_E;
+
+    int cppsAutoneg;
+    if (autoneg)
+        cppsAutoneg = 1;
+    else
+        cppsAutoneg = 0;
+
+    if (speed == VENDOR_SPEED_TEN || speed == VENDOR_SPEED_HUNDRED || speed == VENDOR_SPEED_GIGABIT) {
+        if (cpssDxChPortDuplexModeSet(devNum, portNum, cpssDuplexMode) != 0) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE, "VendorSetPortRate fail in cpssDxChPortDuplexModeSet\n"));
+            std::cout << "VendorSetPortRate fail, for port: " << port << "\n";
+            return ESAL_RC_FAIL;
+        }
+        if (cpssDxChPortInbandAutoNegEnableSet(devNum, portNum, cppsAutoneg) != 0) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE, "VendorSetPortRate fail in cpssDxChPortInbandAutoNegEnableSet\n"));
+            std::cout << "VendorSetPortRate fail, for port: " << port << "\n";
+            return ESAL_RC_FAIL;
+        }
+    }
 #endif
- 
+#endif
     // Set the port attributes
     //
     for (auto &curAttr : attributes) {
@@ -337,6 +369,8 @@ int VendorSetPortRate(
             std::cout << "set_port fail: " << esalSaiError(retcode) << "\n";
         }
     }
+
+
 #endif
 
     return rc;
@@ -412,7 +446,7 @@ int VendorGetPortRate(uint16_t port, vendor_speed_t *speed) {
             *speed = VENDOR_SPEED_TEN;
             break;
         case 100:
-            *speed = VENDOR_SPEED_TEN;
+            *speed = VENDOR_SPEED_HUNDRED;
             break;
         case 1000:
             *speed = VENDOR_SPEED_GIGABIT;
@@ -474,7 +508,7 @@ int VendorGetPortDuplex(uint16_t port, vendor_duplex_t *duplex) {
         std::cout << "esalPortTableFindSai fail: " << port << "\n";
         return ESAL_RC_FAIL; 
     }
-
+#ifdef NOT_SUPPORTED_BY_SAI
     // Add attributes. 
     //
     std::vector<sai_attribute_t> attributes;
@@ -493,6 +527,23 @@ int VendorGetPortDuplex(uint16_t port, vendor_duplex_t *duplex) {
     }
 
     *duplex = (attributes[0].value.booldata) ? VENDOR_DUPLEX_FULL : VENDOR_DUPLEX_HALF;
+#else // NOT_SUPPORTED_BY_SAI
+#ifdef HAVE_MRVL
+    // XXX Direct cpss calls in Legacy mode, PortManager does not aware of this.
+    // Be carefull
+    uint32_t devNum = 0;
+    // Get portNum from oid
+    uint16_t portNum = (uint16_t)GET_OID_VAL(portSai);
+    int cpssDuplexMode;
+    if (cpssDxChPortDuplexModeGet(devNum, portNum, &cpssDuplexMode) != 0) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "VendorGetPortDuplex fail in cpssDxChPortDuplexModeGet\n"));
+        std::cout << "VendorGetPortDuplex fail, for port: " << port << "\n";
+        return ESAL_RC_FAIL;
+    }
+    *duplex = (cpssDuplexMode == CPSS_PORT_HALF_DUPLEX_E) ? VENDOR_DUPLEX_HALF : VENDOR_DUPLEX_FULL;
+#endif
+#endif
 #endif
 
     return rc;
@@ -545,12 +596,12 @@ int VendorGetPortAutoNeg(uint16_t port, bool *aneg) {
         std::cout << "esalPortTableFindSai fail: " << port << "\n";
         return ESAL_RC_FAIL; 
     }
-
+#ifdef NOT_SUPPORTED_BY_SAI
     // Add attributes. 
     //
     std::vector<sai_attribute_t> attributes;
     sai_attribute_t attr;
-    attr.id = SAI_PORT_ATTR_FULL_DUPLEX_MODE;
+    attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
     attributes.push_back(attr); 
 
     // Set the port attributes
@@ -564,6 +615,25 @@ int VendorGetPortAutoNeg(uint16_t port, bool *aneg) {
     }
 
     *aneg = attributes[0].value.booldata;
+#else
+#ifdef HAVE_MRVL
+    // XXX Direct cpss calls in Legacy mode, PortManager does not aware of this.
+    // Be carefull
+    uint32_t devNum = 0;
+    // Get portNum from oid
+    uint16_t portNum = (uint16_t)GET_OID_VAL(portSai);
+    int cpssAutoneg;
+    if (cpssDxChPortInbandAutoNegEnableGet(devNum, portNum, &cpssAutoneg) != 0) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "VendorGetPortAutoNeg fail in cpssDxChPortInbandAutoNegEnableGet\n"));
+        std::cout << "VendorGetPortAutoNeg fail, for port: " << port << "\n";
+        return ESAL_RC_FAIL;
+    }
+    *aneg = (cpssAutoneg) ? true : false;
+#endif
+#endif
+
+
 #endif
 
     return rc;
@@ -956,7 +1026,54 @@ int VendorSetPortAdvertAbility(uint16_t port, uint16_t cap) {
         std::cout << "set_port fail: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL; 
     }
-
+#else // NOT_SUPPORTED_BY_SAI
+#if 0 //TODO
+    // XXX Direct cpss calls in Legacy mode, PortManager does not aware of this.
+    // Be carefull
+    uint32_t devNum = 0;
+    // Get portNum from oid
+    uint16_t portNum = (uint16_t)GET_OID_VAL(portSai);
+    port_auto_neg_advertisment_t portAnAdvertismentPtr;
+    if (cpssDxChPortAutoNegAdvertismentConfigGet(devNum, portNum, &portAnAdvertismentPtr) != 0) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "VendorGetPortAdvertAbility fail in cpssDxChPortAutoNegAdvertismentConfigGet\n"));
+        std::cout << "VendorGetPortAdvertAbility fail, for port: " << port << "\n";
+        return ESAL_RC_FAIL;
+    }
+    *advert = 0;
+    if (portAnAdvertismentPtr.duplex == CPSS_PORT_FULL_DUPLEX_E) {
+        switch (portAnAdvertismentPtr.speed) {
+        case CPSS_PORT_SPEED_10_E:
+            *advert |= VENDOR_PORT_ABIL_10MB_FD;
+            break;
+        case CPSS_PORT_SPEED_100_E:
+            *advert |= VENDOR_PORT_ABIL_100MB_FD;
+            break;
+        case CPSS_PORT_SPEED_1000_E:
+            *advert |= VENDOR_PORT_ABIL_1000MB_FD;
+            break;
+        default:
+            std::cout << "Unknown speed: \n";
+            return ESAL_RC_FAIL;
+        }
+    }
+    else { // CPSS_PORT_HALF_DUPLEX_E
+        switch (portAnAdvertismentPtr.speed) {
+        case CPSS_PORT_SPEED_10_E:
+            *advert |= VENDOR_PORT_ABIL_10MB_HD;
+            break;
+        case CPSS_PORT_SPEED_100_E:
+            *advert |= VENDOR_PORT_ABIL_100MB_HD;
+            break;
+        case CPSS_PORT_SPEED_1000_E:
+            *advert |= VENDOR_PORT_ABIL_1000MB_HD;
+            break;
+        default:
+            std::cout << "Unknown speed: \n";
+            return ESAL_RC_FAIL;
+        }
+    }
+#endif
 #endif
 #endif
     
@@ -1009,6 +1126,7 @@ int VendorGetPortAdvertAbility(uint16_t port, uint16_t *advert) {
         return ESAL_RC_FAIL; 
     }
 
+#ifdef NOT_SUPPORTED_BY_SAI
     // Add attributes. 
     //
     std::vector<sai_attribute_t> spdattributes;
@@ -1077,9 +1195,58 @@ int VendorGetPortAdvertAbility(uint16_t port, uint16_t *advert) {
                 std::cout << "Unknown half speed: " << duplst.list[dupi] << "\n";
         }
     }
+#else // NOT_SUPPORTED_BY_SAI
+#ifdef HAVE_MRVL
+    // XXX Direct cpss calls in Legacy mode, PortManager does not aware of this.
+    // Be carefull
+    uint32_t devNum = 0;
+    // Get portNum from oid
+    uint16_t portNum = (uint16_t)GET_OID_VAL(portSai);
+    CPSS_DXCH_PORT_AUTONEG_ADVERTISMENT_STC portAnAdvertismentPtr;
+    if (cpssDxChPortAutoNegAdvertismentConfigGet(devNum, portNum, &portAnAdvertismentPtr) != 0) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "VendorGetPortAdvertAbility fail in cpssDxChPortAutoNegAdvertismentConfigGet\n"));
+        std::cout << "VendorGetPortAdvertAbility fail, for port: " << port << "\n";
+        return ESAL_RC_FAIL;
+    }
+    *advert = 0;
+    if (portAnAdvertismentPtr.duplex == CPSS_PORT_FULL_DUPLEX_E) {
+        switch (portAnAdvertismentPtr.speed) {
+        case CPSS_PORT_SPEED_10_E:
+            *advert |= VENDOR_PORT_ABIL_10MB_FD;
+            break;
+        case CPSS_PORT_SPEED_100_E:
+            *advert |= VENDOR_PORT_ABIL_100MB_FD;
+            break;
+        case CPSS_PORT_SPEED_1000_E:
+            *advert |= VENDOR_PORT_ABIL_1000MB_FD;
+            break;
+        default:
+            std::cout << "Unknown speed: \n";
+            return ESAL_RC_FAIL;
+        }
+    }
+    else { // CPSS_PORT_HALF_DUPLEX_E
+        switch (portAnAdvertismentPtr.speed) {
+        case CPSS_PORT_SPEED_10_E:
+            *advert |= VENDOR_PORT_ABIL_10MB_HD;
+            break;
+        case CPSS_PORT_SPEED_100_E:
+            *advert |= VENDOR_PORT_ABIL_100MB_HD;
+            break;
+        case CPSS_PORT_SPEED_1000_E:
+            *advert |= VENDOR_PORT_ABIL_1000MB_HD;
+            break;
+        default:
+            std::cout << "Unknown speed: \n";
+            return ESAL_RC_FAIL;
+        }
+    }
+#endif
+#endif
 #endif
 
-    return rc;
+    return ESAL_RC_OK;
 }
 
 VendorL2ParamChangeCb_fp_t portStateChangeCb = 0;
@@ -1178,12 +1345,14 @@ int VendorReadReg(uint16_t port, uint16_t reg, uint16_t *val) {
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
+#ifdef HAVE_MRVL
     if (cpssDxChPhyPortSmiRegisterRead(devNum, port, reg, val) != 0) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "VendorReadReg fail in cpssDxChPhyPortSmiRegisterRead\n"));
         std::cout << "VendorReadReg fail, for port: " << port << "\n";
         return ESAL_RC_FAIL;
     }
+#endif
     return ESAL_RC_OK;
 }
 
@@ -1192,12 +1361,14 @@ int VendorWriteReg(uint16_t port, uint16_t reg, uint16_t val) {
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
+#ifdef HAVE_MRVL
     if (cpssDxChPhyPortSmiRegisterWrite(devNum, port, reg, val) != 0) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "VendorWriteReg fail in cpssDxChPhyPortSmiRegisterWrite\n"));
         std::cout << "VendorWriteReg fail, for port: " << port << "\n";
         return ESAL_RC_FAIL;
     }
+#endif
     return ESAL_RC_OK;
 }
 

@@ -10,7 +10,9 @@
  */
 
 #include "headers/esalSaiDef.h"
-
+#ifdef HAVE_MRVL
+#include "headers/esalCpssDefs.h"
+#endif
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -36,7 +38,6 @@
 #endif
 
 extern "C" {
-
 
 #ifndef LARCH_ENVIRON
 SFPLibInitialize_fp_t esalSFPLibInitialize;
