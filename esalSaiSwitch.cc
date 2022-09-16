@@ -341,7 +341,6 @@ static void onSwitchStateChange(sai_object_id_t sid, sai_switch_oper_status_t sw
 static void onFdbEvent(uint32_t count, sai_fdb_event_notification_data_t *data)
 {
     (void) data; 
-    std::cout << "onFdbEvent: " << count << "\n";
     for(uint32_t i = 0; i < count; i++) {
         (void) esalAlterForwardingTable(data+i);
     }
