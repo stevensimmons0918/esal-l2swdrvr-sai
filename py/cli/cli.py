@@ -39,7 +39,8 @@ class TabCompliter():
                     func_name = words[0]
                     func_args = next((fname_args[1] for fname_args in zip(self.funcs_names, self.funcs_args)
                                 if fname_args[0] == func_name), [])
-                    self.candidates = func_args
+                    self.candidates = [' '.join(func_args)]
+                    self.candidates.append(' ')
         try:
             response = self.candidates[state]
         except IndexError:
