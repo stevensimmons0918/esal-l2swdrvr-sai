@@ -37,12 +37,6 @@
 
 extern "C" {
 
-int cpssDxChPhyPortSmiRegisterWrite(
-    unsigned char devNum, unsigned short portNum, unsigned char phyReg, unsigned short data);
-int cpssDxChPhyPortSmiRegisterRead(
-    unsigned char devNum, unsigned short portNum, unsigned char phyReg, unsigned short *data);
-
-
 
 #ifndef LARCH_ENVIRON
 SFPLibInitialize_fp_t esalSFPLibInitialize;
@@ -90,21 +84,10 @@ static void loadSFPLibrary(void) {
 #endif
     
     if (esalSFPSetPort) {
-#ifndef UTS
         // Following sets read/write callbacks to access CPSS SMI Read/Write
         // Registers.  This is needed support for PIU access for SFP
         // functionality.
         //
-        std::vector<SFPAttribute> values;
-        SFPAttribute val;
-        val.SFPAttr = SFPWordRead;
-        val.SFPVal.ReadWord = cpssDxChPhyPortSmiRegisterRead;
-        values.push_back(val);
-        val.SFPAttr = SFPWordWrite;
-        val.SFPVal.WriteWord = cpssDxChPhyPortSmiRegisterWrite;
-        values.push_back(val);
-        esalSFPSetPort(0, values.size(), values.data());
-#endif
     }
 
     // Initialize the SFP library. 
