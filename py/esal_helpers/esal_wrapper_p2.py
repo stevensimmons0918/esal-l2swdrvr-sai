@@ -331,7 +331,7 @@ def VendorGetMacTbl (port, numMacs, macs):
     ret = esai_vendor_api.VendorGetMacTbl(w_port, w_numMacs, w_macs)
     r_port = w_port.value
     r_numMacs = w_numMacs.value
-    r_macs = w_macs.decode("utf-8")
+    r_macs = memoryview(w_macs).tolist()
     return {'rc': ret, 'port': r_port, 'numMacs': r_numMacs, 'macs': r_macs}
 
 # int VendorDisableMacLearningPerVlan (uint16_t vlan);
