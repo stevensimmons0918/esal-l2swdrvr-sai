@@ -63,8 +63,8 @@ int VendorRcToString(int rc, char *strErr) {
             break; 
     }
 
-    memcpy(strErr, retStr, MaxStrLen);
-    strErr[MaxStrLen-1] = 0; 
+    strncpy(strErr, retStr, MaxStrLen);
+    strErr[strlen(retStr)] = 0;
     return ESAL_RC_OK;
 }
 
