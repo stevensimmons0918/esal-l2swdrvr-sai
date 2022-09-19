@@ -31,6 +31,7 @@ struct mc_info {
 };
 static std::map<uint16_t, mc_info> mc;
 
+
 #ifdef MC_DEBUG
 static void print_mc () {
     for (auto &m : mc) {
@@ -42,6 +43,19 @@ static void print_mc () {
     }
 }
 #endif
+
+// Returns mirror session oids that's associated with the port
+//
+static std::set<sai_object_id_t> getPortMirrorSessionsList (uint16_t port) {
+    std::set<sai_object_id_t> ms_list;
+    for (auto &m : mc ) {
+        if (m.second.ports_in.count(port)) {
+            ms_list.insert(m.second.ms_oid);
+        }
+    }
+    return ms_list;
+}
+
 
 extern "C" {
 
@@ -68,7 +82,6 @@ int VendorSetPortEgress(uint16_t port, uint16_t numPorts, const uint16_t ports[]
 
     return rc;
 }
-
 
 int VendorMirrorPort(uint16_t srcPort, uint16_t dstPort) {
     std::cout << __PRETTY_FUNCTION__ << " " << srcPort << " " << dstPort  << " is NYI" << std::endl;
@@ -145,9 +158,9 @@ int VendorMirrorPort(uint16_t srcPort, uint16_t dstPort) {
 
         // Set src port for mirroring
         //
-        std::vector<sai_object_id_t> dst_ms_list;
+        auto associated_ms = getPortMirrorSessionsList(srcPort);
+        std::vector<sai_object_id_t> dst_ms_list(associated_ms.begin(), associated_ms.end());
         dst_ms_list.push_back(mc[dstPort].ms_oid);
-        dst_ms_list.resize(1);
 
         attr.id = SAI_PORT_ATTR_INGRESS_MIRROR_SESSION;
         attr.value.objlist.list = dst_ms_list.data();
@@ -207,8 +220,14 @@ int VendorRemoveMirrorPort(uint16_t srcPort, uint16_t dstPort) {
 
         // Disable mirroring for srcPort
         //
+        auto associated_ms = getPortMirrorSessionsList(srcPort);
+        associated_ms.erase(mc[dstPort].ms_oid);
+
+        std::vector<sai_object_id_t> dst_ms_list(associated_ms.begin(), associated_ms.end());
+        
         attr.id = SAI_PORT_ATTR_INGRESS_MIRROR_SESSION;
-        attr.value.objlist.count = 0;
+        attr.value.objlist.list = dst_ms_list.data();
+        attr.value.objlist.count = dst_ms_list.size();
 
         sai_object_id_t port_oid_in;
         if (!esalPortTableFindSai(srcPort, &port_oid_in)) {
