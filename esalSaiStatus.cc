@@ -64,7 +64,7 @@ int VendorRcToString(int rc, char *strErr) {
     }
 
     strncpy(strErr, retStr, MaxStrLen);
-    strErr[strlen(retStr)] = 0;
+    strErr[MaxStrLen-1] = 0;
     return ESAL_RC_OK;
 }
 
