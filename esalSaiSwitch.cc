@@ -23,6 +23,9 @@
 #include <string>
 #include <vector>
 
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
 
 #include "esal_vendor_api/esal_vendor_api.h"
 #ifndef LARCH_ENVIRON
@@ -351,6 +354,31 @@ static void onPortStateChange(uint32_t count, sai_port_oper_status_notification_
     }
 }
 
+
+static int get_mac_addr(const char* interfaceName, sai_mac_t* mac) {
+    struct ifreq ifrq = {0};
+
+    if (mac == nullptr || interfaceName == nullptr) {
+        return ESAL_RC_FAIL;
+    }
+
+    int fd = 0;
+    if ((fd = socket (AF_INET, SOCK_DGRAM, 0)) < 0) {
+        return ESAL_RC_FAIL;
+    }
+
+    strncpy(ifrq.ifr_name, interfaceName, IF_NAMESIZE);
+    if (ioctl (fd, SIOCGIFHWADDR, &ifrq) < 0) {
+        return ESAL_RC_FAIL;
+    }
+    memcpy(mac, ifrq.ifr_hwaddr.sa_data, 6);
+
+    close (fd);
+
+    return ESAL_RC_OK;
+}
+
+
 void onPacketEvent(sai_object_id_t sid,
                    const void *buffer,
                    sai_size_t bufferSize,
@@ -486,8 +514,10 @@ int DllInit(void) {
     // Value must be determine by reading lladdr for eth interface. 
     //
     attr.id = SAI_SWITCH_ATTR_SRC_MAC_ADDRESS;
-    attr.value.mac[5] = 2;
-    attributes.push_back(attr);
+    memset(&attr.value.mac, 0, sizeof(attr.value.mac));
+    if (get_mac_addr("eth0", &attr.value.mac) == ESAL_RC_OK) {
+        attributes.push_back(attr);
+    }
 
     retcode =  saiSwitchApi->create_switch(
         &esalSwitchId, attributes.size(), attributes.data());
