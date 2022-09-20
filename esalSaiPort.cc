@@ -1341,11 +1341,11 @@ int VendorResetPort(uint16_t port) {
 }
 
 int VendorReadReg(uint16_t port, uint16_t reg, uint16_t *val) {
-    uint32_t devNum = 0;
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
 #ifdef HAVE_MRVL
+    uint32_t devNum = 0;
     if (cpssDxChPhyPortSmiRegisterRead(devNum, port, reg, val) != 0) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "VendorReadReg fail in cpssDxChPhyPortSmiRegisterRead\n"));
@@ -1357,11 +1357,11 @@ int VendorReadReg(uint16_t port, uint16_t reg, uint16_t *val) {
 }
 
 int VendorWriteReg(uint16_t port, uint16_t reg, uint16_t val) {
-    uint32_t devNum = 0;
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
 #ifdef HAVE_MRVL
+    uint32_t devNum = 0;
     if (cpssDxChPhyPortSmiRegisterWrite(devNum, port, reg, val) != 0) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "VendorWriteReg fail in cpssDxChPhyPortSmiRegisterWrite\n"));
