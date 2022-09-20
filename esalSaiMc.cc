@@ -29,19 +29,32 @@ struct mc_info {
     sai_object_id_t ms_oid;
     std::set<uint16_t> ports_in;
 };
-static std::map<uint16_t, mc_info> mc;
+static std::map<uint16_t, mc_info> mcReplicatorTab;
 
 #ifdef MC_DEBUG
-static void print_mc () {
-    for (auto &m : mc) {
-        std::cout << "dst port: " << m.first << " oid: " << m.second.ms_oid << " src ports: ";
-        for (auto &p : m.second.ports_in) {
-            std::cout << p << " ";
+static void printMcReplicatorTab () {
+    for (auto &mcRow : mcReplicatorTab) {
+        std::cout << "dst port: " << mcRow.first << " oid: " << mcRow.second.ms_oid << " src ports: ";
+        for (auto &port_in : mcRow.second.ports_in) {
+            std::cout << port_in << " ";
         }
         std::cout << std::endl;
     }
 }
 #endif
+
+// Returns mirror session oids that's associated with the port
+//
+static std::set<sai_object_id_t> getPortMirrorSessionsList (uint16_t port) {
+    std::set<sai_object_id_t> ms_list;
+    for (auto &mcRow : mcReplicatorTab ) {
+        if (mcRow.second.ports_in.count(port)) {
+            ms_list.insert(mcRow.second.ms_oid);
+        }
+    }
+    return ms_list;
+}
+
 
 extern "C" {
 
@@ -55,7 +68,7 @@ int VendorSetPortEgress(uint16_t port, uint16_t numPorts, const uint16_t ports[]
     sai_status_t retcode;
 
     for (size_t i = 0; i < numPorts; i++) {
-        if (mc.count(ports[i]) == 0 || mc[ports[i]].ports_in.count(port) == 0) {
+        if (mcReplicatorTab.count(ports[i]) == 0 || mcReplicatorTab[ports[i]].ports_in.count(port) == 0) {
             retcode = VendorMirrorPort(port, ports[i]);
             if (retcode) {
                 SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
@@ -69,7 +82,6 @@ int VendorSetPortEgress(uint16_t port, uint16_t numPorts, const uint16_t ports[]
     return rc;
 }
 
-
 int VendorMirrorPort(uint16_t srcPort, uint16_t dstPort) {
     std::cout << __PRETTY_FUNCTION__ << " " << srcPort << " " << dstPort  << " is NYI" << std::endl;
     if (!useSaiFlag){
@@ -81,7 +93,7 @@ int VendorMirrorPort(uint16_t srcPort, uint16_t dstPort) {
     std::vector<sai_attribute_t> attributes;
     sai_attribute_t attr;
 
-    if (mc.count(dstPort) == 0) {
+    if (mcReplicatorTab.count(dstPort) == 0) {
 
         sai_object_id_t mirror_session_oid_out;
 
@@ -126,11 +138,11 @@ int VendorMirrorPort(uint16_t srcPort, uint16_t dstPort) {
             return false;
         }
 
-        mc[dstPort].ms_oid = mirror_session_oid_out;
+        mcReplicatorTab[dstPort].ms_oid = mirror_session_oid_out;
 
     }
 
-    if (mc[dstPort].ports_in.count(srcPort) == 0) {
+    if (mcReplicatorTab[dstPort].ports_in.count(srcPort) == 0) {
 
         // Get port table api
         //
@@ -145,9 +157,9 @@ int VendorMirrorPort(uint16_t srcPort, uint16_t dstPort) {
 
         // Set src port for mirroring
         //
-        std::vector<sai_object_id_t> dst_ms_list;
-        dst_ms_list.push_back(mc[dstPort].ms_oid);
-        dst_ms_list.resize(1);
+        auto associated_ms = getPortMirrorSessionsList(srcPort);
+        std::vector<sai_object_id_t> dst_ms_list(associated_ms.begin(), associated_ms.end());
+        dst_ms_list.push_back(mcReplicatorTab[dstPort].ms_oid);
 
         attr.id = SAI_PORT_ATTR_INGRESS_MIRROR_SESSION;
         attr.value.objlist.list = dst_ms_list.data();
@@ -169,7 +181,7 @@ int VendorMirrorPort(uint16_t srcPort, uint16_t dstPort) {
             return ESAL_RC_FAIL;
         }
 
-        mc[dstPort].ports_in.insert(srcPort);
+        mcReplicatorTab[dstPort].ports_in.insert(srcPort);
 
     }
 
@@ -185,12 +197,12 @@ int VendorRemoveMirrorPort(uint16_t srcPort, uint16_t dstPort) {
 
 #ifdef MC_DEBUG
     std::cout << "Mc before remove:" << std::endl;
-    print_mc();
+    printMcReplicatorTab();
 #endif
 
     sai_status_t retcode;
 
-    if (mc.count(dstPort) == 1 && mc[dstPort].ports_in.count(srcPort) == 1) {
+    if (mcReplicatorTab.count(dstPort) == 1 && mcReplicatorTab[dstPort].ports_in.count(srcPort) == 1) {
 
         sai_attribute_t attr;
 
@@ -207,8 +219,14 @@ int VendorRemoveMirrorPort(uint16_t srcPort, uint16_t dstPort) {
 
         // Disable mirroring for srcPort
         //
+        auto associated_ms = getPortMirrorSessionsList(srcPort);
+        associated_ms.erase(mcReplicatorTab[dstPort].ms_oid);
+
+        std::vector<sai_object_id_t> dst_ms_list(associated_ms.begin(), associated_ms.end());
+        
         attr.id = SAI_PORT_ATTR_INGRESS_MIRROR_SESSION;
-        attr.value.objlist.count = 0;
+        attr.value.objlist.list = dst_ms_list.data();
+        attr.value.objlist.count = dst_ms_list.size();
 
         sai_object_id_t port_oid_in;
         if (!esalPortTableFindSai(srcPort, &port_oid_in)) {
@@ -226,11 +244,11 @@ int VendorRemoveMirrorPort(uint16_t srcPort, uint16_t dstPort) {
             return ESAL_RC_FAIL;
         }
 
-        mc[dstPort].ports_in.erase(srcPort);
+        mcReplicatorTab[dstPort].ports_in.erase(srcPort);
 
         // Remove a mirror session if it's not used more
         //
-        if (mc[dstPort].ports_in.size() == 0) {
+        if (mcReplicatorTab[dstPort].ports_in.size() == 0) {
 
             // Get mirror api
             //
@@ -243,7 +261,7 @@ int VendorRemoveMirrorPort(uint16_t srcPort, uint16_t dstPort) {
                 return ESAL_RC_FAIL;
             }
 
-            retcode = saiMirrorApi->remove_mirror_session(mc[dstPort].ms_oid);
+            retcode = saiMirrorApi->remove_mirror_session(mcReplicatorTab[dstPort].ms_oid);
             if (retcode) {
                 SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                             SWERR_FILELINE, "remove_mirror_session Fail in VendorRemoveMirrorPort\n"));
@@ -251,13 +269,13 @@ int VendorRemoveMirrorPort(uint16_t srcPort, uint16_t dstPort) {
                 return ESAL_RC_FAIL;
             }
 
-            mc.erase(dstPort);
+            mcReplicatorTab.erase(dstPort);
 
         }
 
 #ifdef MC_DEBUG
     std::cout << "Mc after remove:" << std::endl;
-    print_mc();
+    printMcReplicatorTab();
 #endif
 
     } else {
