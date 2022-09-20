@@ -555,7 +555,7 @@ int DllInit(void) {
         }
     }
 
-        // Create default STP
+    // Create default STP group
     if (!esalStpCreate(&defStpId)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                 SWERR_FILELINE, "esalStpCreate fail\n"));
@@ -566,7 +566,9 @@ int DllInit(void) {
     // Create all bridge ports and host interfaces
     sai_object_id_t bridgePortSai;
     sai_object_id_t portSai;
-    uint16_t        portId;;
+    uint16_t        portId;
+    sai_object_id_t stpPortSai;    
+    
     for (uint32_t i = 0; i < port_number; i++) {
         
         if (!esalPortTableGetSaiByIdx(i, &portSai)) {
@@ -591,9 +593,16 @@ int DllInit(void) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                   SWERR_FILELINE, "esalCreateSaiHost fail in DllInit\n"));
             std::cout << "esalCreateSaiHost fail:" << "\n";
+        }
+        
+        if (!esalStpPortCreate(defStpId, bridgePortSai, &stpPortSai)) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "esalStpPortCreate fail in DllInit\n"));
+            std::cout << "esalStpPortCreate fail:" << "\n";
                 return ESAL_RC_FAIL;
         }
     }
+#endif
 
     return ESAL_RC_OK;
 }
