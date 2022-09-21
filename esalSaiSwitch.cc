@@ -507,6 +507,10 @@ int DllInit(void) {
     attr.id = SAI_SWITCH_ATTR_FDB_AGING_TIME;
     attr.value.u32 = 0;
     attributes.push_back(attr); 
+
+#if 0 // Currently FNC does not need this.
+    // If we don't set this attribute then all interfaces have random MAC.
+    // But it is not affect send packet functionality
     // Adding fake mac address to debug purposes
     // In normal situation this mac
     // will be derived from sai.profile
@@ -518,7 +522,7 @@ int DllInit(void) {
     if (get_mac_addr("eth0", &attr.value.mac) == ESAL_RC_OK) {
         attributes.push_back(attr);
     }
-
+#endif
     retcode =  saiSwitchApi->create_switch(
         &esalSwitchId, attributes.size(), attributes.data());
     if (retcode) {
