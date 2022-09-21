@@ -70,6 +70,10 @@ extern bool esalBridgeCreate(void);
 extern bool esalBridgeRemove(void);
 extern bool esalSetDefaultBridge(sai_object_id_t defaultBridgeSai);
 extern const char *esalSaiError(sai_status_t rc);
+
+extern bool esalStpCreate(sai_object_id_t *defStpId);
+extern bool esalStpPortCreate(sai_object_id_t stpSai, sai_object_id_t bridgePortSai, sai_object_id_t *stpPortSai);
+
 #ifndef LARCH_ENVIRON
 extern SFPLibInitialize_fp_t esalSFPLibInitialize;
 extern SFPLibUninitialize_fp_t esalSFPLibUninitialize;
