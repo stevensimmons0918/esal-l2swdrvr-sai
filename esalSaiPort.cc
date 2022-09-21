@@ -187,15 +187,6 @@ bool esalPortTableAddEntry(uint16_t portId, sai_object_id_t *portSai){
     portTable[portTableSize].portId = _portId;
     portTableSize++;
 
-    // Handle host interface condition
-    //
-    if (portId == esalHostPortId) {
-        if (!esalCreateSaiHost(esalHostPortId, esalHostIfName)) {
-            std::cout << "esalCreateSaiHost fail: " << esalHostPortId << " " 
-                      << esalHostIfName << "\n"; 
-        }
-    }
-    
     return true; 
 
 }

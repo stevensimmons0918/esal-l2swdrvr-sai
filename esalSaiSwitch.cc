@@ -552,9 +552,10 @@ int DllInit(void) {
         }
     }
 
-    // Create all bridge ports
+    // Create all bridge ports and host interfaces
     sai_object_id_t bridgePortSai;
     sai_object_id_t portSai;
+    uint16_t        portId;;
     for (uint32_t i = 0; i < port_number; i++) {
         
         if (!esalPortTableGetSaiByIdx(i, &portSai)) {
@@ -570,22 +571,19 @@ int DllInit(void) {
             std::cout << "esalBridgePortCreate fail:" << "\n";
                 return ESAL_RC_FAIL;
         }
-    }
 
-#ifndef LARCH_ENVIRON
-    // Creating debug Host if
-    // FIXME ... How interface be read from initfile. 
-    // http://rtx-swtl-jira.fnc.net.local/projects/LARCH/issues/LARCH-7
-    esalCreateSaiHost(47, "Ethernet28");
-    // Default Bridge already here after create_switch function.
-    // Marvell sai plugin supports only one bridge
-    // Create Bridge 
-    //
-    esalBridgeCreate(); 
-    // Bridge already here
+        portId = (uint16_t)GET_OID_VAL(portSai);
+        std::string hostifName;
+        hostifName = "Ethernet" + std::to_string(portId);
+        std::cout << hostifName << ", " << portId << ", "<< portSai << "\n";
+        if (esalCreateSaiHost(portId, hostifName.c_str()) != ESAL_RC_OK) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                  SWERR_FILELINE, "esalCreateSaiHost fail in DllInit\n"));
+            std::cout << "esalCreateSaiHost fail:" << "\n";
+                return ESAL_RC_FAIL;
+        }
+    }
 #endif
-#else
-#endif 
 
     return ESAL_RC_OK;
 }
