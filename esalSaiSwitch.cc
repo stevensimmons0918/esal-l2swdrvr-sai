@@ -357,7 +357,7 @@ static void onPortStateChange(uint32_t count, sai_port_oper_status_notification_
     }
 }
 
-
+#if 0
 static int get_mac_addr(const char* interfaceName, sai_mac_t* mac) {
     struct ifreq ifrq = {0};
 
@@ -380,7 +380,7 @@ static int get_mac_addr(const char* interfaceName, sai_mac_t* mac) {
 
     return ESAL_RC_OK;
 }
-
+#endif
 
 void onPacketEvent(sai_object_id_t sid,
                    const void *buffer,

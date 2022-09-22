@@ -6,7 +6,7 @@ LD ?= $(CROSS_COMPILE)gcc
 AR ?= $(CROSS_COMPILE)ar
 BASE_DIR = .
 CFLAGS =
-CFLAGS += -fPIC -Wall -Werror -Wno-unused -std=c++11 -g -Og -DDEBUG -DLARCH_ENVIRON -DSFP_RDY -DHAVE_MRVL
+CFLAGS += -fPIC -Wall -Werror -Werror=unused-variable -std=c++11 -g -Og -DDEBUG -DLARCH_ENVIRON -DSFP_RDY -DHAVE_MRVL
 LDFLAGS =
 OBJ_PATH = $(PWD)/obj
 OUT_DIR = $(OBJ_PATH)

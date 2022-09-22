@@ -1074,9 +1074,9 @@ int VendorSetPortAdvertAbility(uint16_t port, uint16_t cap) {
 int VendorGetPortAdvertAbility(uint16_t port, uint16_t *advert) {
     
     std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
-    int rc  = ESAL_RC_OK;
-
+    
 #ifndef LARCH_ENVIRON
+    int rc  = ESAL_RC_OK;
     // First check to see if supported by SFP library.
     //
     if (esalSFPLibrarySupport && esalSFPLibrarySupport(port)) {

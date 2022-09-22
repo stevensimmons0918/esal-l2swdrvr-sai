@@ -32,9 +32,6 @@ struct StpGroupMember{
     sai_object_id_t stpPortSai;
 };
 
-const int STP_PORT_TABLE_MAXSIZE = 1024;
-static int stpPortTableSize;
-
 static std::vector<StpGroupMember> stpPortTable;
 
 bool esalFindStpPortSaiFromPortId(sai_object_id_t portId, sai_object_id_t *stpPortSai) {
@@ -201,7 +198,6 @@ bool esalStpCreate(sai_object_id_t *defStpId) {
 bool esalStpPortCreate(sai_object_id_t stpSai, sai_object_id_t bridgePortSai, sai_object_id_t *stpPortSai) {
     sai_status_t retcode;
     sai_stp_api_t *saiStpApi;
-    sai_object_id_t stpPortId;
     retcode =  sai_api_query(SAI_API_STP, (void**) &saiStpApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
