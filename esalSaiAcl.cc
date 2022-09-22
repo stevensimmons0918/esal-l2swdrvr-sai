@@ -10,6 +10,7 @@
  */
 
 #include "headers/esalSaiDef.h"
+#include "headers/esalSaiUtils.h"
 
 #include <iostream>
 
@@ -137,12 +138,22 @@ static void removeACLEntry(sai_object_id_t aclSai) {
 
 }
 
-int VendorSetIngressVlanTranslation(uint16_t portId,
+int VendorSetIngressVlanTranslation(uint16_t lPort,
                                     vendor_vlan_translation_t trans) {
-    std::cout << __PRETTY_FUNCTION__ << " " << portId << " " << std::endl;
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort << std::endl;
 
-    if (!useSaiFlag){
+    if (!useSaiFlag) {
         return ESAL_RC_OK;
+    }
+
+    uint32_t dev;
+    uint32_t pPort;
+    bool rc = saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort);
+
+    if (!rc) {
+        std::cout << "VendorSetIngressVlanTranslation failed to get pPort, "
+                  << "lPort= " << lPort << std::endl;
+        return ESAL_RC_FAIL;
     }
     // Grab mutex.
     //
@@ -151,7 +162,7 @@ int VendorSetIngressVlanTranslation(uint16_t portId,
     // Find the port sai first.
     //
     sai_object_id_t portSai;
-    if (!esalPortTableFindSai(portId, &portSai)){
+    if (!esalPortTableFindSai(pPort, &portSai)){
         std::cout << "esalPortTableFindSai not find port\n";
         return ESAL_RC_OK;
     }
@@ -164,7 +175,8 @@ int VendorSetIngressVlanTranslation(uint16_t portId,
     retcode =  sai_api_query(SAI_API_ACL, (void**) &saiAclApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "sai_api_query fail in VendorSetIngressVlanTranslation\n"));
+                    SWERR_FILELINE, "sai_api_query fail " \
+                    " in VendorSetIngressVlanTranslation\n"));
         std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
     }
@@ -173,11 +185,10 @@ int VendorSetIngressVlanTranslation(uint16_t portId,
     // Check to see if the ingress table has already been created.
     //
     sai_object_id_t aclTable = 0;
-    auto aclTableFound = portIngressAcl.find(portId); 
+    auto aclTableFound = portIngressAcl.find(pPort); 
     if (aclTableFound != portIngressAcl.end()) {
         aclTable = aclTableFound->second; 
     } else {
-
         // STAGE is ingress. Build ACL Attributes. 
         //
         std::vector<sai_attribute_t> attributes; 
@@ -187,13 +198,14 @@ int VendorSetIngressVlanTranslation(uint16_t portId,
         //
 #ifndef UTS
         retcode = saiAclApi->create_acl_table(
-            &aclTable, esalSwitchId, attributes.size(), attributes.data());
+                &aclTable, esalSwitchId, attributes.size(), attributes.data());
         if (retcode) {
-            std::cout << "VendorSetIngressVlanTranslation create acl fail: " << esalSaiError(retcode) << "\n";
+            std::cout << "VendorSetIngressVlanTranslation create acl fail "
+                << esalSaiError(retcode) << "\n";
             return ESAL_RC_FAIL;
         }
 #endif 
-        portIngressAcl[portId] = aclTable;
+        portIngressAcl[pPort] = aclTable;
 
         // Add ACL Table to Port
         //
@@ -212,11 +224,11 @@ int VendorSetIngressVlanTranslation(uint16_t portId,
     //
     sai_object_id_t attrSai = 0;
 #ifndef UTS
-    retcode = 
-        saiAclApi->create_acl_entry(
+    retcode = saiAclApi->create_acl_entry(
             &attrSai, esalSwitchId, aclAttr.size(), aclAttr.data());
     if (retcode) {
-        std::cout << "VendorSetIngressVlanTranslation add acl fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "VendorSetIngressVlanTranslation add acl fail: "
+            << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
     }
 #endif
@@ -224,7 +236,7 @@ int VendorSetIngressVlanTranslation(uint16_t portId,
     // Push onto the port vlan map. 
     //
     portVlanTransMap newent;
-    newent.portid = portId; 
+    newent.portid = pPort; 
     newent.trans = trans;
     newent.attrSai = attrSai;
     ingressPortTransMap.push_back(newent); 
@@ -232,18 +244,32 @@ int VendorSetIngressVlanTranslation(uint16_t portId,
     return ESAL_RC_OK;
 }
 
-int VendorGetIngressVlanTranslation(uint16_t portId, int *size,
-                                    vendor_vlan_translation_t trans[]) {
-    std::cout << __PRETTY_FUNCTION__ << " " << portId << " " << std::endl;
+int VendorGetIngressVlanTranslation(uint16_t lPort, int *size,
+        vendor_vlan_translation_t trans[]) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort << std::endl;
+    uint32_t dev;
+    uint32_t pPort;
+    bool rc = saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort);
+
+    if (!rc) {
+        std::cout << "VendorGetIngressVlanTranslation failed to get pPort"
+            << " lPort=" << lPort << std::endl;
+        return ESAL_RC_FAIL; 
+    }
+
+    // Upon entryi to the routine, size should tell max size
+    // for the trans array.i
+    //  The returned value is the actual size.
 
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
-    // Upon entryi to the routine, size should tell max size for the trans array.i    //  The returned value is the actual size.
-    //
+    // Upon entryi to the routine, size should tell
+    // max size for the trans array.i
+    // The returned value is the actual size.
     if (!size) {
         std::cout << "VendorGetIngressVlanTranslation null pointer\n";
-        return ESAL_RC_FAIL; 
+        return ESAL_RC_FAIL;
     }
 
     // Iterate through array, and match on ports.  Assume that it is 
@@ -252,10 +278,11 @@ int VendorGetIngressVlanTranslation(uint16_t portId, int *size,
     int maxsize = *size; 
     int curSize = 0;
     for(auto &ent : ingressPortTransMap) {
-        if (ent.portid == portId) {
+        if (ent.portid == pPort) {
             trans[curSize++] = ent.trans; 
             if (curSize == maxsize) {
-                std::cout << "VendorGetIngressVlanTranslation max exc: " << portId << "\n";
+                std::cout << "VendorGetIngressVlanTranslation max exc: pPort="
+                          << pPort << "\n";
                 return ESAL_RC_OK;
             }
         }
@@ -267,19 +294,28 @@ int VendorGetIngressVlanTranslation(uint16_t portId, int *size,
     return ESAL_RC_OK;
 }
 
-int VendorDeleteIngressVlanTranslation(uint16_t portId,
+int VendorDeleteIngressVlanTranslation(uint16_t lPort,
                                        vendor_vlan_translation_t trans) {
-    std::cout << __PRETTY_FUNCTION__ << " " << portId << " " << std::endl;
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort << std::endl;
+    int idx = 0;
+    uint32_t dev;
+    uint32_t pPort;
+
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
-    int idx = 0;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        std::cout << "VendorDeleteIngressVlanTranslation failed to get pPort "
+                  << " lPort=" << lPort << std::endl;
+        return ESAL_RC_FAIL;
+    }
 
     // Iterate through the Port Trans Map, and match on three-way key 
     // of port, newVLAN, and oldVLAN. 
     //
     for(auto &ent : ingressPortTransMap) {
-        if ((ent.portid == portId) && 
+        if ((ent.portid == pPort) && 
             (ent.trans.newVlan == trans.newVlan) &&
             (ent.trans.oldVlan == trans.oldVlan)) {
 
@@ -296,14 +332,23 @@ int VendorDeleteIngressVlanTranslation(uint16_t portId,
         idx++; 
     }
 
-    std::cout << "VendorDeleteIngressVlanTranslation entry not found: " << portId << "\n";
+    std::cout << "VendorDeleteIngressVlanTranslation entry not found: pPort="
+              << pPort << std::endl;
     return ESAL_RC_OK;
 }
 
-int VendorSetEgressVlanTranslation(uint16_t portId,
-                                    vendor_vlan_translation_t trans) {
+int VendorSetEgressVlanTranslation(uint16_t lPort,
+                                   vendor_vlan_translation_t trans) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort << std::endl;
+    uint32_t dev;
+    uint32_t pPort;
+    bool rc = saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort);
 
-    std::cout << __PRETTY_FUNCTION__ << " " << portId << " " << std::endl;
+    if (!rc) {
+        std::cout << "VendorSetEgressVlanTranslation failed to get pPort "
+                  << " lPort=" << lPort << std::endl;
+        return ESAL_RC_FAIL;
+    }
 
     if (!useSaiFlag){
         return ESAL_RC_OK;
@@ -315,7 +360,7 @@ int VendorSetEgressVlanTranslation(uint16_t portId,
     // Find the port sai first.
     //
     sai_object_id_t portSai;
-    if (!esalPortTableFindSai(portId, &portSai)){
+    if (!esalPortTableFindSai(pPort, &portSai)){
         std::cout << "VendorSetEgressVlanTranslation not find port\n";
         return ESAL_RC_OK;
     }
@@ -328,8 +373,10 @@ int VendorSetEgressVlanTranslation(uint16_t portId,
     retcode =  sai_api_query(SAI_API_ACL, (void**) &saiAclApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "sai_api_query fail in VendorSetIngressVlanTranslation\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+                   SWERR_FILELINE,
+                   "sai_api_query fail in VendorSetIngressVlanTranslation\n"));
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
         return ESAL_RC_FAIL;
     }
 #endif
@@ -337,11 +384,10 @@ int VendorSetEgressVlanTranslation(uint16_t portId,
     // Check to see if the ingress table has already been created.
     //
     sai_object_id_t aclTable = 0;
-    auto aclTableFound = portEgressAcl.find(portId); 
+    auto aclTableFound = portEgressAcl.find(pPort); 
     if (aclTableFound != portEgressAcl.end()) {
         aclTable = aclTableFound->second; 
     } else {
-
         std::vector<sai_attribute_t> attributes; 
         buildACLTable(SAI_ACL_STAGE_EGRESS, attributes);
 
@@ -349,13 +395,14 @@ int VendorSetEgressVlanTranslation(uint16_t portId,
         // Create table and add to port ingress.
         //
         retcode = saiAclApi->create_acl_table(
-            &aclTable, esalSwitchId, attributes.size(), attributes.data());
+                &aclTable, esalSwitchId, attributes.size(), attributes.data());
         if (retcode) {
-            std::cout << "VendorSetIngressVlanTranslation create acl fail: " << esalSaiError(retcode) << "\n";
+            std::cout << "VendorSetIngressVlanTranslation create acl fail: "
+                      << esalSaiError(retcode) << std::endl;
             return ESAL_RC_FAIL;
         }
 #endif
-        portEgressAcl[portId] = aclTable;
+        portEgressAcl[pPort] = aclTable;
 
         // Add ACL Table to Port
         //
@@ -363,28 +410,25 @@ int VendorSetEgressVlanTranslation(uint16_t portId,
     }
 
     // Set up ACL Entry
-    //
     std::vector<sai_attribute_t> aclAttr; 
 
     // Build ACL Entry List item
-    //
     buildACLEntry(trans, aclTable, aclAttr); 
 
     sai_object_id_t attrSai = 0;
 #ifndef UTS
-    retcode = 
-        saiAclApi->create_acl_entry(
-            &attrSai, esalSwitchId, aclAttr.size(), aclAttr.data());
+    retcode = saiAclApi->create_acl_entry(
+                &attrSai, esalSwitchId, aclAttr.size(), aclAttr.data());
     if (retcode) {
-        std::cout << "VendorSetEgressVlanTranslation add acl fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "VendorSetEgressVlanTranslation add acl fail: "
+                  << esalSaiError(retcode) << std::endl;
         return ESAL_RC_FAIL;
     }
 #endif
 
     // Push onto the port vlan map. 
-    //
     portVlanTransMap newent;
-    newent.portid = portId; 
+    newent.portid = pPort; 
     newent.trans = trans;
     newent.attrSai = attrSai; 
     egressPortTransMap.push_back(newent); 
@@ -392,18 +436,27 @@ int VendorSetEgressVlanTranslation(uint16_t portId,
     return ESAL_RC_OK;
 }
 
-int VendorGetEgressVlanTranslation(uint16_t portId, int *size,
-                                    vendor_vlan_translation_t trans[]) {
-    std::cout << __PRETTY_FUNCTION__ << " " << portId << " " << std::endl;
+int VendorGetEgressVlanTranslation(uint16_t lPort, int *size,
+        vendor_vlan_translation_t trans[]) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort << std::endl;
+    uint32_t dev;
+    uint32_t pPort;
+    bool rc = saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort);
+
+    if (!rc) {
+        std::cout << "VendorGetEgressVlanTranslation failed to get pPort "
+                  << " lPort=" << lPort << std::endl;
+        return ESAL_RC_FAIL;
+    }
 
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
     // Size should tell max size for the trans array. The returned value 
     // is the actual size.
-    //
     if (!size) {
-        std::cout << "VendorGetIngressVlanTranslation null pointer\n";
+        std::cout << "VendorGetIngressVlanTranslation null pointer"
+                  << std::endl;
         return ESAL_RC_FAIL; 
     }
 
@@ -413,10 +466,11 @@ int VendorGetEgressVlanTranslation(uint16_t portId, int *size,
     int maxsize = *size; 
     int curSize = 0;
     for(auto &ent : egressPortTransMap) {
-        if (ent.portid == portId) {
+        if (ent.portid == pPort) {
             trans[curSize++] = ent.trans; 
             if (curSize == maxsize) {
-                std::cout << "VendorGetEgressVlanTranslation max exc: " << portId << "\n";
+                std::cout << "VendorGetEgressVlanTranslation max exc: pPort"
+                          << pPort << std::endl;
                 return ESAL_RC_OK;
             }
         }
@@ -425,9 +479,18 @@ int VendorGetEgressVlanTranslation(uint16_t portId, int *size,
     return ESAL_RC_OK;
 }
 
-int VendorDeleteEgressVlanTranslation(uint16_t portId,
-                                       vendor_vlan_translation_t trans) {
-    std::cout << __PRETTY_FUNCTION__ << " " << portId << " " << std::endl;
+int VendorDeleteEgressVlanTranslation(uint16_t lPort,
+        vendor_vlan_translation_t trans) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort << std::endl;
+    uint32_t dev;
+    uint32_t pPort;
+    bool rc = saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort);
+
+    if (!rc) {
+        std::cout << "VendorDeleteEgressVlanTranslation failed to get pPort "
+                  << " lPort=" << lPort << std::endl;
+        return ESAL_RC_FAIL;
+    }
 
     if (!useSaiFlag){
         return ESAL_RC_OK;
@@ -437,16 +500,13 @@ int VendorDeleteEgressVlanTranslation(uint16_t portId,
     //
     int idx = 0; 
     for(auto &ent : egressPortTransMap) {
-        if ((ent.portid == portId) && 
+        if ((ent.portid == pPort) && 
             (ent.trans.newVlan == trans.newVlan) &&
             (ent.trans.oldVlan == trans.oldVlan)) {
-          
             // Remove the ACL Entry from SAI. 
-            //
             removeACLEntry(ent.attrSai);
 
             // Erase from port map.
-            //
             egressPortTransMap.erase(egressPortTransMap.begin()+idx);
 
             return ESAL_RC_OK;
@@ -455,11 +515,9 @@ int VendorDeleteEgressVlanTranslation(uint16_t portId,
     }
 
     // Report that nothing was deleted, but not necessary an error condition.
-    //
-    std::cout << "VendorDeleteEgressVlanTranslation entry not found: " << portId << "\n";
+    std::cout << "VendorDeleteEgressVlanTranslation entry not found: pPort="
+              << pPort << std::endl;
     return ESAL_RC_OK;
 }
 
 }
-
-

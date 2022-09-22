@@ -10,6 +10,7 @@
  */
 
 #include "headers/esalSaiDef.h"
+#include "headers/esalSaiUtils.h"
 
 #include <iostream>
 
@@ -34,25 +35,32 @@ struct StpGroupMember{
 
 static std::vector<StpGroupMember> stpPortTable;
 
-bool esalFindStpPortSaiFromPortId(sai_object_id_t portId, sai_object_id_t *stpPortSai) {
-   
+bool esalFindStpPortSaiFromPortId(sai_object_id_t portId,
+                                  sai_object_id_t *stpPortSai) {
     // Iterate over the Stp Port.
-    // 
     for (auto &stpGroupMember : stpPortTable) {
         if (stpGroupMember.portId == portId) {
-            *stpPortSai = stpGroupMember.stpPortSai; 
-            return true; 
+            *stpPortSai = stpGroupMember.stpPortSai;
+            return true;
         }
     }
 
-    return false; 
+    return false;
 }
 
-int VendorSetPortStpState(uint16_t port, vendor_stp_state_t stpState) {
-    
-    std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
-    if (!useSaiFlag){
+int VendorSetPortStpState(uint16_t lPort, vendor_stp_state_t stpState) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort:" << port  << std::endl;
+    if (!useSaiFlag) {
         return ESAL_RC_OK;
+    }
+
+    uint32_t dev;
+    uint32_t pPort;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        std::cout << __PRETTY_FUNCTION__ << " Failed to get pPort, "
+                  << "lPort=" << lPort << std::endl;
+        return ESAL_RC_FAIL;
     }
 
     sai_status_t retcode;
@@ -87,13 +95,14 @@ int VendorSetPortStpState(uint16_t port, vendor_stp_state_t stpState) {
     }
   
     sai_object_id_t stpPortSai;
-    if (!esalFindStpPortSaiFromPortId(port, &stpPortSai)) {
+    if (!esalFindStpPortSaiFromPortId(pPort, &stpPortSai)) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                  SWERR_FILELINE, "esalFindStpPortSaiFromPortId fail VendorSetPortStpState\n"));
+                  SWERR_FILELINE, "esalFindStpPortSaiFromPortId fail " \
+                                  "VendorSetPortStpState\n"));
             std::cout << "can't find stp port object for port:" << port << "\n";
-                return ESAL_RC_FAIL;    
+                return ESAL_RC_FAIL;
     }
-    
+
     retcode = saiStpApi->set_stp_port_attribute(stpPortSai, &attr);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
@@ -101,15 +110,23 @@ int VendorSetPortStpState(uint16_t port, vendor_stp_state_t stpState) {
         std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
     }
-    
+
     return ESAL_RC_OK;
 }
 
-int VendorGetPortStpState(uint16_t port, vendor_stp_state_t *stpState) {
-    
-    std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
-    if (!useSaiFlag){
+int VendorGetPortStpState(uint16_t lPort, vendor_stp_state_t *stpState) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort:" << port  << std::endl;
+    if (!useSaiFlag) {
         return ESAL_RC_OK;
+    }
+
+    uint32_t dev;
+    uint32_t pPort;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        std::cout << __PRETTY_FUNCTION__ << " Failed to get pPort, "
+                  << "lPort=" << lPort << std::endl;
+        return ESAL_RC_FAIL;
     }
 
     sai_status_t retcode;
@@ -129,14 +146,17 @@ int VendorGetPortStpState(uint16_t port, vendor_stp_state_t *stpState) {
     attributes.push_back(attr); 
 
     sai_object_id_t stpPortSai;
-    if (!esalFindStpPortSaiFromPortId(port, &stpPortSai)) {
+    if (!esalFindStpPortSaiFromPortId(pPort, &stpPortSai)) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                  SWERR_FILELINE, "esalFindStpPortSaiFromPortId fail VendorGetPortStpState\n"));
-            std::cout << "can't find stp port object for port:" << port << "\n";
+                  SWERR_FILELINE, "esalFindStpPortSaiFromPortId fail " \
+                                  "VendorGetPortStpState\n"));
+            std::cout << "can't find stp port object for port:" << port
+                      << "\n";
                 return ESAL_RC_FAIL;    
     }
 
-    retcode = saiStpApi->get_stp_port_attribute(stpPortSai, attributes.size(), attributes.data());
+    retcode = saiStpApi->get_stp_port_attribute(stpPortSai,
+                                attributes.size(), attributes.data());
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "sai_api_query fail in VendorGetPortStpState\n"));

@@ -10,6 +10,7 @@
  */
 
 #include "headers/esalSaiDef.h"
+#include "headers/esalSaiUtils.h"
 #ifdef HAVE_MRVL
 #include "headers/esalCpssDefs.h"
 #endif
@@ -42,6 +43,8 @@
 
 //Default STP ID 
 sai_object_id_t defStpId = 0;
+
+EsalSaiUtils saiUtils;
 
 extern "C" {
 
@@ -147,89 +150,6 @@ static const char* profileGetValue(sai_switch_profile_id_t profileId, const char
     return it->second.c_str();
 }
 #endif
-
-// The two routimes getPlatformUnitCode and determineCfgFile are
-// cloned and owned from the esalUtils.cc file in repo pllatform/esal-base.
-// Ideally, it would have been better to call the same routine in 
-// esal-base; however, that violates architectural flow.  That is, 
-// easl-base calls into esalVendor.so, and never the other way. 
-//
-static std::string getPlatformUnitCode(void) {
-    std::string unitCode;
-
-    // Read command line. 
-    std::ifstream cmdline("/proc/cmdline");
-    if (cmdline.is_open()) {
-        std::string line;
-        while (getline(cmdline, line)) {
-            if ((line.find("simulatedRole")) != std::string::npos) {
-                unitCode = "02_00_00_00";
-            } else if ((line.find("platformRole")) != std::string::npos) {
-                unitCode = "01_00_00_00";
-                break;
-            }
-        }
-        cmdline.close();
-    } else {
-        std::cout << __FUNCTION__ << " Failed to open cmdline file\n";
-    }
-
-    // If not on command line, go to ENV variable. 
-    //
-    if (unitCode.empty()) {
-        unitCode = "UNKNOWN"; 
-        const char* buf = NULL;
-        if ((buf = getenv("PSI_unitCode")) != NULL) {
-            unitCode = buf;
-        }
-    }
-
-    // keep the unitCode uppercase to avoid multiple comparisons
-    //
-    std::transform(unitCode.begin(), unitCode.end(), unitCode.begin(),
-    std::ptr_fun<int, int>(std::toupper));
-    return unitCode;
-}
-
-std::string determineCfgFile(const std::string &fname) {
-
-    std::string basePath("/usr/local/fnc/esalbase"); 
-    basePath += "/"; 
-    basePath += getPlatformUnitCode(); 
-
-    // Get FWDL from environment variable. 
-    //
-    std::string fwdlType("UNKNOWN");
-    const char *buf = 0; 
-    if ((buf = getenv("PSI_fwdlType")) != NULL) {
-        fwdlType = buf; 
-    }
-    std::string fwdlPath = basePath + "/" + fwdlType;
-
-    // Check for existence of this subdir
-    //
-    struct stat fs;
-    if ((::stat(fwdlPath.c_str(), &fs)) == 0) {
-        basePath = fwdlPath;  
-    }
-    std::string path; 
-    path = basePath + "/" + fname + ".cfg";
-    
-    if (FILE *file = fopen(path.c_str(), "r")) {
-        fclose(file);
-    } else {
-        path = basePath + "/" + fname;
-        if (FILE *file1 = fopen(path.c_str(), "r")) {
-            fclose(file1);
-        } else {
-            path = "";
-        }
-    }
-
-  
-
-    return path; 
-}
 
 static std::map<std::string, std::string>::iterator esalProfileIter = esalProfileMap.begin();
 #ifndef UTS
@@ -407,7 +327,7 @@ int DllInit(void) {
 
     // Verify that a config file is present first. 
     //
-    std::string marvellScript(determineCfgFile("mvll"));
+    std::string marvellScript(saiUtils.GetCfgPath("mvll"));
     auto fptr = fopen(marvellScript.c_str(), "r");
     if (fptr) {
         // Now, send the appDemo command if file exists. 
@@ -424,9 +344,9 @@ int DllInit(void) {
        useSaiFlag = true;
     }
 
-    // std::string fn(determineCfgFile("sai"));
+    // std::string fn(saiUtils.GetCfgPath("sai"));
     // handleProfileMap(fn);
-    std::string profile_file(determineCfgFile("sai.profile.ini"));
+    std::string profile_file(saiUtils.GetCfgPath("sai.profile.ini"));
     std::cout << "profile file: " << profile_file << "\n";
 
 

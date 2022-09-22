@@ -13,13 +13,12 @@
 #ifdef HAVE_MRVL
 #include "headers/esalCpssDefs.h"
 #endif
+#include "headers/esalSaiUtils.h"
 #include <iostream>
-
 #include <string>
 #include <cinttypes>
 #include <mutex>
 #include <vector>
-
 #include "esal_vendor_api/esal_vendor_api.h"
 
 #ifndef UTS
@@ -54,10 +53,6 @@ extern "C" {
 //  	o Writing to the C Array
 //  	o Bumping the C Array Size
 //
-
-
-
-
 struct SaiPortEntry{
     uint16_t portId;
     sai_object_id_t portSai;
@@ -69,9 +64,7 @@ int portTableSize = 0;
 std::mutex portTableMutex; 
 
 bool esalPortTableFindId(sai_object_id_t portSai, uint16_t* portId) {
-   
     // Search array for match.
-    //
     for(auto i = 0; i < portTableSize; i++) {
         if (portTable[i].portSai == portSai) {
             *portId = portTable[i].portId;
@@ -80,13 +73,10 @@ bool esalPortTableFindId(sai_object_id_t portSai, uint16_t* portId) {
     }
     *portId = 0;
     return false; 
-
 }
 
 bool esalPortTableFindSai(uint16_t portId, sai_object_id_t *portSai) {
-   
     // Search array for match.
-    //
     for(auto i = 0; i < portTableSize; i++) {
         if (portTable[i].portId == portId) {
             *portSai = portTable[i].portSai;
@@ -95,7 +85,6 @@ bool esalPortTableFindSai(uint16_t portId, sai_object_id_t *portSai) {
     }
     *portSai = SAI_NULL_OBJECT_ID;
     return false; 
-
 }
 
 bool esalPortTableGetSaiByIdx(uint16_t idx, sai_object_id_t *portSai) {
@@ -110,31 +99,29 @@ bool esalPortTableGetSaiByIdx(uint16_t idx, sai_object_id_t *portSai) {
     return false;
 }
 
-bool esalPortTableAddEntry(uint16_t portId, sai_object_id_t *portSai){
-
+bool esalPortTableAddEntry(uint16_t portId, sai_object_id_t *portSai) {
     // Grab mutex.
-    //
     std::unique_lock<std::mutex> lock(portTableMutex);
 
     // Check for max exceeded. 
-    // 
     if (portTableSize >= MAX_PORT_TABLE_SIZE) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "table full in esalPortTableAddEntry\n"));
-        std::cout << "esalPortTableAddEntry: max table exceed: " << portId << "\n";
+        std::cout << "esalPortTableAddEntry: max table exceed: " << portId
+                  << std::endl;
         return false;
     }
 
 #ifndef UTS
     // Get port table api
-    //
     sai_status_t retcode;
     sai_port_api_t *saiPortApi;
     retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "API Query Fail in esalPortTableAddEntry\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
         return false; 
     }
 
@@ -162,14 +149,14 @@ bool esalPortTableAddEntry(uint16_t portId, sai_object_id_t *portSai){
         attributes.push_back(attr);
 
         // Create a port.
-        //
         retcode = saiPortApi->create_port(
             portSai, esalSwitchId, attributes.size(), attributes.data());
-        if (retcode)
-        {
+        if (retcode) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                        SWERR_FILELINE, "create_port Fail in esalPortTableAddEntry\n"));
-            std::cout << "create_port fail: " << esalSaiError(retcode) << "\n";
+                    SWERR_FILELINE, "create_port Fail in " \
+                                    "esalPortTableAddEntry\n"));
+            std::cout << "create_port fail: " << esalSaiError(retcode)
+                      << std::endl;
             return false;
         }
     }
@@ -180,50 +167,45 @@ bool esalPortTableAddEntry(uint16_t portId, sai_object_id_t *portSai){
     // Get id from oid
     uint16_t _portId = (uint16_t)GET_OID_VAL(*portSai);
 
-
     // Store first in shadow area, and then bump count. 
-    //
     portTable[portTableSize].portSai = *portSai;
     portTable[portTableSize].portId = _portId;
     portTableSize++;
 
     return true; 
-
 }
 
-bool esalAddAclToPort(sai_object_id_t portSai, sai_object_id_t aclSai, bool ingr){
-
+bool esalAddAclToPort(sai_object_id_t portSai,
+                      sai_object_id_t aclSai, bool ingr) {
     // Grab mutex.
-    //
     std::unique_lock<std::mutex> lock(portTableMutex);
 
 #ifndef UTS
     // Get port table api
-    //
     sai_status_t retcode;
     sai_port_api_t *saiPortApi;
     retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "API Query Fail in esalPortTableAddEntry\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
         return false; 
     }
 
     // Instantiate a new port sai. Mandatory attributes 
     // Adding port speed now as 1G default, but assuming it will change.
-    //
     sai_attribute_t attr;
     attr.id = (ingr ? SAI_PORT_ATTR_INGRESS_ACL : SAI_PORT_ATTR_EGRESS_ACL);
     attr.value.oid = aclSai;
 
     // Create a port.
-    //
     retcode = saiPortApi->set_port_attribute(portSai, &attr);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "create_port Fail in esalPortTableAddEntry\n"));
-        std::cout << "set port fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "set port fail: " << esalSaiError(retcode)
+                  << std::endl;
         return false; 
     }
 
@@ -231,16 +213,21 @@ bool esalAddAclToPort(sai_object_id_t portSai, sai_object_id_t aclSai, bool ingr
     return true;
 }
 
-
-int VendorSetPortRate(
-    uint16_t port, bool autoneg, vendor_speed_t speed, vendor_duplex_t duplex) {
-
-    std::cout << __PRETTY_FUNCTION__ << " " << port << std::endl;
+int VendorSetPortRate(uint16_t lPort, bool autoneg,
+                      vendor_speed_t speed, vendor_duplex_t duplex) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort << std::endl;
     int rc  = ESAL_RC_OK;
+    uint32_t pPort;
+    uint32_t dev;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "VendorSetPortRate failed to get pPort\n"));
+        return ESAL_RC_FAIL;
+    }
 #ifndef LARCH_ENVIRON
     // First check to see if supported by SFP library.
-    //
-    if (esalSFPLibrarySupport && esalSFPLibrarySupport(port)) {
+    if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
         std::vector<SFPAttribute> values;
         SFPAttribute val;
         val.SFPAttr = SFPAutoNeg;
@@ -253,7 +240,7 @@ int VendorSetPortRate(
         val.SFPVal.LinkDuplex = duplex;
         values.push_back(val); 
         if (!esalSFPSetPort) return ESAL_RC_FAIL;
-        esalSFPSetPort(port, values.size(), values.data());
+        esalSFPSetPort(lPort, values.size(), values.data());
     }
 
     if (!useSaiFlag){
@@ -262,27 +249,25 @@ int VendorSetPortRate(
 #endif
 #ifndef UTS
     // Get port table api
-    //
     sai_status_t retcode;
     sai_port_api_t *saiPortApi;
     retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "sai_api_query Fail in VendorSetPortRate\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
         return ESAL_RC_FAIL; 
     }
 
     // Find the sai port.
-    //
     sai_object_id_t portSai;
-    if (!esalPortTableFindSai(port, &portSai)) {
-        std::cout << "esalPortTableFindSai fail: " << port << "\n";
+    if (!esalPortTableFindSai(pPort, &portSai)) {
+        std::cout << "esalPortTableFindSai fail pPort: " << pPort << std::endl;
         return ESAL_RC_FAIL; 
     }
 
     // Add attributes. 
-    //
     std::vector<sai_attribute_t> attributes;
     sai_attribute_t attr;
 
@@ -351,40 +336,46 @@ int VendorSetPortRate(
 #endif
 #endif
     // Set the port attributes
-    //
     for (auto &curAttr : attributes) {
         retcode = saiPortApi->set_port_attribute(portSai, &curAttr);
         if (retcode) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                SWERR_FILELINE, "set_port_attribute Fail in VendorSetPortRate\n"));
-            std::cout << "set_port fail: " << esalSaiError(retcode) << "\n";
+                SWERR_FILELINE, "set_port_attribute Fail " \
+                                "in VendorSetPortRate\n"));
+            std::cout << "set_port fail: " << esalSaiError(retcode)
+                      << std::endl;
         }
     }
 
 
 #endif
-
     return rc;
 }
 
-int VendorGetPortRate(uint16_t port, vendor_speed_t *speed) {
-
+int VendorGetPortRate(uint16_t lPort, vendor_speed_t *speed) {
 #ifdef DEBUG
-    std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort  << std::endl;
 #endif
     int rc  = ESAL_RC_OK;
+    uint32_t dev;
+    uint32_t pPort;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "VendorGetPortRate failed to get pPort\n"));
+        return ESAL_RC_FAIL;
+    }
 
 #ifndef LARCH_ENVIRON
     // First check to see if supported by SFP library.
-    //
-    if (esalSFPLibrarySupport && esalSFPLibrarySupport(port)) {
+    if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
         std::vector<SFPAttribute> values;
         SFPAttribute val;
         val.SFPAttr = SFPSpeed;
         val.SFPVal.LinkSpeed = *speed;
         values.push_back(val); 
         if (!esalSFPGetPort) return ESAL_RC_FAIL;
-        esalSFPGetPort(port, values.size(), values.data());
+        esalSFPGetPort(lPort, values.size(), values.data());
         *speed = values[0].SFPVal.LinkSpeed;
         return rc; 
     }
@@ -394,41 +385,41 @@ int VendorGetPortRate(uint16_t port, vendor_speed_t *speed) {
     }
 #ifndef UTS
     // Get port table api
-    //
     sai_status_t retcode;
     sai_port_api_t *saiPortApi;
     retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "sai_api_query fail in VendorGetPortRate\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
         return ESAL_RC_FAIL; 
     }
 
     // Find the sai port.
-    //
     sai_object_id_t portSai = 0;
-    if (!esalPortTableFindSai(port, &portSai)) {
+    if (!esalPortTableFindSai(pPort, &portSai)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "esalPortTableFindSai fail in VendorGetPortRate\n"));
-        std::cout << "esalPortTableFindSai fail: " << port << "\n";
+            SWERR_FILELINE, "esalPortTableFindSai fail " \
+                            "in VendorGetPortRate\n"));
+        std::cout << "esalPortTableFindSai fail: pPort=" << pPort << std::endl;
         return ESAL_RC_FAIL; 
     }
 
     // Add attributes. 
-    //
     std::vector<sai_attribute_t> attributes;
     sai_attribute_t attr;
     attr.id = SAI_PORT_ATTR_SPEED;
     attributes.push_back(attr); 
 
     // Set the port attributes
-    //
-    retcode = saiPortApi->get_port_attribute(portSai, attributes.size(), attributes.data());
+    retcode = saiPortApi->get_port_attribute(portSai,
+                            attributes.size(), attributes.data());
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "get_port_attribute fail in VendorGetPortRate\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
         return ESAL_RC_FAIL; 
     }
 
@@ -446,30 +437,37 @@ int VendorGetPortRate(uint16_t port, vendor_speed_t *speed) {
             *speed = VENDOR_SPEED_TEN_GIGABIT;
             break;
         default:
-            std::cout << "Switch statement speed fail: " << attr.value.u32 << "\n"; 
+            std::cout << "Switch statement speed fail: " << attr.value.u32
+                      << std::endl; 
     }
 #endif
 
     return rc;
 }
 
-int VendorGetPortDuplex(uint16_t port, vendor_duplex_t *duplex) {
-
+int VendorGetPortDuplex(uint16_t lPort, vendor_duplex_t *duplex) {
 #ifdef DEBUG
-    std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort  << std::endl;
 #endif
     int rc  = ESAL_RC_OK;
+    uint32_t dev;
+    uint32_t pPort;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "VendorGetPortDuplex failed to get pPort\n"));
+        return ESAL_RC_FAIL;
+    }
 #ifndef LARCH_ENVIRON
     // First check to see if supported by SFP library.
-    //
-    if (esalSFPLibrarySupport && esalSFPLibrarySupport(port)) {
+    if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
         std::vector<SFPAttribute> values;
         SFPAttribute val;
         val.SFPAttr = SFPDuplex;
         val.SFPVal.LinkDuplex = *duplex;
         values.push_back(val); 
         if (!esalSFPGetPort) return ESAL_RC_FAIL;
-        esalSFPGetPort(port, values.size(), values.data());
+        esalSFPGetPort(lPort, values.size(), values.data());
         *duplex = values[0].SFPVal.LinkDuplex;
         return rc; 
     }
@@ -479,45 +477,47 @@ int VendorGetPortDuplex(uint16_t port, vendor_duplex_t *duplex) {
     }
 #ifndef UTS
     // Get port table api
-    //
     sai_status_t retcode;
     sai_port_api_t *saiPortApi;
     retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "sai_api_query fail in VendorGetPortDuplex\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
         return ESAL_RC_FAIL; 
     }
 
     // Find the sai port.
-    //
     sai_object_id_t portSai;
-    if (!esalPortTableFindSai(port, &portSai)) {
+    if (!esalPortTableFindSai(pPort, &portSai)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "esalPortTableFindSai fail in VendorGetPortDuplex\n"));
-        std::cout << "esalPortTableFindSai fail: " << port << "\n";
-        return ESAL_RC_FAIL; 
+            SWERR_FILELINE, "esalPortTableFindSai " \
+                            "fail in VendorGetPortDuplex\n"));
+        std::cout << "esalPortTableFindSai fail pPort: " << pPort << std::endl;
+        return ESAL_RC_FAIL;
     }
 #ifdef NOT_SUPPORTED_BY_SAI
     // Add attributes. 
-    //
     std::vector<sai_attribute_t> attributes;
     sai_attribute_t attr;
     attr.id = SAI_PORT_ATTR_FULL_DUPLEX_MODE;
-    attributes.push_back(attr); 
+    attributes.push_back(attr);
 
     // Set the port attributes
-    //
-    retcode = saiPortApi->get_port_attribute(portSai, attributes.size(), attributes.data());
+    retcode = saiPortApi->get_port_attribute(portSai,
+                            attributes.size(), attributes.data());
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "get_port_attribute fail in VendorGetPortDuplex\n"));
-        std::cout << "get_port_attr fail: " << esalSaiError(retcode) << "\n";
+            SWERR_FILELINE, "get_port_attribute " \
+                            "fail in VendorGetPortDuplex\n"));
+        std::cout << "get_port_attr fail: " << esalSaiError(retcode)
+                  << std::endl;
         return ESAL_RC_FAIL; 
     }
 
-    *duplex = (attributes[0].value.booldata) ? VENDOR_DUPLEX_FULL : VENDOR_DUPLEX_HALF;
+    *duplex = (attributes[0].value.booldata) ? VENDOR_DUPLEX_FULL :
+                        VENDOR_DUPLEX_HALF;
 #else // NOT_SUPPORTED_BY_SAI
 #ifdef HAVE_MRVL
     // XXX Direct cpss calls in Legacy mode, PortManager does not aware of this.
@@ -540,24 +540,30 @@ int VendorGetPortDuplex(uint16_t port, vendor_duplex_t *duplex) {
     return rc;
 }
 
-int VendorGetPortAutoNeg(uint16_t port, bool *aneg) {
-
+int VendorGetPortAutoNeg(uint16_t lPort, bool *aneg) {
 #ifdef DEBUG
-    std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort  << std::endl;
 #endif
-
     int rc  = ESAL_RC_OK;
+    uint32_t dev;
+    uint32_t pPort;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "VendorGetPortAutoNeg failed to get pPort\n"));
+        return ESAL_RC_FAIL;
+    }
+
 #ifndef LARCH_ENVIRON
     // First check to see if supported by SFP library.
-    //
-    if (esalSFPLibrarySupport && esalSFPLibrarySupport(port)) {
+    if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
         std::vector<SFPAttribute> values;
         SFPAttribute val;
         val.SFPAttr = SFPAutoNeg;
         val.SFPVal.AutoNeg = *aneg;
         values.push_back(val); 
         if (!esalSFPGetPort) return ESAL_RC_FAIL; 
-        esalSFPGetPort(port, values.size(), values.data());
+        esalSFPGetPort(lPort, values.size(), values.data());
         *aneg = values[0].SFPVal.AutoNeg;
         return rc; 
     }
@@ -567,41 +573,41 @@ int VendorGetPortAutoNeg(uint16_t port, bool *aneg) {
     }
 #ifndef UTS
     // Get port table api
-    //
     sai_status_t retcode;
     sai_port_api_t *saiPortApi;
     retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "sai_api_query fail in VendorGetPortAutoNeg\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
         return ESAL_RC_FAIL; 
     }
 
     // Find the sai port.
-    //
     sai_object_id_t portSai;
-    if (!esalPortTableFindSai(port, &portSai)) {
+    if (!esalPortTableFindSai(pPort, &portSai)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "esalPortTableFindSai fail in VendorGetPortAutoNeg\n"));
-        std::cout << "esalPortTableFindSai fail: " << port << "\n";
+            SWERR_FILELINE, "esalPortTableFindSai fail " \
+                            "in VendorGetPortAutoNeg\n"));
+        std::cout << "esalPortTableFindSai fail pPort: " << pPort << std::endl;
         return ESAL_RC_FAIL; 
     }
 #ifdef NOT_SUPPORTED_BY_SAI
     // Add attributes. 
-    //
     std::vector<sai_attribute_t> attributes;
     sai_attribute_t attr;
     attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
     attributes.push_back(attr); 
 
     // Set the port attributes
-    //
-    retcode = saiPortApi->get_port_attribute(portSai, attributes.size(), attributes.data());
+    retcode = saiPortApi->get_port_attribute(portSai,
+                            attributes.size(), attributes.data());
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "get_port_attribute fail in VendorGetPortAutoNeg\n"));
-        std::cout << "get_port fail: " << esalSaiError(retcode) << "\n";
+            SWERR_FILELINE, "get_port_attribute fail " \
+                            "in VendorGetPortAutoNeg\n"));
+        std::cout << "get_port fail: " << esalSaiError(retcode) << std::endl;
         return ESAL_RC_FAIL; 
     }
 
@@ -630,24 +636,30 @@ int VendorGetPortAutoNeg(uint16_t port, bool *aneg) {
     return rc;
 }
 
-int VendorGetPortLinkState(uint16_t port, bool *ls) {
-
+int VendorGetPortLinkState(uint16_t lPort, bool *ls) {
 #ifdef DEBUG
-    std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort  << std::endl;
 #endif
-
     int rc  = ESAL_RC_OK;
+    uint32_t dev;
+    uint32_t pPort;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "VendorGetPortLinkState failed to get pPort\n"));
+        return ESAL_RC_FAIL;
+    }
+
 #ifndef LARCH_ENVIRON
     // First check to see if supported by SFP library.
-    //
-    if (esalSFPLibrarySupport && esalSFPLibrarySupport(port)) {
+    if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
         std::vector<SFPAttribute> values;
         SFPAttribute val;
         val.SFPAttr = SFPLinkStatus;
         val.SFPVal.LinkStatus = *ls;
         values.push_back(val); 
         if (!esalSFPGetPort) return ESAL_RC_FAIL; 
-        esalSFPGetPort(port, values.size(), values.data());
+        esalSFPGetPort(lPort, values.size(), values.data());
         *ls = values[0].SFPVal.AutoNeg;
         return rc; 
     }
@@ -657,42 +669,42 @@ int VendorGetPortLinkState(uint16_t port, bool *ls) {
     }
 #ifndef UTS
     // Get port table api
-    //
     sai_status_t retcode;
     sai_port_api_t *saiPortApi;
     retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "sai_api_query fail in VendorGetPortLinkState\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
         return ESAL_RC_FAIL; 
     }
 
     // Find the sai port.
-    //
     sai_object_id_t portSai;
-    if (!esalPortTableFindSai(port, &portSai)) {
+    if (!esalPortTableFindSai(pPort, &portSai)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "esalPortTableFindSai fail in VendorGetPortLinkState\n"));
-        std::cout << "esalPortTableFindSai fail: " << port << "\n";
+            SWERR_FILELINE, "esalPortTableFindSai fail " \
+                            "in VendorGetPortLinkState\n"));
+        std::cout << "esalPortTableFindSai fail pPort: " << pPort << std::endl;
         return ESAL_RC_FAIL; 
     }
 
     // Add attributes. 
-    //
     std::vector<sai_attribute_t> attributes;
     sai_attribute_t attr;
     attr.id = SAI_PORT_ATTR_OPER_STATUS;
     attributes.push_back(attr); 
 
     // Set the port attributes
-    //
-    retcode = saiPortApi->get_port_attribute(portSai, attributes.size(), attributes.data());
+    retcode = saiPortApi->get_port_attribute(portSai,
+                            attributes.size(), attributes.data());
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "get_port_attribute fail in VendorGetPortLinkState\n"));
-        std::cout << "get_port fail: " << esalSaiError(retcode) << "\n";
-        return ESAL_RC_FAIL; 
+            SWERR_FILELINE, "get_port_attribute fail " \
+                            "in VendorGetPortLinkState\n"));
+        std::cout << "get_port fail: " << esalSaiError(retcode) << std::endl;
+        return ESAL_RC_FAIL;
     }
 
     *ls = (attributes[0].value.u32 == SAI_PORT_OPER_STATUS_UP) ? true : false;
@@ -701,50 +713,56 @@ int VendorGetPortLinkState(uint16_t port, bool *ls) {
     return rc;
 }
 
+int VendorEnablePort(uint16_t lPort) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort  << std::endl;
+    int rc  = ESAL_RC_OK;
+    uint32_t dev;
+    uint32_t pPort;
 
-int VendorEnablePort(uint16_t port) {
-    std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
-    int rc  = ESAL_RC_OK;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "VendorEnablePort failed to get pPort\n"));
+        return ESAL_RC_FAIL;
+    }
 
 #ifndef UTS
     // Get port table api
-    //
     sai_status_t retcode;
     sai_port_api_t *saiPortApi;
     retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "sai_api_query fail in VendorEnablePort\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
         return ESAL_RC_FAIL; 
     }
 
     // Find the sai port.
-    //
     sai_object_id_t portSai;
-    if (!esalPortTableFindSai(port, &portSai)) {
+    if (!esalPortTableFindSai(pPort, &portSai)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "esalPortTableFindSai fail in VendorEnablePort\n"));
-        std::cout << "esalPortTableFindSai fail: " << port << "\n";
-        return ESAL_RC_FAIL; 
+            SWERR_FILELINE, "esalPortTableFindSai fail " \
+                            "in VendorEnablePort\n"));
+        std::cout << "esalPortTableFindSai fail pPort: " << pPort << std::endl;
+        return ESAL_RC_FAIL;
     }
 
     // Add attributes. 
-    //
     sai_attribute_t attr;
     attr.id = SAI_PORT_ATTR_ADMIN_STATE;
     attr.value.booldata = true; 
  
     // Set the port attributes
-    //
     retcode = saiPortApi->set_port_attribute(portSai, &attr);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "set_port_attribute fail in VendorEnablePort\n"));
-        std::cout << "set_port fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "set_port fail: " << esalSaiError(retcode) << std::endl;
         return ESAL_RC_FAIL; 
     }
 #endif
@@ -752,49 +770,58 @@ int VendorEnablePort(uint16_t port) {
     return rc;
 }
 
-int VendorDisablePort(uint16_t port) {
-    std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
+int VendorDisablePort(uint16_t lPort) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort  << std::endl;
+    int rc  = ESAL_RC_OK;
+    uint32_t dev;
+    uint32_t pPort;
+
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
-    int rc  = ESAL_RC_OK;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "VendorEnablePort failed to get pPort\n"));
+        return ESAL_RC_FAIL;
+    }
 
 #ifndef UTS
     // Get port table api
-    //
     sai_status_t retcode;
     sai_port_api_t *saiPortApi;
     retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "sai_api_query fail in VendorDisablePort\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
         return ESAL_RC_FAIL; 
     }
 
     // Find the sai port.
-    //
     sai_object_id_t portSai;
-    if (!esalPortTableFindSai(port, &portSai)) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                    SWERR_FILELINE, "esalPortTableFindSai fail in VendorDisablePort\n"));
-        std::cout << "VendorAddMemberPort failport:" << port << "\n";
-        return ESAL_RC_FAIL;
+    if (!esalPortTableFindSai(pPort, &portSai)) {
+        if (!esalPortTableAddEntry(pPort, &portSai)){
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                SWERR_FILELINE, "esalPortTableFindSai fail " \
+                                "in VendorDisablePort\n"));
+            std::cout << "VendorAddMemberPort fail pPort:" << pPort << std::endl;
+            return ESAL_RC_FAIL;
+        }
     }
 
     // Add attributes. 
-    //
     sai_attribute_t attr;
     attr.id = SAI_PORT_ATTR_ADMIN_STATE;
     attr.value.booldata = false; 
  
     // Set the port attributes
-    //
     retcode = saiPortApi->set_port_attribute(portSai, &attr);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "set_port_attribute fail in VendorDisablePort\n"));
-        std::cout << "set_port fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "set_port fail: " << esalSaiError(retcode) << std::endl;
         return ESAL_RC_FAIL; 
     }
 #endif
@@ -802,48 +829,58 @@ int VendorDisablePort(uint16_t port) {
     return rc;
 }
 
-int VendorSetFrameMax(uint16_t port, uint16_t size) {
-    std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
+int VendorSetFrameMax(uint16_t lPort, uint16_t size) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort  << std::endl;
+    uint32_t dev;
+    uint32_t pPort;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "VendorSetFrameMax failed to get pPort\n"));
+        return ESAL_RC_FAIL;
+    }
 
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
 #ifndef UTS
     // Get port table api
-    //
     sai_status_t retcode;
     sai_port_api_t *saiPortApi;
     retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "sai_api_query fail in VendorSetFrameMax\n"));
-        std::cout << "sai_api_query fail:" << esalSaiError(retcode) << "\n";
+        std::cout << "sai_api_query fail:" << esalSaiError(retcode) << std::endl;
         return ESAL_RC_FAIL; 
     }
 
     // Find the sai port. Create it if did not exist. 
-    //
     sai_object_id_t portSai;
-    if (!esalPortTableFindSai(port, &portSai)) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                    SWERR_FILELINE, "esalPortTableAddEntry fail in VendorSetFrameMax\n"));
-        std::cout << "VendorAddMemberPort failport:" << port << "\n";
-        return ESAL_RC_FAIL;
+    if (!esalPortTableFindSai(pPort, &portSai)) {
+        if (!esalPortTableAddEntry(pPort, &portSai)){
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                SWERR_FILELINE, "esalPortTableAddEntry fail " \
+                                "in VendorSetFrameMax\n"));
+            std::cout << "VendorAddMemberPort fail pPort:" << pPort
+                      << std::endl;
+            return ESAL_RC_FAIL;
+        }
     }
 
     // Add attributes. 
-    //
     sai_attribute_t attr;
     attr.id = SAI_PORT_ATTR_MTU;
     attr.value.u32 = size; 
  
     // Set the port attributes
-    //
     retcode = saiPortApi->set_port_attribute(portSai, &attr);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "set_port_attribute fail in VendorSetFrameMax\n"));
-        std::cout << "sai_port_attribute fail:" << esalSaiError(retcode) << "\n";
+            SWERR_FILELINE, "set_port_attribute fail " \
+                            "in VendorSetFrameMax\n"));
+        std::cout << "sai_port_attribute fail:" << esalSaiError(retcode)
+                  << std::endl;
         return ESAL_RC_FAIL; 
     }
 
@@ -852,77 +889,91 @@ int VendorSetFrameMax(uint16_t port, uint16_t size) {
     return ESAL_RC_OK;
 }
 
-int VendorGetFrameMax(uint16_t port, uint16_t *size) {
-    
+int VendorGetFrameMax(uint16_t lPort, uint16_t *size) {
     int rc  = ESAL_RC_OK;
 #ifdef DEBUG
-    std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort  << std::endl;
 #endif
+    uint32_t dev;
+    uint32_t pPort;
 
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
-#ifndef UTS
 
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "VendorGetFrameMax failed to get pPort\n"));
+        return ESAL_RC_FAIL;
+    }
+
+#ifndef UTS
     // Get api interface. 
-    //
     sai_status_t retcode;
     sai_port_api_t *saiPortApi;
     retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "sai_api_query fail in VendorGetFrameMax\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
         return ESAL_RC_FAIL; 
     }
 
     // Find the sai port.
-    //
     sai_object_id_t portSai;
-    if (!esalPortTableFindSai(port, &portSai)) {
+    if (!esalPortTableFindSai(pPort, &portSai)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "esalPortTableFindSai fail in VendorGetFrameMax\n"));
-        std::cout << "esalPortTableFindSai fail: " << port << "\n";
-        return ESAL_RC_FAIL; 
+            SWERR_FILELINE, "esalPortTableFindSai fail " \
+                            "in VendorGetFrameMax\n"));
+        std::cout << "esalPortTableFindSai fail pPort: " << pPort << std::endl;
+        return ESAL_RC_FAIL;
     }
 
     // Add attributes. 
-    //
     std::vector<sai_attribute_t> attributes;
     sai_attribute_t attr;
     attr.id = SAI_PORT_ATTR_MTU;
     attributes.push_back(attr); 
 
     // Set the port attributes
-    //
-    retcode = saiPortApi->get_port_attribute(portSai, attributes.size(), attributes.data());
+    retcode = saiPortApi->get_port_attribute(portSai,
+                            attributes.size(), attributes.data());
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "get_port_attribute fail in VendorGetFrameMax\n"));
-        std::cout << "get_port fail: " << esalSaiError(retcode) << "\n";
+            SWERR_FILELINE, "get_port_attribute fail " \
+                            "in VendorGetFrameMax\n"));
+        std::cout << "get_port fail: " << esalSaiError(retcode) << std::endl;
         return ESAL_RC_FAIL; 
     }
 
     *size = attributes[0].value.u32;
-
 #endif
     return rc;
 }
 
-int VendorSetPortAdvertAbility(uint16_t port, uint16_t cap) {
-    
-    std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
+int VendorSetPortAdvertAbility(uint16_t lPort, uint16_t cap) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort  << std::endl;
+    uint32_t dev;
+    uint32_t pPort;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "VendorSetPortAdvertAbility failed " \
+                              "to get pPort\n"));
+        return ESAL_RC_FAIL;
+    }
+
 #ifndef LARCH_ENVIRON
     // Set Port Advertising Capability
-    //
-    if (esalSFPLibrarySupport && esalSFPLibrarySupport(port)) {
+    if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
         std::vector<SFPAttribute> values;
         SFPAttribute val;
         val.SFPAttr = SFPAdvertise;
         val.SFPVal.AdvertAbility = (vendor_port_advert_ability) cap;
         values.push_back(val); 
         if (!esalSFPSetPort) return ESAL_RC_FAIL; 
-        esalSFPSetPort(port, values.size(), values.data());
+        esalSFPSetPort(lPort, values.size(), values.data());
     }
 #endif
     if (!useSaiFlag){
@@ -934,88 +985,85 @@ int VendorSetPortAdvertAbility(uint16_t port, uint16_t cap) {
     // Documented here ... http://rtx-swtl-jira.fnc.net.local/browse/LARCH-3
     //
     // Get port table api
-    //
     sai_status_t retcode;
     sai_port_api_t *saiPortApi;
     retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "get_port_attribute fail in VendorGetFrameMax\n"));
-        std::cout << "sai_api_query fail:" << esalSaiError(retcode) << "\n";
+        std::cout << "sai_api_query fail:" << esalSaiError(retcode)
+                  << std::endl;
         return ESAL_RC_FAIL; 
     }
 
     // Find the sai port.
-    //
     sai_object_id_t portSai;
-    if (!esalPortTableFindSai(port, &portSai)) {
-        std::cout << "esalPortTableFindSai fail: " << port << "\n";
+    if (!esalPortTableFindSai(pPort, &portSai)) {
+        std::cout << "esalPortTableFindSai fail pPort: " << pPort << std::endl;
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "esalPortTableFindSai fail in VendorGetFrameMax\n"));
-        return ESAL_RC_FAIL; 
+            SWERR_FILELINE, "esalPortTableFindSai fail " \
+                            "in VendorGetFrameMax\n"));
+        return ESAL_RC_FAIL;
     }
 
     // Add attributes. 
-    //
     int32_t speedarr[3];
     sai_s32_list_t speedlst;
     speedlst.list = speedarr;
     speedlst.count = 0;
 
-    if (cap & VENDOR_PORT_ABIL_1000MB_FD) { 
+    if (cap & VENDOR_PORT_ABIL_1000MB_FD) {
         speedlst.list[speedlst.count++] = 1000;
     }
-    
-    if (cap & VENDOR_PORT_ABIL_100MB_FD) { 
-        speedlst.list[speedlst.count++] = 100; 
+
+    if (cap & VENDOR_PORT_ABIL_100MB_FD) {
+        speedlst.list[speedlst.count++] = 100;
     }
-    
-    if (cap & VENDOR_PORT_ABIL_10MB_FD) { 
+
+    if (cap & VENDOR_PORT_ABIL_10MB_FD) {
         speedlst.list[speedlst.count++] = 10;
     }
 
     sai_attribute_t attr;
     attr.id = SAI_PORT_ATTR_ADVERTISED_SPEED;
-    attr.value.s32list = speedlst; 
- 
+    attr.value.s32list = speedlst;
+
     // Set the port attributes
-    //
     retcode = saiPortApi->set_port_attribute(portSai, &attr);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "set_port_attribute fail in VendorGetFrameMax\n"));
-        std::cout << "set_port fail: " << esalSaiError(retcode) << "\n";
-        return ESAL_RC_FAIL; 
+        std::cout << "set_port fail: " << esalSaiError(retcode) << std::endl;
+        return ESAL_RC_FAIL;
     }
-    
+
     int32_t duplexarr[3];
     sai_s32_list_t duplexlst;
     duplexlst.list = duplexarr;
     duplexlst.count = 0;
-    
-    if (cap & VENDOR_PORT_ABIL_1000MB_HD) { 
+
+    if (cap & VENDOR_PORT_ABIL_1000MB_HD) {
         duplexlst.list[duplexlst.count++] = 1000;
     }
-    
-    if (cap & VENDOR_PORT_ABIL_100MB_HD) { 
+
+    if (cap & VENDOR_PORT_ABIL_100MB_HD) {
         duplexlst.list[duplexlst.count++] = 100;
     }
-    
-    if (cap & VENDOR_PORT_ABIL_10MB_HD) { 
+
+    if (cap & VENDOR_PORT_ABIL_10MB_HD) {
         duplexlst.list[duplexlst.count++] = 10;
     }
 
     attr.id = SAI_PORT_ATTR_ADVERTISED_HALF_DUPLEX_SPEED;
-    attr.value.s32list = duplexlst; 
- 
+    attr.value.s32list = duplexlst;
+
     // Set the port attributes
-    //
     retcode = saiPortApi->set_port_attribute(portSai, &attr);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "set_port_attribute fail in VendorGetFrameMax\n"));
-        std::cout << "set_port fail: " << esalSaiError(retcode) << "\n";
-        return ESAL_RC_FAIL; 
+        std::cout << "set_port fail: " << esalSaiError(retcode) << std::endl;
+        return ESAL_RC_FAIL;
     }
 #else // NOT_SUPPORTED_BY_SAI
 #if 0 //TODO
@@ -1067,28 +1115,33 @@ int VendorSetPortAdvertAbility(uint16_t port, uint16_t cap) {
 #endif
 #endif
 #endif
-    
     return ESAL_RC_OK;
 }
 
-int VendorGetPortAdvertAbility(uint16_t port, uint16_t *advert) {
-    
-    std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
-    
-#ifndef LARCH_ENVIRON
+int VendorGetPortAdvertAbility(uint16_t lPort, uint16_t *advert) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort:" << lPort  << std::endl;
     int rc  = ESAL_RC_OK;
+    uint32_t dev;
+    uint32_t pPort;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "VendorGetFrameMax failed to get pPort\n"));
+        return ESAL_RC_FAIL;
+    }
+
+#ifndef LARCH_ENVIRON
     // First check to see if supported by SFP library.
-    //
-    if (esalSFPLibrarySupport && esalSFPLibrarySupport(port)) {
+    if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
         std::vector<SFPAttribute> values;
         SFPAttribute val;
         val.SFPAttr = SFPAdvertise;
         val.SFPVal.AdvertAbility = *advert;
         values.push_back(val); 
         if (esalSFPGetPort) return ESAL_RC_FAIL;
-        esalSFPGetPort(port, values.size(), values.data());
+        esalSFPGetPort(lPort, values.size(), values.data());
         *advert = values[0].SFPVal.AdvertAbility;
-        return rc; 
+        return rc;
     }
 #endif
     if (!useSaiFlag){
@@ -1096,47 +1149,48 @@ int VendorGetPortAdvertAbility(uint16_t port, uint16_t *advert) {
     }
 #ifndef UTS
     // Get port table api
-    //
     sai_status_t retcode;
     sai_port_api_t *saiPortApi;
     retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "sai_api_query fail in VendorGetPortAdvertAbility\n"));
-        std::cout << "sai_api_query fail: " <<  esalSaiError(retcode) << "\n";
+            SWERR_FILELINE, "sai_api_query fail " \
+                            "in VendorGetPortAdvertAbility\n"));
+        std::cout << "sai_api_query fail: " <<  esalSaiError(retcode)
+                  << std::endl;
         return ESAL_RC_FAIL; 
     }
 
     // Find the sai port.
-    //
     sai_object_id_t portSai;
-    if (!esalPortTableFindSai(port, &portSai)) {
+    if (!esalPortTableFindSai(pPort, &portSai)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "esalPortTableFindSai fail in VendorGetPortAdvertAbility\n"));
-        std::cout << "esalPortTableFindSai fail: " << port << "\n";
-        return ESAL_RC_FAIL; 
+            SWERR_FILELINE, "esalPortTableFindSai fail " \
+                            "in VendorGetPortAdvertAbility\n"));
+        std::cout << "esalPortTableFindSai fail pPort: " << pPort << std::endl;
+        return ESAL_RC_FAIL;
     }
 
 #ifdef NOT_SUPPORTED_BY_SAI
     // Add attributes. 
-    //
     std::vector<sai_attribute_t> spdattributes;
     sai_attribute_t attr;
     attr.id = SAI_PORT_ATTR_ADVERTISED_SPEED;
-    spdattributes.push_back(attr); 
+    spdattributes.push_back(attr);
 
     // Get the port attributes
-    //
-    retcode = saiPortApi->get_port_attribute(portSai, spdattributes.size(), spdattributes.data());
+    retcode = saiPortApi->get_port_attribute(portSai,
+                                spdattributes.size(), spdattributes.data());
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "get_port_attribute fail in VendorGetPortAdvertAbility\n"));
-        std::cout << "set_port fail: " << esalSaiError(retcode) << "\n";
-        return ESAL_RC_FAIL; 
+            SWERR_FILELINE, "get_port_attribute fail " \
+                            "in VendorGetPortAdvertAbility\n"));
+        std::cout << "set_port fail: " << esalSaiError(retcode) << std::endl;
+        return ESAL_RC_FAIL;
     }
 
-    *advert = 0; 
-    auto spdlst = spdattributes[0].value.s32list; 
+    *advert = 0;
+    auto spdlst = spdattributes[0].value.s32list;
     for(uint32_t spdi = 0; spdi < spdlst.count; spdi++) {
         switch (spdlst.list[spdi]) {
             case 10:
@@ -1149,28 +1203,29 @@ int VendorGetPortAdvertAbility(uint16_t port, uint16_t *advert) {
                 *advert |= VENDOR_PORT_ABIL_1000MB_FD;
                 break;
             default: 
-                std::cout << "Unknown full duplex speed: " << spdlst.list[spdi] << "\n";
+                std::cout << "Unknown full duplex speed: " << spdlst.list[spdi]
+                          << std::endl;
         }
     }
 
     // Add attributes. 
-    //
     std::vector<sai_attribute_t> dupattributes;
     attr.id = SAI_PORT_ATTR_ADVERTISED_HALF_DUPLEX_SPEED;
     dupattributes.push_back(attr); 
 
     // Get the port attributes
-    //
-    retcode = saiPortApi->get_port_attribute(portSai, dupattributes.size(), dupattributes.data());
+    retcode = saiPortApi->get_port_attribute(portSai,
+                            dupattributes.size(), dupattributes.data());
 
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "get_port_attribute fail in VendorGetPortAdvertAbility\n"));
-        std::cout << "set_port fail:" << esalSaiError(retcode) << "\n";
+            SWERR_FILELINE, "get_port_attribute fail " \
+                            "in VendorGetPortAdvertAbility\n"));
+        std::cout << "set_port fail:" << esalSaiError(retcode) << std::endl;
         return ESAL_RC_FAIL; 
     }
-    
-    auto duplst = spdattributes[0].value.s32list; 
+
+    auto duplst = spdattributes[0].value.s32list;
     for(uint32_t dupi = 0; dupi < duplst.count; dupi++) {
         switch (duplst.list[dupi]) {
             case 10:
@@ -1183,7 +1238,8 @@ int VendorGetPortAdvertAbility(uint16_t port, uint16_t *advert) {
                 *advert |= VENDOR_PORT_ABIL_1000MB_HD;
                 break;
             default: 
-                std::cout << "Unknown half speed: " << duplst.list[dupi] << "\n";
+                std::cout << "Unknown half speed: " << duplst.list[dupi]
+                          << std::endl;
         }
     }
 #else // NOT_SUPPORTED_BY_SAI
@@ -1247,15 +1303,15 @@ int VendorRegisterL2ParamChangeCb(VendorL2ParamChangeCb_fp_t cb, void *cbId) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
 
     // Register global callback used for autoneg and link status. 
-    //
     std::unique_lock<std::mutex> lock(portTableMutex);
     portStateChangeCb = cb;
     portStateCbData = cbId;
 #ifndef LARCH_ENVIRON
-    if (!esalSFPRegisterL2ParamChangeCb || 
+    if (!esalSFPRegisterL2ParamChangeCb ||
          esalSFPRegisterL2ParamChangeCb(cb, cbId)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "SFPRegisterL2ParamChangeCb fail in VendorRegisterL2ParamChangeCb\n"));
+            SWERR_FILELINE, "SFPRegisterL2ParamChangeCb fail " \
+                            "in VendorRegisterL2ParamChangeCb\n"));
         std::cout << "VendorRegisterL2ParamChangeCb fail\n";
         return ESAL_RC_FAIL;
     }
@@ -1264,31 +1320,39 @@ int VendorRegisterL2ParamChangeCb(VendorL2ParamChangeCb_fp_t cb, void *cbId) {
 }
 
 void esalPortTableState(sai_object_id_t portSai, bool portState){
-
-
     // Verify if port exists within our provisioning. 
-    //
-    uint16_t portId;
-    if (!esalPortTableFindId(portSai, &portId)) {
+    uint16_t pPort;
+    uint32_t lPort;
+
+    if (!esalPortTableFindId(portSai, &pPort)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "esalPortTableFindId fail in esalPortTableState\n"));
-        std::cout << "esalPortTableFindSai fail: " << portId << "\n";
-        return; 
+                    SWERR_FILELINE,
+                    "esalPortTableFindId fail in esalPortTableState\n"));
+        std::cout << "esalPortTableFindSai fail pPort: " << pPort << std::endl;
+        return;
+    }
+
+    if (!saiUtils.GetLogicalPort(0, pPort, &lPort)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE,
+                    "esalPortTableState failed to get lPort\n"));
+        std::cout << "esalPortTableFindSai GetLogicalPort fail pPort: "
+                  << pPort << std::endl;
+        return;
     }
 
 #ifndef LARCH_ENVIRON
     // Check to see if the SFP supported by SFP Library. If so, just call
     // set link state, and let SFP library handle callback. 
-    //
-    if (esalSFPLibrarySupport && esalSFPLibrarySupport(portId)) {
+    if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
         std::vector<SFPAttribute> values;
         SFPAttribute val;
         val.SFPAttr = SFPLinkStatus;
         val.SFPVal.LinkStatus = portState;
-        values.push_back(val); 
-        if (!esalSFPSetPort) return; 
-        esalSFPSetPort(portId, values.size(), values.data());
-        return; 
+        values.push_back(val);
+        if (!esalSFPSetPort) return;
+        esalSFPSetPort(lPort, values.size(), values.data());
+        return;
     }
 #endif
     if (!portStateChangeCb) return;
@@ -1297,50 +1361,65 @@ void esalPortTableState(sai_object_id_t portSai, bool portState){
     bool autoneg;
     vendor_duplex_t duplex;
 
-    if (VendorGetPortRate(portId, &speed) != ESAL_RC_OK) {
+    if (VendorGetPortRate(lPort, &speed) != ESAL_RC_OK) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "VendorGetPortRate fail in esalPortTableState\n"));
-        std::cout << "VendorGetPortRate fail: " << portId << "\n";
+        std::cout << "VendorGetPortRate fail lPort: " << lPort << std::endl;
     }
 
-    if (VendorGetPortAutoNeg(portId, &autoneg) != ESAL_RC_OK) {
+    if (VendorGetPortAutoNeg(lPort, &autoneg) != ESAL_RC_OK) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "VendorGetPortAutoNeg fail in esalPortTableState\n"));
-        std::cout << "VendorGetPortAutoNeg fail: " << portId << "\n";
+            SWERR_FILELINE, "VendorGetPortAutoNeg fail " \
+                            "in esalPortTableState\n"));
+        std::cout << "VendorGetPortAutoNeg fail lPort: " << lPort << std::endl;
     }
 
-    if (VendorGetPortDuplex(portId, &duplex) != ESAL_RC_OK) {
+    if (VendorGetPortDuplex(lPort, &duplex) != ESAL_RC_OK) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "VendorGetPortDuplex fail in esalPortTableState\n"));
-        std::cout << "VendorGetPortDuplex fail: " << portId << "\n";
+            SWERR_FILELINE, "VendorGetPortDuplex fail " \
+                            "in esalPortTableState\n"));
+        std::cout << "VendorGetPortDuplex fail lPort: "
+                  << lPort << std::endl;
     }
-
-
-    portStateChangeCb(portStateCbData, portId, portState, autoneg, speed, duplex);
-
+    portStateChangeCb(portStateCbData, lPort, portState,
+                      autoneg, speed, duplex);
 }
 
+int VendorResetPort(uint16_t lPort) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort
+              << " is NYI" << std::endl;
 
-int VendorResetPort(uint16_t port) {
-    std::cout << __PRETTY_FUNCTION__ << port << " is NYI" << std::endl;
-    if (!useSaiFlag){
+    if (!useSaiFlag) {
         return ESAL_RC_OK;
     }
-    VendorDisablePort(port);
-    VendorEnablePort(port);
+
+    VendorDisablePort(lPort);
+    VendorEnablePort(lPort);
     return ESAL_RC_OK;
 }
 
-int VendorReadReg(uint16_t port, uint16_t reg, uint16_t *val) {
+int VendorReadReg(uint16_t lPort, uint16_t reg, uint16_t *val) {
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
 #ifdef HAVE_MRVL
     uint32_t devNum = 0;
-    if (cpssDxChPhyPortSmiRegisterRead(devNum, port, reg, val) != 0) {
+    uint32_t pPort;
+    uint32_t dev;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "VendorReadReg fail in cpssDxChPhyPortSmiRegisterRead\n"));
-        std::cout << "VendorReadReg fail, for port: " << port << "\n";
+              SWERR_FILELINE, "VendorReadReg failed to get pPort\n"));
+        std::cout << "VendorReadReg GetPhysicalPortInfo fail, pPort: "
+                  << pPort << std::endl;
+        return ESAL_RC_FAIL;
+    }
+
+    if (cpssDxChPhyPortSmiRegisterRead(dev, pPort, reg, val) != 0) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+            SWERR_FILELINE, "VendorReadReg fail " \
+                            "in cpssDxChPhyPortSmiRegisterRead\n"));
+        std::cout << "VendorReadReg fail, for pPort: " << pPort << std::endl;
         return ESAL_RC_FAIL;
     }
 #endif
@@ -1352,117 +1431,148 @@ int VendorWriteReg(uint16_t port, uint16_t reg, uint16_t val) {
         return ESAL_RC_OK;
     }
 #ifdef HAVE_MRVL
-    uint32_t devNum = 0;
-    if (cpssDxChPhyPortSmiRegisterWrite(devNum, port, reg, val) != 0) {
+    uint32_t pPort;
+    uint32_t dev;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "VendorWriteReg fail in cpssDxChPhyPortSmiRegisterWrite\n"));
-        std::cout << "VendorWriteReg fail, for port: " << port << "\n";
+              SWERR_FILELINE, "VendorReadReg failed to get pPort\n"));
+        std::cout << "VendorReadReg GetPhysicalPortInfo fail, pPort: "
+                  << pPort << std::endl;
+        return ESAL_RC_FAIL;
+    }
+
+    if (cpssDxChPhyPortSmiRegisterWrite(dev, pPort, reg, val) != 0) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+            SWERR_FILELINE, "VendorWriteReg fail " \
+                            "in cpssDxChPhyPortSmiRegisterWrite\n"));
+        std::cout << "VendorWriteReg fail, for pPort: " << pPort << std::endl;
         return ESAL_RC_FAIL;
     }
 #endif
     return ESAL_RC_OK;
 }
 
-int VendorDropTaggedPacketsOnIngress(uint16_t port) {
-    std::cout << __PRETTY_FUNCTION__ << " " << port << " " << std::endl;
+int VendorDropTaggedPacketsOnIngress(uint16_t lPort) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort:" << lPort << " " << std::endl;
+    uint32_t pPort;
+    uint32_t dev;
+
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
 
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "VendorDropTaggedPacketsOnIngress failed " \
+                              "to get pPort\n"));
+        std::cout << "VendorDropTaggedPacketsOnIngress GetPhysicalPortInfo "
+                  << "fail, pPort: " << pPort << std::endl;
+        return ESAL_RC_FAIL;
+    }
+
 #ifndef UTS
     // Get port table api
-    //
     sai_status_t retcode;
     sai_port_api_t *saiPortApi;
     retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "sai_api_query fail in VendorDropTaggedPacketsOnIngress\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+            SWERR_FILELINE, "sai_api_query fail " \
+                            "in VendorDropTaggedPacketsOnIngress\n"));
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
         return ESAL_RC_FAIL; 
     }
 
     // Find the sai port.
-    //
     sai_object_id_t portSai;
-    if (!esalPortTableFindSai(port, &portSai)) {
+    if (!esalPortTableFindSai(pPort, &portSai)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "esalPortTableFindSai fail in VendorDropTaggedPacketsOnIngress\n"));
-        std::cout << "esalPortTableFindSai fail: " << port << "\n";
-        return ESAL_RC_FAIL; 
+            SWERR_FILELINE, "esalPortTableFindSai fail " \
+                            "in VendorDropTaggedPacketsOnIngress\n"));
+        std::cout << "esalPortTableFindSai fail pPort: " << pPort << std::endl;
+        return ESAL_RC_FAIL;
     }
 
     // Add attributes. 
-    //
     sai_attribute_t attr;
     attr.id = SAI_PORT_ATTR_DROP_TAGGED;
     attr.value.booldata = true; 
  
     // Set the port attributes
-    //
     retcode = saiPortApi->set_port_attribute(portSai, &attr);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "set_port_attribute fail in VendorDropTaggedPacketsOnIngress\n"));
-        std::cout << "set_port fail:" << esalSaiError(retcode) << "\n";
-        return ESAL_RC_FAIL; 
+            SWERR_FILELINE, "set_port_attribute fail " \
+                            "in VendorDropTaggedPacketsOnIngress\n"));
+        std::cout << "set_port fail:" << esalSaiError(retcode) << std::endl;
+        return ESAL_RC_FAIL;
     }
 #endif
 
     return ESAL_RC_OK;
 }
 
-int VendorDropUntaggedPacketsOnIngress(uint16_t port) {
-    std::cout << __PRETTY_FUNCTION__ << " " << port << " " << std::endl;
+int VendorDropUntaggedPacketsOnIngress(uint16_t lPort) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort:" << lPort << " " << std::endl;
+    uint32_t pPort;
+    uint32_t dev;
+
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
 
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "VendorDropUntaggedPacketsOnIngress failed " \
+                              "to get pPort\n"));
+        std::cout << "VendorDropUntaggedPacketsOnIngress GetPhysicalPortInfo "
+                  << "fail, pPort: " << pPort << std::endl;
+        return ESAL_RC_FAIL;
+    }
+
 #ifndef UTS
-    
     // Get port table api
-    //
     sai_status_t retcode;
     sai_port_api_t *saiPortApi;
     retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "sai_api_query fail in VendorDropUntaggedPacketsOnIngress\n"));
-        std::cout << "sai_api_query fail:" << esalSaiError(retcode) << "\n";
+            SWERR_FILELINE, "sai_api_query fail " \
+                            "in VendorDropUntaggedPacketsOnIngress\n"));
+        std::cout << "sai_api_query fail:" << esalSaiError(retcode)
+                  << std::endl;
         return ESAL_RC_FAIL; 
     }
 
     // Find the sai port.
-    //
     sai_object_id_t portSai;
-    if (!esalPortTableFindSai(port, &portSai)) {
-        std::cout << "esalPortTableFindSai fail: " << port << "\n";
+    if (!esalPortTableFindSai(pPort, &portSai)) {
+        std::cout << "esalPortTableFindSai fail pPort: " << pPort << std::endl;
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "esalPortTableFindSai fail in VendorDropUntaggedPacketsOnIngress\n"));
-        return ESAL_RC_FAIL; 
+            SWERR_FILELINE, "esalPortTableFindSai fail " \
+                            "in VendorDropUntaggedPacketsOnIngress\n"));
+        return ESAL_RC_FAIL;
     }
 
     // Add attributes. 
-    //
     sai_attribute_t attr;
     attr.id = SAI_PORT_ATTR_DROP_UNTAGGED;
     attr.value.booldata = true; 
  
     // Set the port attributes
-    //
     retcode = saiPortApi->set_port_attribute(portSai, &attr);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "set_port_attribute fail in VendorDropUntaggedPacketsOnIngress\n"));
-        std::cout << "set_port fail: " << esalSaiError(retcode) << "\n";
-        return ESAL_RC_FAIL; 
+            SWERR_FILELINE, "set_port_attribute fail " \
+                            "in VendorDropUntaggedPacketsOnIngress\n"));
+        std::cout << "set_port fail: " << esalSaiError(retcode) << std::endl;
+        return ESAL_RC_FAIL;
     }
 #endif
-
 
     return ESAL_RC_OK;
 }
 
-
 }
-

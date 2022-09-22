@@ -10,7 +10,7 @@
  */
 
 #include "headers/esalSaiDef.h"
-
+#include "headers/esalSaiUtils.h"
 #include <iostream>
 
 #include <cinttypes>
@@ -174,11 +174,11 @@ int VendorDeleteVlan(uint16_t vlanid) {
 }
 
 int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t ports[]) {
-
     std::cout << __PRETTY_FUNCTION__ << " " << vlanid  << std::endl;
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
+
     int rc  = ESAL_RC_OK;
 
     // Grab mutex.
@@ -212,17 +212,27 @@ int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t port
     for(uint16_t i = 0; i < numPorts; i++) {
         VlanEntry &entry = vlanMap[vlanid];
 
+        uint32_t dev;
+        uint32_t pPort;
+
+        if (!saiUtils.GetPhysicalPortInfo(ports[i], &dev, &pPort)) {
+            std::cout << "VendorAddPortsToVlan, failed to get pPort"
+                << " lPort=" << pPort << std::endl;
+            continue;
+        }
+
         // Check first to see if it is already stored as port. 
         //
         bool fnd = false; 
         for(auto prt : entry.ports){
-            if (ports[i] == prt.portId) {
-                std::cout << "Member exists already: " << vlanid << " " << ports[i] << "\n";
+            if (pPort == prt.portId) {
+                std::cout << "Member exists already: " << vlanid
+                    << " " << pPort << "\n";
                 fnd = true;
                 break; 
             }
         }
-        
+
         if (fnd) continue;
 
 #ifndef UTS
@@ -236,51 +246,51 @@ int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t port
         attributes.push_back(attr); 
 
         sai_object_id_t bridgePortSai;
-        
-        if (!esalFindBridgePortSaiFromPortId(ports[i], &bridgePortSai)) {
+
+        if (!esalFindBridgePortSaiFromPortId(pPort, &bridgePortSai)) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                  SWERR_FILELINE, "esalFindBridgePortSai fail VendorAddPortsToVlan\n"));
-            std::cout << "can't find bridge port object for port:" << ports[i] << "\n";
-                return ESAL_RC_FAIL;    
+                        SWERR_FILELINE, "esalFindBridgePortSai fail VendorAddPortsToVlan\n"));
+            std::cout << "can't find bridge port object for port:" << pPort << "\n";
+            return ESAL_RC_FAIL;
         }
-        
-         attr.id = SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID;
-         attr.value.oid = bridgePortSai;
-         attributes.push_back(attr); 
 
-         attr.id = SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE;
+        attr.id = SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID;
+        attr.value.oid = bridgePortSai;
+        attributes.push_back(attr); 
 
-         // Check to see if traffic is UNTAGGED, and then mark it 
-         // that it needs a tag added.
-         //
-         bool mustAddTag = false;
-         for(auto tagPort : tagPorts){ 
-             if (tagPort == ports[i]){
-                 mustAddTag = true; 
-                 break;
-             }
-         }
- 
-         attr.value.s32 = mustAddTag ?
-             SAI_VLAN_TAGGING_MODE_UNTAGGED : SAI_VLAN_TAGGING_MODE_TAGGED; 
-         attributes.push_back(attr); 
+        attr.id = SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE;
 
-         sai_object_id_t memberSai;
-         retcode = 
-              saiVlanApi->create_vlan_member(
-                      &memberSai, esalSwitchId, attributes.size(), attributes.data()); 
-         if (retcode) {
-              SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                  SWERR_FILELINE, "create_vlan_member fail VendorAddPortsToVlan\n"));
-              std::cout << "sai_object_id_t &vlanMbrObjId fail: " << ports[i] << "\n";
-         } else {
-             // Add first to vlan map.
-             //  
-             VlanMember mbr;
-             mbr.portId = ports[i];
-             mbr.memberSai = memberSai;
-             entry.ports.push_back(mbr);
-         }
+        // Check to see if traffic is UNTAGGED, and then mark it 
+        // that it needs a tag added.
+        //
+        bool mustAddTag = false;
+        for(auto tagPort : tagPorts){ 
+            if (tagPort == pPort){
+                mustAddTag = true; 
+                break;
+            }
+        }
+
+        attr.value.s32 = mustAddTag ?
+            SAI_VLAN_TAGGING_MODE_UNTAGGED : SAI_VLAN_TAGGING_MODE_TAGGED; 
+        attributes.push_back(attr); 
+
+        sai_object_id_t memberSai;
+        retcode = 
+            saiVlanApi->create_vlan_member(
+                    &memberSai, esalSwitchId, attributes.size(), attributes.data()); 
+        if (retcode) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE, "create_vlan_member fail VendorAddPortsToVlan\n"));
+            std::cout << "sai_object_id_t &vlanMbrObjId fail: " << pPort << "\n";
+        } else {
+            // Add first to vlan map.
+            //  
+            VlanMember mbr;
+            mbr.portId = pPort;
+            mbr.memberSai = memberSai;
+            entry.ports.push_back(mbr);
+        }
 #endif
     }
 
@@ -288,7 +298,6 @@ int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t port
 }
 
 int VendorDeletePortsFromVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t ports[]) {
-
     std::cout << __PRETTY_FUNCTION__ << " " << vlanid  << std::endl;
     if (!useSaiFlag){
         return ESAL_RC_OK;
@@ -315,7 +324,7 @@ int VendorDeletePortsFromVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t
     retcode = sai_api_query(SAI_API_VLAN, (void**) &saiVlanApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "sai_api_query fail in VendorDeletePortsFromVlan\n"));
+                    SWERR_FILELINE, "sai_api_query fail in VendorDeletePortsFromVlan\n"));
         std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
     }
@@ -328,16 +337,24 @@ int VendorDeletePortsFromVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t
         bool fnd = false; 
         sai_object_id_t memberSai = 0;
         int portTabIdx = 0;
+        uint32_t dev;
+        uint32_t pPort;
+
+        if (!saiUtils.GetPhysicalPortInfo(ports[i], &dev, &pPort)) {
+            std::cout << "VendorDisableMacLearningPerPort, failed to get pPort"
+                << " lPort=" << ports[i] << std::endl;
+            continue;
+        }
         for(auto prt : entry.ports){
-            if (ports[i] == prt.portId) {
-                std::cout << "Member exists already: " << vlanid << " " << ports[i] << "\n";
+            if (pPort == prt.portId) {
+                std::cout << "Member exists already: " << vlanid << " " << pPort << "\n";
                 fnd = true;
                 memberSai = prt.memberSai; 
                 break; 
             }
             portTabIdx++;
         }
-        
+
         if (!fnd) continue; 
 
         // Now,, remove objects.
@@ -348,7 +365,7 @@ int VendorDeletePortsFromVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t
         retcode = saiVlanApi->remove_vlan_member(memberSai);
         if (retcode) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                SWERR_FILELINE, "remove_vlan_member fail VendorDeletePortsFromVlan\n"));
+                        SWERR_FILELINE, "remove_vlan_member fail VendorDeletePortsFromVlan\n"));
             std::cout << "remove_vlan_member fail\n";
         } else {
             entry.ports.erase(entry.ports.begin()+portTabIdx); 
@@ -361,7 +378,6 @@ int VendorDeletePortsFromVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t
 
 int VendorGetPortsInVlan(uint16_t vlanid,
         uint16_t *numPorts, uint16_t ports[]) {
-    
     std::cout << __PRETTY_FUNCTION__ << " " << vlanid  << std::endl;
     if (!useSaiFlag){
         return ESAL_RC_OK;
@@ -385,18 +401,35 @@ int VendorGetPortsInVlan(uint16_t vlanid,
     // 
     VlanEntry &entry = vlanMap[vlanid];
     for(auto &prt : entry.ports){
-        ports[(*numPorts)++] = prt.portId;
+        uint32_t lPort;
+
+        if (!saiUtils.GetLogicalPort(0, prt.portId, &lPort)) {
+            std::cout << "VendorGetPortsInVlan, failed to get lPort"
+                << " pPort=" << prt.portId << std::endl;
+            continue;
+        } else {
+            ports[(*numPorts)++] = lPort;
+        }
     }
 
     return rc;
 }
 
-int VendorSetPortDefaultVlan(uint16_t portId, uint16_t vlanid) {
-
+int VendorSetPortDefaultVlan(uint16_t lPort, uint16_t vlanid) {
     std::cout << __PRETTY_FUNCTION__ << " " << vlanid  << std::endl;
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
+
+    uint32_t dev;
+    uint32_t pPort;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        std::cout << "VendorSetPortDefaultVlan, failed to get pPort"
+            << " lPort=" << lPort << std::endl;
+        return ESAL_RC_FAIL;
+    }
+
     int rc  = ESAL_RC_OK;
 
     // Grab mutex.
@@ -409,7 +442,7 @@ int VendorSetPortDefaultVlan(uint16_t portId, uint16_t vlanid) {
     if (vlanid && (vlanFound == vlanMap.end())) {
         std::cout << "vlan_map.find vlan does not exist: " << vlanid; 
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "invalid vlan fail in VendorSetPortDefaultVlan\n"));
+                    SWERR_FILELINE, "invalid vlan fail in VendorSetPortDefaultVlan\n"));
         return ESAL_RC_FAIL; 
     }
 
@@ -421,7 +454,7 @@ int VendorSetPortDefaultVlan(uint16_t portId, uint16_t vlanid) {
     retcode = sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "sai_api_query fail in VendorSetPortDefaultVlan\n"));
+                    SWERR_FILELINE, "sai_api_query fail in VendorSetPortDefaultVlan\n"));
         std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
     }
@@ -435,9 +468,9 @@ int VendorSetPortDefaultVlan(uint16_t portId, uint16_t vlanid) {
     // Look up port sai.  
     //
     sai_object_id_t portSai;
-    if (!esalPortTableFindSai(portId, &portSai)) {
+    if (!esalPortTableFindSai(pPort, &portSai)) {
 
-        std::cout << "VendorSetPortDefaultVlan fail port: " << portId << "\n";
+        std::cout << "VendorSetPortDefaultVlan fail pPort: " << pPort << "\n";
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "invalid port in VendorSetPortDefaultVlan\n"));
         return ESAL_RC_FAIL;
@@ -446,7 +479,7 @@ int VendorSetPortDefaultVlan(uint16_t portId, uint16_t vlanid) {
     retcode = saiPortApi->set_port_attribute(portSai, &attr);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "set_port_attribute in VendorSetPortDefaultVlan\n"));
+                    SWERR_FILELINE, "set_port_attribute in VendorSetPortDefaultVlan\n"));
         std::cout << "VendorSetPortDefaultVlan fail\n";
         return ESAL_RC_FAIL;
     }
@@ -455,17 +488,25 @@ int VendorSetPortDefaultVlan(uint16_t portId, uint16_t vlanid) {
     // Check first to see if it is already stored as port. 
     //
     VlanEntry &entry = vlanMap[vlanid];
-    entry.defaultPortId = portId; 
-      
+    entry.defaultPortId = pPort; 
+
 #endif
     return rc;
 }
 
-int VendorGetPortDefaultVlan(uint16_t portId, uint16_t *vlanid) {
-
-    std::cout << __PRETTY_FUNCTION__ << " " << portId << std::endl;
+int VendorGetPortDefaultVlan(uint16_t lPort, uint16_t *vlanid) {
+    std::cout << __PRETTY_FUNCTION__ << " " << lPort << std::endl;
     if (!useSaiFlag){
         return ESAL_RC_OK;
+    }
+
+    uint32_t dev;
+    uint32_t pPort;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        std::cout << "VendorGetPortDefaultVlan, failed to get pPort"
+            << " lPort=" << lPort << std::endl;
+        return ESAL_RC_FAIL;
     }
     int rc  = ESAL_RC_OK;
 
@@ -481,7 +522,7 @@ int VendorGetPortDefaultVlan(uint16_t portId, uint16_t *vlanid) {
     retcode = sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "sai_api_query in VendorGetPortDefaultVlan\n"));
+                    SWERR_FILELINE, "sai_api_query in VendorGetPortDefaultVlan\n"));
         std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
     }
@@ -496,13 +537,13 @@ int VendorGetPortDefaultVlan(uint16_t portId, uint16_t *vlanid) {
     // Look up port sai
     //
     sai_object_id_t portSai;
-    if (esalPortTableFindSai(portId, &portSai)) {
+    if (esalPortTableFindSai(pPort, &portSai)) {
         retcode = saiPortApi->get_port_attribute(
-            portSai, attributes.size(), attributes.data()); 
+                portSai, attributes.size(), attributes.data()); 
         if (retcode) {
             std::cout << "get_port_attributes fail:" << esalSaiError(retcode) << "\n";
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                SWERR_FILELINE, "get_port_attribute fail in VendorGetPortDefaultVlan\n"));
+                        SWERR_FILELINE, "get_port_attribute fail in VendorGetPortDefaultVlan\n"));
             return ESAL_RC_FAIL; 
         }
         *vlanid = attributes[0].value.u16;
@@ -518,7 +559,7 @@ int VendorDeletePortDefaultVlan(uint16_t port, uint16_t vlanid) {
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
-    
+
     return VendorSetPortDefaultVlan(port, 0);
 
 }
@@ -530,10 +571,19 @@ int VendorDeletePortDefaultVlan(uint16_t port, uint16_t vlanid) {
 //      CPU Host will not be marked as tagging.
 //      LCNx and OSCx will be marked as tagging.
 //
-int VendorTagPacketsOnIngress(uint16_t port) {
+int VendorTagPacketsOnIngress(uint16_t lPort) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
     if (!useSaiFlag){
         return ESAL_RC_OK;
+    }
+
+    uint32_t dev;
+    uint32_t pPort;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        std::cout << "VendorTagPacketsOnIngress, failed to get pPort"
+            << " lPort=" << lPort << std::endl;
+        return ESAL_RC_FAIL;
     }
 
     // Grab mutex.
@@ -548,7 +598,7 @@ int VendorTagPacketsOnIngress(uint16_t port) {
     retcode =  sai_api_query(SAI_API_VLAN, (void**) &saiVlanApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "sai_api_query fail in VendorTagPacketsOnIngress\n"));
+                    SWERR_FILELINE, "sai_api_query fail in VendorTagPacketsOnIngress\n"));
         std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
     }
@@ -563,45 +613,45 @@ int VendorTagPacketsOnIngress(uint16_t port) {
     for (auto it = vlanMap.begin(); it != vlanMap.end(); ++it){
         auto &entry = it->second;
         for (auto portEntry : entry.ports){
-            if (portEntry.portId == port) {
+            if (portEntry.portId == pPort) {
 #ifndef UTS 
                 retcode = saiVlanApi->set_vlan_member_attribute(
-                    portEntry.memberSai, &attr);
+                        portEntry.memberSai, &attr);
                 if (retcode) {
                     SWERR(
-                        Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                            SWERR_FILELINE, 
-                            "set_vlan_member_attribute fail in VendorTagPacketsOnIngress\n"));
+                            Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                                SWERR_FILELINE, 
+                                "set_vlan_member_attribute fail in VendorTagPacketsOnIngress\n"));
                     std::cout << 
                         "get_port_attributes fail: " << esalSaiError(retcode) << "\n";
                 }
 #endif
             }
-               
+
         }
     }
 
     bool addTag = true; 
     for(auto tagPort : tagPorts){ 
-        if (tagPort == port){
+        if (tagPort == pPort){
             addTag = false;
             break;
         }
     }
 
     if (addTag) {
-        tagPorts.push_back(port);
+        tagPorts.push_back(pPort);
     }
 
     return ESAL_RC_OK;
 }
 
-int VendorStripTagsOnEgress(uint16_t port) {
-    std::cout << __PRETTY_FUNCTION__ << " " << port << " " << std::endl;
+int VendorStripTagsOnEgress(uint16_t lPort) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort:" << lPort << " " << std::endl;
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
-    return VendorTagPacketsOnIngress(port);
+    return VendorTagPacketsOnIngress(lPort);
 }
 
 static int setVLANLearning(uint16_t vlanId, bool enabled) {
@@ -616,7 +666,7 @@ static int setVLANLearning(uint16_t vlanId, bool enabled) {
     auto vlanFound = vlanMap.find(vlanId);
     if (vlanFound == vlanMap.end()) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "vlan find fail in setVLANLearning\n"));
+                    SWERR_FILELINE, "vlan find fail in setVLANLearning\n"));
         std::cout << "vlan_map.find vlan does not exist: " << vlanId << "\n"; 
         return ESAL_RC_FAIL; 
     }
@@ -630,7 +680,7 @@ static int setVLANLearning(uint16_t vlanId, bool enabled) {
     retcode = sai_api_query(SAI_API_VLAN, (void**) &saiVlanApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "sai_api_query fail in setVLANLearning\n"));
+                    SWERR_FILELINE, "sai_api_query fail in setVLANLearning\n"));
         std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
     }
@@ -645,7 +695,7 @@ static int setVLANLearning(uint16_t vlanId, bool enabled) {
     retcode = saiVlanApi->set_vlan_attribute(entry.vlanSai, &attr);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "set_vlan_attribute fail in setVLANLearning\n"));
+                    SWERR_FILELINE, "set_vlan_attribute fail in setVLANLearning\n"));
         std::cout << "set_vlan_attribute fail: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
     }
