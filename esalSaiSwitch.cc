@@ -600,7 +600,6 @@ int DllInit(void) {
     // Create all bridge ports and host interfaces
     sai_object_id_t bridgePortSai;
     sai_object_id_t portSai;
-    uint16_t        portId;
     sai_object_id_t stpPortSai;    
     
     for (uint32_t i = 0; i < port_number; i++) {
@@ -619,7 +618,11 @@ int DllInit(void) {
                 return ESAL_RC_FAIL;
         }
 
-        portId = (uint16_t)GET_OID_VAL(portSai);
+#ifdef NOT_WORKING 
+        // FIXME:  The following code is removed because it causes eth1
+        // into NOT RUNNING state.  It documented here.
+        //   http://rtx-swtl-jira.fnc.net.local/browse/LARCH-9
+        uint16_t portId = (uint16_t)GET_OID_VAL(portSai);
         std::string hostifName;
         hostifName = "Ethernet" + std::to_string(portId);
         std::cout << hostifName << ", " << portId << ", "<< portSai << "\n";
@@ -628,6 +631,7 @@ int DllInit(void) {
                   SWERR_FILELINE, "esalCreateSaiHost fail in DllInit\n"));
             std::cout << "esalCreateSaiHost fail:" << "\n";
         }
+#endif
         
         if (!esalStpPortCreate(defStpId, bridgePortSai, &stpPortSai)) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
