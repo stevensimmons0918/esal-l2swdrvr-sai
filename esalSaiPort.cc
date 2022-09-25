@@ -323,13 +323,13 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         if (cpssDxChPortDuplexModeSet(devNum, portNum, cpssDuplexMode) != 0) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                         SWERR_FILELINE, "VendorSetPortRate fail in cpssDxChPortDuplexModeSet\n"));
-            std::cout << "VendorSetPortRate fail, for port: " << port << "\n";
+            std::cout << "VendorSetPortRate fail, for port: " << pPort << "\n";
             return ESAL_RC_FAIL;
         }
         if (cpssDxChPortInbandAutoNegEnableSet(devNum, portNum, cppsAutoneg) != 0) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                         SWERR_FILELINE, "VendorSetPortRate fail in cpssDxChPortInbandAutoNegEnableSet\n"));
-            std::cout << "VendorSetPortRate fail, for port: " << port << "\n";
+            std::cout << "VendorSetPortRate fail, for port: " << pPort << "\n";
             return ESAL_RC_FAIL;
         }
     }
@@ -529,7 +529,7 @@ int VendorGetPortDuplex(uint16_t lPort, vendor_duplex_t *duplex) {
     if (cpssDxChPortDuplexModeGet(devNum, portNum, &cpssDuplexMode) != 0) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "VendorGetPortDuplex fail in cpssDxChPortDuplexModeGet\n"));
-        std::cout << "VendorGetPortDuplex fail, for port: " << port << "\n";
+        std::cout << "VendorGetPortDuplex fail, for port: " << pPort << "\n";
         return ESAL_RC_FAIL;
     }
     *duplex = (cpssDuplexMode == CPSS_PORT_HALF_DUPLEX_E) ? VENDOR_DUPLEX_HALF : VENDOR_DUPLEX_FULL;
@@ -623,7 +623,7 @@ int VendorGetPortAutoNeg(uint16_t lPort, bool *aneg) {
     if (cpssDxChPortInbandAutoNegEnableGet(devNum, portNum, &cpssAutoneg) != 0) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "VendorGetPortAutoNeg fail in cpssDxChPortInbandAutoNegEnableGet\n"));
-        std::cout << "VendorGetPortAutoNeg fail, for port: " << port << "\n";
+        std::cout << "VendorGetPortAutoNeg fail, for port: " << pPort << "\n";
         return ESAL_RC_FAIL;
     }
     *aneg = (cpssAutoneg) ? true : false;
@@ -1253,7 +1253,7 @@ int VendorGetPortAdvertAbility(uint16_t lPort, uint16_t *advert) {
     if (cpssDxChPortAutoNegAdvertismentConfigGet(devNum, portNum, &portAnAdvertismentPtr) != 0) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "VendorGetPortAdvertAbility fail in cpssDxChPortAutoNegAdvertismentConfigGet\n"));
-        std::cout << "VendorGetPortAdvertAbility fail, for port: " << port << "\n";
+        std::cout << "VendorGetPortAdvertAbility fail, for port: " << pPort << "\n";
         return ESAL_RC_FAIL;
     }
     *advert = 0;
@@ -1403,7 +1403,6 @@ int VendorReadReg(uint16_t lPort, uint16_t reg, uint16_t *val) {
         return ESAL_RC_OK;
     }
 #ifdef HAVE_MRVL
-    uint32_t devNum = 0;
     uint32_t pPort;
     uint32_t dev;
 
@@ -1426,7 +1425,7 @@ int VendorReadReg(uint16_t lPort, uint16_t reg, uint16_t *val) {
     return ESAL_RC_OK;
 }
 
-int VendorWriteReg(uint16_t port, uint16_t reg, uint16_t val) {
+int VendorWriteReg(uint16_t lPort, uint16_t reg, uint16_t val) {
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }

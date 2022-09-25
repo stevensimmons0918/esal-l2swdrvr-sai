@@ -49,7 +49,7 @@ bool esalFindStpPortSaiFromPortId(sai_object_id_t portId,
 }
 
 int VendorSetPortStpState(uint16_t lPort, vendor_stp_state_t stpState) {
-    std::cout << __PRETTY_FUNCTION__ << " lPort:" << port  << std::endl;
+    std::cout << __PRETTY_FUNCTION__ << " lPort:" << lPort  << std::endl;
     if (!useSaiFlag) {
         return ESAL_RC_OK;
     }
@@ -99,7 +99,7 @@ int VendorSetPortStpState(uint16_t lPort, vendor_stp_state_t stpState) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                   SWERR_FILELINE, "esalFindStpPortSaiFromPortId fail " \
                                   "VendorSetPortStpState\n"));
-            std::cout << "can't find stp port object for port:" << port << "\n";
+            std::cout << "can't find stp port object for port:" << pPort << "\n";
                 return ESAL_RC_FAIL;
     }
 
@@ -115,7 +115,7 @@ int VendorSetPortStpState(uint16_t lPort, vendor_stp_state_t stpState) {
 }
 
 int VendorGetPortStpState(uint16_t lPort, vendor_stp_state_t *stpState) {
-    std::cout << __PRETTY_FUNCTION__ << " lPort:" << port  << std::endl;
+    std::cout << __PRETTY_FUNCTION__ << " lPort:" << lPort  << std::endl;
     if (!useSaiFlag) {
         return ESAL_RC_OK;
     }
@@ -150,7 +150,7 @@ int VendorGetPortStpState(uint16_t lPort, vendor_stp_state_t *stpState) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                   SWERR_FILELINE, "esalFindStpPortSaiFromPortId fail " \
                                   "VendorGetPortStpState\n"));
-            std::cout << "can't find stp port object for port:" << port
+            std::cout << "can't find stp port object for port:" << pPort
                       << "\n";
                 return ESAL_RC_FAIL;    
     }
