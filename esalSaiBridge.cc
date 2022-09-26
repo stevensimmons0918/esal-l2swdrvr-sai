@@ -10,9 +10,8 @@
  */
 
 #include "headers/esalSaiDef.h"
-
+#include "headers/esalSaiUtils.h"
 #include <iostream>
-
 #include <cinttypes>
 #include <string>
 #include <mutex>
@@ -30,9 +29,7 @@
 #endif
 #include "esal_vendor_api/esal_vendor_api.h"
 
-
 extern "C" {
-
 
 // APPROACH TO SEMAPHORE:
 //    There are multiple threads for configuring the bridge port table,
@@ -73,7 +70,6 @@ static sai_object_id_t bridgeSai = SAI_NULL_OBJECT_ID;
 bool esalFindBridgePortId(sai_object_id_t bridgePortSai, uint16_t *portId) {
     
     // Iterate over the Bridge Port.
-    // 
     for (auto i = 0; i < bridgePortTableSize; i++) {
         if (bridgePortTable[i].bridgePortSai == bridgePortSai) {
             *portId = bridgePortTable[i].portId; 
@@ -85,10 +81,9 @@ bool esalFindBridgePortId(sai_object_id_t bridgePortSai, uint16_t *portId) {
 
 }
 
-bool esalFindBridgePortSaiFromPortSai(sai_object_id_t portSai, sai_object_id_t *bridgePortSai) {
-   
+bool esalFindBridgePortSaiFromPortSai(sai_object_id_t portSai,
+                                      sai_object_id_t *bridgePortSai) {
     // Iterate over the Bridge Port.
-    // 
     for (auto i = 0; i < bridgePortTableSize; i++) {
         if (bridgePortTable[i].portSai == portSai) {
             *bridgePortSai = bridgePortTable[i].bridgePortSai; 
@@ -99,10 +94,9 @@ bool esalFindBridgePortSaiFromPortSai(sai_object_id_t portSai, sai_object_id_t *
     return false; 
 }
 
-bool esalFindBridgePortSaiFromPortId(uint16_t portId, sai_object_id_t *bridgePortSai) {
-   
+bool esalFindBridgePortSaiFromPortId(uint16_t portId,
+                                     sai_object_id_t *bridgePortSai) {
     // Iterate over the Bridge Port.
-    // 
     for (auto i = 0; i < bridgePortTableSize; i++) {
         if (bridgePortTable[i].portId == portId) {
             *bridgePortSai = bridgePortTable[i].bridgePortSai; 
@@ -114,13 +108,10 @@ bool esalFindBridgePortSaiFromPortId(uint16_t portId, sai_object_id_t *bridgePor
 }
 
 bool esalBridgeCreate(void) {
-
     // Grab mutex.
-    //
     std::unique_lock<std::mutex> lock(bridgeMutex);
     
     // Check to see if bridge already exists.
-    //
     if (bridgeSai != SAI_NULL_OBJECT_ID) {
         std::cout << "bridgeSai is not assigned\n";
         return true;
@@ -130,20 +121,18 @@ bool esalBridgeCreate(void) {
     bridgeSai = 1; 
 #else 
     // Get the bridge API
-    //
     sai_status_t retcode;
     sai_bridge_api_t *saiBridgeApi;
     retcode =  sai_api_query(SAI_API_BRIDGE, (void**) &saiBridgeApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "API Query Fail in esalBridgeCreate\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";;
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
         return false;
     }
 
-
     // Create Attribute list.
-    //
     std::vector<sai_attribute_t> attributes;
     sai_attribute_t attr;
     attr.id = SAI_BRIDGE_ATTR_TYPE;
@@ -155,14 +144,13 @@ bool esalBridgeCreate(void) {
     attributes.push_back(attr);
 
     // Create the bridge object.
-    //
-    retcode = 
-        saiBridgeApi->create_bridge(
+    retcode = saiBridgeApi->create_bridge(
             &bridgeSai, esalSwitchId, attributes.size(), attributes.data());
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "create_bridge in esalBridgeCreate\n"));
-        std::cout << "create_bridge fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "create_bridge fail: " << esalSaiError(retcode)
+                  << std::endl;
         return false;
     }
 #endif
@@ -172,49 +160,43 @@ bool esalBridgeCreate(void) {
 }
 
 bool esalSetDefaultBridge(sai_object_id_t defaultBridgeSai) {
-    
     // Grab mutex.
-    //
     std::unique_lock<std::mutex> lock(bridgeMutex);
 
     bridgeSai = defaultBridgeSai;
     return true;
-
 }
 
 bool esalBridgeRemove(void) {
-
     // Grab mutex.
-    //
     std::unique_lock<std::mutex> lock(bridgeMutex);
     
     // Check to see if VLAN bridge already exists.
-    //
     if (bridgeSai == SAI_NULL_OBJECT_ID) {
-        std::cout << "esalBridgeRemove - bridge does not exist\n";
+        std::cout << "esalBridgeRemove - bridge does not exist" << std::endl;
         return false;
     }
 
 #ifndef UTS
     // Get the bridge API
-    //
     sai_status_t retcode;
     sai_bridge_api_t *saiBridgeApi;
     retcode =  sai_api_query(SAI_API_BRIDGE, (void**) &saiBridgeApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "sai_api_query fail in esalBridgeRemove\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
         return false;
     }
 
     // Remove the bridge object.
-    //
     retcode = saiBridgeApi->remove_bridge(bridgeSai); 
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "remove_bridge fail in esalBridgeRemove\n"));
-        std::cout << "remove_bridge fail: "  << esalSaiError(retcode) << "\n";
+        std::cout << "remove_bridge fail: "  << esalSaiError(retcode)
+                  << std::endl;
         return false;
     }
 #endif
@@ -223,23 +205,20 @@ bool esalBridgeRemove(void) {
     return true; 
 } 
 
-bool esalBridgePortCreate(sai_object_id_t portSai, sai_object_id_t *bridgePortSai, uint16_t vlanId) {
-
+bool esalBridgePortCreate(sai_object_id_t portSai,
+                          sai_object_id_t *bridgePortSai, uint16_t vlanId) {
     // Grab mutex.
-    //
     std::unique_lock<std::mutex> lock(bridgeMutex);
-    
+
     // Check to be sure that bridge was instantiated.
-    //
     if (bridgeSai == SAI_NULL_OBJECT_ID) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "no bridge sai in esalBridgePortCreate\n"));
-        std::cout << "esalBridgePortCreate fail, no bridge sai\n";
+        std::cout << "esalBridgePortCreate fail, no bridge sai" << std::endl;
         return false;
     }
 
     // Check to see if bridge port already exists.
-    //
     for (auto i = 0; i < bridgePortTableSize; i++) {
         if ((bridgePortTable[i].portSai == portSai) && 
             (bridgePortTable[i].vlanId == vlanId)){
@@ -248,31 +227,28 @@ bool esalBridgePortCreate(sai_object_id_t portSai, sai_object_id_t *bridgePortSa
     }
 
     // Check to see max is exceeded. 
-    //
     if (bridgePortTableSize >= BRIDGE_PORT_TABLE_MAXSIZE) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "table full in esalBridgePortCreate\n"));
-        std::cout << "Bridge Prt Tab Exceed:" << portSai << " " << vlanId << "\n";
+        std::cout << "Bridge Prt Tab Exceed:" << portSai << " " << vlanId
+                  << std::endl;
         return false;
     }
 
 #ifndef UTS
     // Get the bridge API
-    //
     sai_status_t retcode;
     sai_bridge_api_t *saiBridgeApi;
     retcode =  sai_api_query(SAI_API_BRIDGE, (void**) &saiBridgeApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "sai_api_query fail in esalBridgePortCreate\n"));
-        std::cout << "sai_api_query fail" << esalSaiError(retcode) << "\n";
+        std::cout << "sai_api_query fail" << esalSaiError(retcode)
+                  << std::endl;
         return false;
     }
 
-
-
     // Create Attribute list.
-    //
     std::vector<sai_attribute_t> attributes;
     sai_attribute_t attr;
 
@@ -303,33 +279,35 @@ bool esalBridgePortCreate(sai_object_id_t portSai, sai_object_id_t *bridgePortSa
 
     attr.id = SAI_BRIDGE_PORT_ATTR_TAGGING_MODE;
     attr.value.s32 = (portSai == esalHostPortId) ? 
-        SAI_BRIDGE_PORT_TAGGING_MODE_UNTAGGED : SAI_BRIDGE_PORT_TAGGING_MODE_TAGGED;
+        SAI_BRIDGE_PORT_TAGGING_MODE_UNTAGGED :
+        SAI_BRIDGE_PORT_TAGGING_MODE_TAGGED;
     attributes.push_back(attr);
 
     // Create the bridge object.
-    //
-    retcode = 
-        saiBridgeApi->create_bridge_port(
+    retcode = saiBridgeApi->create_bridge_port(
             bridgePortSai, esalSwitchId, attributes.size(), attributes.data());
     if (retcode && retcode != SAI_STATUS_ITEM_ALREADY_EXISTS) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-              SWERR_FILELINE, "create_bridge_port fail in esalBridgePortCreate\n"));
-        std::cout << "create_bridge_port fail: " << esalSaiError(retcode) << "\n";;
+              SWERR_FILELINE, "create_bridge_port fail in " \
+                              "esalBridgePortCreate\n"));
+        std::cout << "create_bridge_port fail: " << esalSaiError(retcode)
+                  << std::endl;
         return false;
     }
 #endif
 
     // Update the bridge port table in the shadow.  Then bump counter.
-    //
     BridgeMember &mbr = bridgePortTable[bridgePortTableSize]; 
     mbr.portSai = portSai;
     mbr.vlanId = vlanId;
     mbr.bridgePortSai = *bridgePortSai;
     if (!esalPortTableFindId(portSai, &mbr.portId)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-              SWERR_FILELINE, "esalPortTableFindId fail VendorAddPortsToVlan\n"));
-        std::cout << "can't find portid for portSai:" << portSai << "\n";
-              return ESAL_RC_FAIL;    
+              SWERR_FILELINE, "esalPortTableFindId fail " \
+                              "VendorAddPortsToVlan"));
+        std::cout << "can't find portid for portSai:" << portSai
+                  << std::endl;
+        return ESAL_RC_FAIL;    
     }
     bridgePortTableSize++; 
 
@@ -337,13 +315,10 @@ bool esalBridgePortCreate(sai_object_id_t portSai, sai_object_id_t *bridgePortSa
 }
 
 bool esalBridgePortRemove(sai_object_id_t portSai, uint16_t vlanId) {
-
     // Grab mutex.
-    //
     std::unique_lock<std::mutex> lock(bridgeMutex);
 
     // Check to see if bridge port already exists.
-    //
     auto idx = 0;
     for (; idx < bridgePortTableSize; idx++) {
         BridgeMember &mbr = bridgePortTable[idx]; 
@@ -353,88 +328,85 @@ bool esalBridgePortRemove(sai_object_id_t portSai, uint16_t vlanId) {
     }
 
     // Check to see if found.
-    //
     if (idx == bridgePortTableSize) {
         return true; 
     }
 
 #ifndef UTS
     // Get the bridge API
-    //
     sai_status_t retcode;
     sai_bridge_api_t *saiBridgeApi;
     retcode =  sai_api_query(SAI_API_BRIDGE, (void**) &saiBridgeApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "sai_api_query fail in esalBridgePortRemove\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
         return false;
     }
 
     // Delete the member.
-    //    
-    retcode = saiBridgeApi->remove_bridge_port(bridgePortTable[idx].bridgePortSai); 
+    retcode = saiBridgeApi->remove_bridge_port(
+                                bridgePortTable[idx].bridgePortSai); 
     if (retcode){
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-              SWERR_FILELINE, "remove_bridge_port fail in esalBridgePortRemove\n"));
-        std::cout << "remove_bridge_port fail: " << esalSaiError(retcode) << "\n";;
+              SWERR_FILELINE, "remove_bridge_port fail " \
+                              "in esalBridgePortRemove\n"));
+        std::cout << "remove_bridge_port fail: "
+                  << esalSaiError(retcode) << std::endl;
         return false; 
     }
 #endif
 
     // Take last entry in table. 
-    //
     bridgePortTable[idx] = bridgePortTable[bridgePortTableSize-1];
     bridgePortTableSize--;
  
     return true; 
-
 }
 
 static int setMacLearning(uint16_t portId, bool enabled) {
-    
     // Grab mutex.
-    //
     std::unique_lock<std::mutex> lock(bridgeMutex);
 
 #ifndef UTS
     // Get the bridge API
-    //
     sai_status_t retcode;
     sai_bridge_api_t *saiBridgeApi;
     retcode =  sai_api_query(SAI_API_BRIDGE, (void**) &saiBridgeApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "sai_api_query fail in setMacLearning\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
         return ESAL_RC_FAIL;
     }
 
-    // Get bridge entry.  Note, dereferencing by map::operator[] has side-effect
+    // Get bridge entry.  Note, dereferencing by map::operator[]
+    // has side-effect
     // of instantiating entry if it does not exist.  In this case, this is 
     // acceptable behavior. 
     //
     for (auto idx = 0; idx < bridgePortTableSize; idx++) {
-    
         // Check to see if bridge port already exists.
-        //
         BridgeMember &bridgeMbr = bridgePortTable[idx]; 
 
         if (bridgeMbr.portId != portId) continue;
-
         // Create Attribute list.
-        //
         sai_attribute_t attr;
         attr.id = SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_MODE;
         attr.value.s32 = 
             (enabled ? SAI_BRIDGE_PORT_FDB_LEARNING_MODE_HW :
                        SAI_BRIDGE_PORT_FDB_LEARNING_MODE_DISABLE);
 
-        retcode = saiBridgeApi->set_bridge_port_attribute(bridgeMbr.bridgePortSai, &attr); 
-        if (retcode){
+        retcode = saiBridgeApi->set_bridge_port_attribute(
+                                    bridgeMbr.bridgePortSai, &attr); 
+        if (retcode) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                SWERR_FILELINE, "set_bridge_port_attribute fail in setMacLearning\n"));
-            std::cout << "set_bridge_port_attribute fail: " << esalSaiError(retcode) << "\n";
+                SWERR_FILELINE, "set_bridge_port_attribute " \
+                                "fail in setMacLearning\n"));
+            std::cout << "set_bridge_port_attribute fail: "
+                      << esalSaiError(retcode) << std::endl;
         }
     }
 #endif
@@ -442,26 +414,42 @@ static int setMacLearning(uint16_t portId, bool enabled) {
     return ESAL_RC_OK;
 }
 
-int VendorDisableMacLearningPerPort(uint16_t portId) {
-    std::cout << __PRETTY_FUNCTION__ << portId <<  " is NYI : FIXME " << std::endl;
+int VendorDisableMacLearningPerPort(uint16_t lPort) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort
+              <<  " is NYI : FIXME " << std::endl;
+    uint32_t dev;
+    uint32_t pPort;
 
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
-    return setMacLearning(portId, false);
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        std::cout << "VendorDisableMacLearningPerPort, failed to get pPort"
+                  << " lPort=" << lPort << std::endl;
+        return ESAL_RC_FAIL;
+    }
+
+    return setMacLearning(pPort, false);
 }
 
-int VendorEnableMacLearningPerPort(uint16_t portId) {
-    std::cout << __PRETTY_FUNCTION__ << portId <<  " is NYI : FIXME " << std::endl;
+int VendorEnableMacLearningPerPort(uint16_t lPort) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort
+              <<  " is NYI : FIXME " << std::endl;
+    uint32_t dev;
+    uint32_t pPort;
 
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
-    return setMacLearning(portId, true);
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        std::cout << "VendorEnableMacLearningPerPort, failed to get pPort"
+                  << " lPort=" << lPort << std::endl;
+        return ESAL_RC_FAIL;
+    }
+
+    return setMacLearning(pPort, true);
 }
 
-
-
 }
-
-

@@ -10,7 +10,6 @@
  */
 
 #include "headers/esalSaiDef.h"
-
 #include <iostream>
 #include <vector>
 #include <map>
@@ -34,7 +33,8 @@ static std::map<uint16_t, mc_info> mcReplicatorTab;
 #ifdef MC_DEBUG
 static void printMcReplicatorTab () {
     for (auto &mcRow : mcReplicatorTab) {
-        std::cout << "dst port: " << mcRow.first << " oid: " << mcRow.second.ms_oid << " src ports: ";
+        std::cout << "dst port: " << mcRow.first << " oid: "
+                  << mcRow.second.ms_oid << " src ports: "<< std::endl;
         for (auto &port_in : mcRow.second.ports_in) {
             std::cout << port_in << " ";
         }
@@ -43,9 +43,10 @@ static void printMcReplicatorTab () {
 }
 #endif
 
+#ifndef UTS
 // Returns mirror session oids that's associated with the port
 //
-static std::set<sai_object_id_t> getPortMirrorSessionsList (uint16_t port) {
+static std::set<sai_object_id_t> getPortMirrorSessionsList(uint16_t port) {
     std::set<sai_object_id_t> ms_list;
     for (auto &mcRow : mcReplicatorTab ) {
         if (mcRow.second.ports_in.count(port)) {
@@ -54,26 +55,38 @@ static std::set<sai_object_id_t> getPortMirrorSessionsList (uint16_t port) {
     }
     return ms_list;
 }
-
+#endif
 
 extern "C" {
-
-int VendorSetPortEgress(uint16_t port, uint16_t numPorts, const uint16_t ports[]) {
-    std::cout << __PRETTY_FUNCTION__ << " " << port  << std::endl;
-    if (!useSaiFlag){
+int VendorSetPortEgress(uint16_t lPort, uint16_t numPorts,
+                        const uint16_t ports[]) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort  << std::endl;
+    if (!useSaiFlag) {
         return ESAL_RC_OK;
     }
+
+    uint32_t dev;
+    uint32_t pPort;
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        std::cout << "VendorSetPortEgress failed to get pPort, "
+                  << "lPort= " << lPort << std::endl;
+        return ESAL_RC_FAIL;
+    }
+
     int rc  = ESAL_RC_OK;
 
     sai_status_t retcode;
 
     for (size_t i = 0; i < numPorts; i++) {
-        if (mcReplicatorTab.count(ports[i]) == 0 || mcReplicatorTab[ports[i]].ports_in.count(port) == 0) {
-            retcode = VendorMirrorPort(port, ports[i]);
+        if (mcReplicatorTab.count(ports[i]) == 0 ||
+            mcReplicatorTab[ports[i]].ports_in.count(pPort) == 0) {
+            retcode = VendorMirrorPort(pPort, ports[i]);
             if (retcode) {
                 SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                    SWERR_FILELINE, "VendorMirrorPort Fail in VendorSetPortEgress\n"));
-                std::cout << "VendorMirrorPort fail: " << esalSaiError(retcode) << "\n";
+                    SWERR_FILELINE, "VendorMirrorPort Fail" \
+                                    "in VendorSetPortEgress\n"));
+                std::cout << "VendorMirrorPort fail: " << esalSaiError(retcode)
+                          << std::endl;
                 return ESAL_RC_FAIL;
             }
         }
@@ -82,10 +95,29 @@ int VendorSetPortEgress(uint16_t port, uint16_t numPorts, const uint16_t ports[]
     return rc;
 }
 
-int VendorMirrorPort(uint16_t srcPort, uint16_t dstPort) {
-    std::cout << __PRETTY_FUNCTION__ << " " << srcPort << " " << dstPort  << " is NYI" << std::endl;
+int VendorMirrorPort(uint16_t srclPort, uint16_t dstlPort) {
+#ifndef UTS
+    std::cout << __PRETTY_FUNCTION__ << " srclPort:" << srclPort << " "
+              << " dstlPort"  << dstlPort << std::endl;
+
     if (!useSaiFlag){
         return ESAL_RC_OK;
+    }
+
+    uint32_t srcDev;
+    uint32_t srcpPort;
+    if (!saiUtils.GetPhysicalPortInfo(srclPort, &srcDev, &srcpPort)) {
+        std::cout << "VendorMirrorPort failed to get pPort, "
+                  << "srclPort= " << srclPort << std::endl;
+        return ESAL_RC_FAIL;
+    }
+
+    uint32_t dstDev;
+    uint32_t dstpPort;
+    if (!saiUtils.GetPhysicalPortInfo(dstlPort, &dstDev, &dstpPort)) {
+        std::cout << "VendorMirrorPort failed to get pPort, "
+                  << "dstlPort= " << dstlPort << std::endl;
+        return ESAL_RC_FAIL;
     }
     int rc  = ESAL_RC_OK;
 
@@ -93,7 +125,7 @@ int VendorMirrorPort(uint16_t srcPort, uint16_t dstPort) {
     std::vector<sai_attribute_t> attributes;
     sai_attribute_t attr;
 
-    if (mcReplicatorTab.count(dstPort) == 0) {
+    if (mcReplicatorTab.count(dstpPort) == 0) {
 
         sai_object_id_t mirror_session_oid_out;
 
@@ -104,7 +136,8 @@ int VendorMirrorPort(uint16_t srcPort, uint16_t dstPort) {
         if (retcode) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                 SWERR_FILELINE, "sai_api_query Fail in VendorMirrorPort\n"));
-            std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+            std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                      << std::endl;
             return ESAL_RC_FAIL;
         }
 
@@ -120,10 +153,12 @@ int VendorMirrorPort(uint16_t srcPort, uint16_t dstPort) {
 
         attr.id = SAI_MIRROR_SESSION_ATTR_MONITOR_PORT;
         sai_object_id_t mirror_port_oid;
-        if (!esalPortTableFindSai(dstPort, &mirror_port_oid)) {
+        if (!esalPortTableFindSai(dstpPort, &mirror_port_oid)) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                SWERR_FILELINE, "esalPortTableFindSai Fail in VendorMirrorPort\n"));
-            std::cout << "Failed to find oid for port: " << dstPort << "\n";
+                SWERR_FILELINE, "esalPortTableFindSai Fail " \
+                                "in VendorMirrorPort\n"));
+            std::cout << "Failed to find oid for dstpPort: " << dstpPort
+                      << std::endl;
             return ESAL_RC_FAIL;
         }
         attr.value.oid = mirror_port_oid;
@@ -133,16 +168,18 @@ int VendorMirrorPort(uint16_t srcPort, uint16_t dstPort) {
             &mirror_session_oid_out, esalSwitchId, attributes.size(),attributes.data());
         if (retcode) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                        SWERR_FILELINE, "create_port Fail in esalPortTableAddEntry\n"));
-            std::cout << "create_port fail: " << esalSaiError(retcode) << "\n";
+                        SWERR_FILELINE, "create_port Fail " \
+                                        "in esalPortTableAddEntry\n"));
+            std::cout << "create_port fail: " << esalSaiError(retcode)
+                      << std::endl;
             return false;
         }
 
-        mcReplicatorTab[dstPort].ms_oid = mirror_session_oid_out;
+        mcReplicatorTab[dstpPort].ms_oid = mirror_session_oid_out;
 
     }
 
-    if (mcReplicatorTab[dstPort].ports_in.count(srcPort) == 0) {
+    if (mcReplicatorTab[dstpPort].ports_in.count(srcpPort) == 0) {
 
         // Get port table api
         //
@@ -151,48 +188,76 @@ int VendorMirrorPort(uint16_t srcPort, uint16_t dstPort) {
         if (retcode) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                 SWERR_FILELINE, "sai_api_query Fail in VendorMirrorPort\n"));
-            std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+            std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                      << std::endl;
             return ESAL_RC_FAIL;
         }
 
         // Set src port for mirroring
         //
-        auto associated_ms = getPortMirrorSessionsList(srcPort);
-        std::vector<sai_object_id_t> dst_ms_list(associated_ms.begin(), associated_ms.end());
-        dst_ms_list.push_back(mcReplicatorTab[dstPort].ms_oid);
+        auto associated_ms = getPortMirrorSessionsList(srcpPort);
+        std::vector<sai_object_id_t> dst_ms_list(
+                        associated_ms.begin(), associated_ms.end());
+        dst_ms_list.push_back(mcReplicatorTab[dstpPort].ms_oid);
 
         attr.id = SAI_PORT_ATTR_INGRESS_MIRROR_SESSION;
         attr.value.objlist.list = dst_ms_list.data();
         attr.value.objlist.count = (uint32_t)dst_ms_list.size();
 
         sai_object_id_t port_oid_in;
-        if (!esalPortTableFindSai(srcPort, &port_oid_in)) {
+        if (!esalPortTableFindSai(srcpPort, &port_oid_in)) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                SWERR_FILELINE, "esalPortTableFindSai Fail in VendorMirrorPort\n"));
-            std::cout << "Failed to find oid for port: " << srcPort<< "\n";
+                SWERR_FILELINE, "esalPortTableFindSai Fail " \
+                                "in VendorMirrorPort\n"));
+            std::cout << "Failed to find oid for srcpPort: " << srcpPort
+                      << std::endl;
             return ESAL_RC_FAIL;
         }
 
         retcode = saiPortApi->set_port_attribute(port_oid_in, &attr);
         if (retcode) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                        SWERR_FILELINE, "set_port_attribute Fail in esalPortTableAddEntry\n"));
+                        SWERR_FILELINE, "set_port_attribute Fail " \
+                                        "in esalPortTableAddEntry\n"));
             std::cout << "create_port fail: " << esalSaiError(retcode) << "\n";
             return ESAL_RC_FAIL;
         }
 
-        mcReplicatorTab[dstPort].ports_in.insert(srcPort);
+        mcReplicatorTab[dstpPort].ports_in.insert(srcpPort);
 
     }
 
     return rc;
+#else
+    return 0;
+#endif
 }
 
-int VendorRemoveMirrorPort(uint16_t srcPort, uint16_t dstPort) {
-    std::cout << __PRETTY_FUNCTION__ << " " << srcPort << " " << dstPort  << " is NYI" << std::endl;
-    if (!useSaiFlag){
+int VendorRemoveMirrorPort(uint16_t srclPort, uint16_t dstlPort) {
+#ifndef UTS
+    std::cout << __PRETTY_FUNCTION__ << " srclPort=" << srclPort << " "
+              << " dstlPort=" << dstlPort << " is NYI" << std::endl;
+
+    if (!useSaiFlag) {
         return ESAL_RC_OK;
     }
+
+    uint32_t srcDev;
+    uint32_t srcpPort;
+    if (!saiUtils.GetPhysicalPortInfo(srclPort, &srcDev, &srcpPort)) {
+        std::cout << "VendorRemoveMirrorPort failed to get pPort, "
+                  << "srclPort= " << srclPort << std::endl;
+        return ESAL_RC_FAIL;
+    }
+
+    uint32_t dstDev;
+    uint32_t dstpPort;
+    if (!saiUtils.GetPhysicalPortInfo(dstlPort, &dstDev, &dstpPort)) {
+        std::cout << "VendorRemoveMirrorPort failed to get dstpPort, "
+                  << "dstlPort= " << dstlPort << std::endl;
+        return ESAL_RC_FAIL;
+    }
+
     int rc  = ESAL_RC_OK;
 
 #ifdef MC_DEBUG
@@ -202,7 +267,8 @@ int VendorRemoveMirrorPort(uint16_t srcPort, uint16_t dstPort) {
 
     sai_status_t retcode;
 
-    if (mcReplicatorTab.count(dstPort) == 1 && mcReplicatorTab[dstPort].ports_in.count(srcPort) == 1) {
+    if (mcReplicatorTab.count(dstpPort) == 1 &&
+        mcReplicatorTab[dstpPort].ports_in.count(srcpPort) == 1) {
 
         sai_attribute_t attr;
 
@@ -212,43 +278,48 @@ int VendorRemoveMirrorPort(uint16_t srcPort, uint16_t dstPort) {
         retcode = sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
         if (retcode) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                SWERR_FILELINE, "sai_api_query Fail in VendorRemoveMirrorPort\n"));
-            std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+                SWERR_FILELINE, "sai_api_query Fail " \
+                                "in VendorRemoveMirrorPort\n"));
+            std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                      << std::endl;
             return ESAL_RC_FAIL;
         }
 
         // Disable mirroring for srcPort
         //
-        auto associated_ms = getPortMirrorSessionsList(srcPort);
-        associated_ms.erase(mcReplicatorTab[dstPort].ms_oid);
+        auto associated_ms = getPortMirrorSessionsList(srcpPort);
+        associated_ms.erase(mcReplicatorTab[dstpPort].ms_oid);
 
-        std::vector<sai_object_id_t> dst_ms_list(associated_ms.begin(), associated_ms.end());
+        std::vector<sai_object_id_t> dst_ms_list(
+                            associated_ms.begin(), associated_ms.end());
         
         attr.id = SAI_PORT_ATTR_INGRESS_MIRROR_SESSION;
         attr.value.objlist.list = dst_ms_list.data();
         attr.value.objlist.count = dst_ms_list.size();
 
         sai_object_id_t port_oid_in;
-        if (!esalPortTableFindSai(srcPort, &port_oid_in)) {
+        if (!esalPortTableFindSai(srcpPort, &port_oid_in)) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                SWERR_FILELINE, "esalPortTableFindSai Fail in VendorRemoveMirrorPort\n"));
-            std::cout << "Failed to find oid for port: " << srcPort<< "\n";
+                SWERR_FILELINE, "esalPortTableFindSai Fail " \
+                                "in VendorRemoveMirrorPort\n"));
+            std::cout << "Failed to find oid for port: " << srcpPort<< "\n";
             return ESAL_RC_FAIL;
         }
 
         retcode = saiPortApi->set_port_attribute(port_oid_in, &attr);
         if (retcode) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                        SWERR_FILELINE, "set_port_attribute Fail in VendorRemoveMirrorPort\n"));
+                        SWERR_FILELINE, "set_port_attribute Fail " \
+                                        "in VendorRemoveMirrorPort\n"));
             std::cout << "create_port fail: " << esalSaiError(retcode) << "\n";
             return ESAL_RC_FAIL;
         }
 
-        mcReplicatorTab[dstPort].ports_in.erase(srcPort);
+        mcReplicatorTab[dstpPort].ports_in.erase(srcpPort);
 
         // Remove a mirror session if it's not used more
         //
-        if (mcReplicatorTab[dstPort].ports_in.size() == 0) {
+        if (mcReplicatorTab[dstpPort].ports_in.size() == 0) {
 
             // Get mirror api
             //
@@ -256,20 +327,25 @@ int VendorRemoveMirrorPort(uint16_t srcPort, uint16_t dstPort) {
             retcode = sai_api_query(SAI_API_MIRROR, (void**) &saiMirrorApi);
             if (retcode) {
                 SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                    SWERR_FILELINE, "sai_api_query Fail in VendorRemoveMirrorPort\n"));
-                std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+                    SWERR_FILELINE, "sai_api_query Fail " \
+                                    "in VendorRemoveMirrorPort\n"));
+                std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                          << "\n";
                 return ESAL_RC_FAIL;
             }
 
-            retcode = saiMirrorApi->remove_mirror_session(mcReplicatorTab[dstPort].ms_oid);
+            retcode = saiMirrorApi->remove_mirror_session(
+                                    mcReplicatorTab[dstpPort].ms_oid);
             if (retcode) {
                 SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                            SWERR_FILELINE, "remove_mirror_session Fail in VendorRemoveMirrorPort\n"));
-                std::cout << "remove_mirror_session fail: " << esalSaiError(retcode) << "\n";
+                            SWERR_FILELINE, "remove_mirror_session Fail " \
+                                            "in VendorRemoveMirrorPort\n"));
+                std::cout << "remove_mirror_session fail: "
+                          << esalSaiError(retcode) << "\n";
                 return ESAL_RC_FAIL;
             }
 
-            mcReplicatorTab.erase(dstPort);
+            mcReplicatorTab.erase(dstpPort);
 
         }
 
@@ -279,14 +355,15 @@ int VendorRemoveMirrorPort(uint16_t srcPort, uint16_t dstPort) {
 #endif
 
     } else {
-        std::cout << "Nothing to do! dstPort or srcPort not set or connected to each other for mirroring!" << std::endl;
+        std::cout << "Nothing to do! dstPort or srcPort not set or "
+                  << "connected to each other for mirroring!" << std::endl;
         return ESAL_RC_FAIL;
     }
 
     return rc;
-
+#else
+    return 0;
+#endif
 }
-
-
 
 }
