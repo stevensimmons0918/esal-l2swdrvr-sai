@@ -90,7 +90,7 @@ void esalAlterForwardingTable(sai_fdb_event_notification_data_t *fdbNotify) {
              for(int i = 0; i < fdbTableSize; i++) {
                  auto &fdb = fdbTable[i];
                  if ((fdb.egressPort == portId) && 
-                     (fdb.macAddr == fdbUpd.mac_address)) {
+                     !memcmp(fdb.macAddr, fdbUpd.mac_address, sizeof(sai_mac_t))){
                     return;
                  }
              }
@@ -277,7 +277,8 @@ int VendorPurgeMacEntries(void) {
 int VendorGetMacTbl(uint16_t lPort, uint16_t *numMacs, unsigned char *macs) {
     std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort << std::endl;
     int rc  = ESAL_RC_OK;
-    int maxMacs = (*numMacs > 256) ? *numMacs : 256;
+    int maxMacs = ((*numMacs/sizeof(sai_mac_t)) > 256) ? 
+        (*numMacs/sizeof(sai_mac_t)) : 256;
     uint32_t dev;
     uint32_t pPort;
 
@@ -292,15 +293,13 @@ int VendorGetMacTbl(uint16_t lPort, uint16_t *numMacs, unsigned char *macs) {
     }
     
     *numMacs = 0; 
+    int curMac = 0;
     for(int i = 0; i < fdbTableSize; i++) {
         auto &fdb = fdbTable[i];
         if (fdb.egressPort == pPort) {
-            memcpy(
-               macs+((*numMacs)*sizeof(sai_mac_t)),
-               fdb.macAddr, sizeof(sai_mac_t));
- 
-            (*numMacs)++; 
-            if (*numMacs >= maxMacs) break;
+            memcpy(macs+(*numMacs), fdb.macAddr, sizeof(sai_mac_t));
+            (*numMacs) += sizeof(sai_mac_t); 
+            if (curMac++ >= maxMacs) break;
         }
     }
 
