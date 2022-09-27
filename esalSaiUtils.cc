@@ -6,12 +6,17 @@
  * @date      4/2019
  * Document Reference :
  */
-
+#ifndef LARCH_ENVIRON
 #include "esal-vendor-api/headers/esalSaiUtils.h"
+#else
+#include "headers/esalSaiUtils.h"
+#endif
 #include <sys/stat.h>
 #include <fstream>
 #include <algorithm>
+#ifndef LARCH_ENVIRON
 #include "lib/swerr.h"
+#endif
 #include "headers/esalSaiDef.h"
 
 EsalSaiUtils::EsalSaiUtils() {
@@ -42,10 +47,12 @@ EsalSaiUtils::EsalSaiUtils() {
 }
 
 EsalSaiUtils::~EsalSaiUtils() {
+#ifndef LARCH_ENVIRON
     if (cfg_ != nullptr) {
         delete cfg_;
         cfg_ = nullptr;
     }
+#endif
 }
 
 std::string EsalSaiUtils::GetUnitCode(void) {
@@ -176,6 +183,7 @@ bool EsalSaiUtils::GetLogicalPort(const uint32_t devId,
 }
 
 void EsalSaiUtils::ParseConfig(void) {
+#ifndef LARCH_ENVIRON
     std::string key = "ports";
     const libconfig::Setting &set = cfg_->getConfigSetting(key.c_str());
     bool done = false;
@@ -200,4 +208,5 @@ void EsalSaiUtils::ParseConfig(void) {
             std::cout << "catch settingNotFound " << e.what() << std::endl;
         }
     }
+#endif
 }

@@ -9,12 +9,17 @@
 
 #ifndef ESAL_VENDOR_API_HEADERS_ESALSAIUTILS_H_
 #define ESAL_VENDOR_API_HEADERS_ESALSAIUTILS_H_
-
+#ifndef LARCH_ENVIRON
 #include "esal-vendor-api/headers/esalSaiUtilsBase.h"
+#else
+#include "headers/esalSaiUtilsBase.h"
+#endif
 #include <iostream>
 #include <string>
 #include <map>
+#ifndef LARCH_ENVIRON
 #include "threadutils/libcfg.h"
+#endif
 
 class EsalSaiUtils: public EsalSaiUtilsBase {
  public:
@@ -91,10 +96,10 @@ class EsalSaiUtils: public EsalSaiUtilsBase {
 
     //! cfg file path
     std::string cfgPath_;
-
+#ifndef LARCH_ENVIRON
     //! Libcfg ptr
     Libcfg *cfg_;
-
+#endif
     //! Map to hold logical to physical port map
     std::map<uint32_t, PhyPortInfo> phyPortInfoMap_;
 

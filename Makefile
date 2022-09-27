@@ -40,6 +40,7 @@ FILES := \
   esalSaiStp.cc \
   esalSaiSwitch.cc \
   esalSaiTag.cc \
+  esalSaiUtils.cc \
   esalSaiVlan.cc
 
 

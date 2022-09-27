@@ -1120,7 +1120,9 @@ int VendorSetPortAdvertAbility(uint16_t lPort, uint16_t cap) {
 
 int VendorGetPortAdvertAbility(uint16_t lPort, uint16_t *advert) {
     std::cout << __PRETTY_FUNCTION__ << " lPort:" << lPort  << std::endl;
+#ifndef LARCH_ENVIRON
     int rc  = ESAL_RC_OK;
+#endif
     uint32_t dev;
     uint32_t pPort;
 
