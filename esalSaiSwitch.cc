@@ -63,6 +63,7 @@ static DllUtil *sfpDll = 0;
 #endif
 #endif
 bool useSaiFlag = false;
+static uint16_t esalMaxPort = 0; 
 uint16_t esalHostPortId;
 char esalHostIfName[SAI_HOSTIF_NAME_SIZE];
 static std::map<std::string, std::string> esalProfileMap;
@@ -505,6 +506,11 @@ int DllInit(void) {
             std::cout << "esalPortTableSet fail:" << "\n";
                 return ESAL_RC_FAIL;
         }
+        auto portId = (uint16_t)GET_OID_VAL(attr.value.objlist.list[i]);
+        if (portId > esalMaxPort) {
+            esalMaxPort = portId; 
+        }
+
     }
 
     // Create default STP group
@@ -635,42 +641,8 @@ int VendorBoardInit(void) {
 }
 
 uint16_t VendorGetMaxPorts(void) {
-    std::cout << __PRETTY_FUNCTION__ << std::endl;
-    if (!useSaiFlag){
-        return ESAL_RC_OK;
-    }
-    uint16_t rc = 0; 
-
-#ifndef UTS
-    // Query to get switch_api
-    //  
-    sai_switch_api_t *saiSwitchApi; 
-    sai_status_t retcode = sai_api_query(SAI_API_SWITCH, (void**)&saiSwitchApi);
-    if (retcode) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-              SWERR_FILELINE, "set_switch_attribute Fail in VendorGetMaxPorts\n"));
-        std::cout << "sai_api_query failed: " << esalSaiError(retcode) << "\n"; 
-        return ESAL_RC_FAIL;
-    } 
-
-    // Set switch attribute
-    // 
-    sai_attribute_t attr;
-    attr.id = SAI_SWITCH_ATTR_PORT_NUMBER;
-    retcode =  saiSwitchApi->get_switch_attribute(esalSwitchId, 1, &attr);
-    if (retcode) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-              SWERR_FILELINE, "get_switch_attribute Fail in VendorGetMaxPorts\n"));
-        std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
-        return ESAL_RC_FAIL;
-    } 
-
-    rc = attr.value.u16;
-#else
-    rc = 2000;
-#endif 
-
-   
+    auto rc = esalMaxPort+1;
+    std::cout << __PRETTY_FUNCTION__ <<  rc << std::endl;
     return rc;
 }
 
