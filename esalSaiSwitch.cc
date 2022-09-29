@@ -327,7 +327,7 @@ int DllInit(void) {
 
     // Verify that a config file is present first. 
     //
-    std::string marvellScript(saiUtils.GetCfgPath("mvll"));
+    std::string marvellScript(saiUtils.GetCfgPath("mvll.cfg"));
     auto fptr = fopen(marvellScript.c_str(), "r");
     if (fptr) {
         // Now, send the appDemo command if file exists. 
@@ -352,7 +352,6 @@ int DllInit(void) {
 
     // FIXME... This needs to handle configuration file sai.profile.ini.
     // http://rtx-swtl-jira.fnc.net.local/projects/LARCH/issues/LARCH-8
-#ifdef NOT_YET_FIXME
 #ifndef LARCH_ENVIRON
     if (handleProfileMap(profile_file) != ESAL_RC_OK) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
@@ -369,7 +368,6 @@ int DllInit(void) {
         useSaiFlag = false;
         return ESAL_RC_FAIL;
     }
-#endif
 #endif
 
 #ifndef UTS
@@ -422,7 +420,7 @@ int DllInit(void) {
     // However the hwid_value must be determine at run time.
     // http://rtx-swtl-jira.fnc.net.local/browse/LARCH-5
     attr.id = SAI_SWITCH_ATTR_SWITCH_HARDWARE_INFO;
-    std::string hwid_value = "ALDRIN2XLFL";  
+    std::string hwid_value = esalProfileMap["hwId"];
     attr.value.s8list.list = (sai_int8_t*)calloc(hwid_value.length() + 1, sizeof(sai_int8_t));
     std::copy(hwid_value.begin(), hwid_value.end(), attr.value.s8list.list);
     attributes.push_back(attr);

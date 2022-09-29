@@ -23,7 +23,7 @@ EsalSaiUtils::EsalSaiUtils() {
 #ifndef LARCH_ENVIRON
     unitCode_ = GetPsiUnitCode();
     fwdlType_ = GetPsiFwdlType();
-    cfgPath_ = GetCfgPath("sai");
+    cfgPath_ = GetCfgPath("sai.cfg");
     std::cout << __FUNCTION__ << " cfgPath=" << cfgPath_ << std::endl;
     if (!cfgPath_.empty()) {
         cfg_ = new Libcfg(cfgPath_);
@@ -102,7 +102,7 @@ std::string EsalSaiUtils::GetCfgPath(const std::string &name) {
     }
 
 
-    path = basePath + "/" + name + ".cfg";
+    path = basePath + "/" + name;
     if (FILE *file1 = fopen(path.c_str(), "r")) {
         fclose(file1);
     } else {
