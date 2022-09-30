@@ -257,17 +257,13 @@ bool esalBridgePortCreate(sai_object_id_t portSai,
     attributes.push_back(attr);
 
     attr.id = SAI_BRIDGE_PORT_ATTR_TYPE;
-    attr.value.s32 = 
-        (SAI_BRIDGE_PORT_TYPE_PORT == esalHostPortId) ?
-           SAI_BRIDGE_PORT_TYPE_PORT : SAI_BRIDGE_PORT_TYPE_SUB_PORT;
+    attr.value.s32 = SAI_BRIDGE_PORT_TYPE_PORT;
 
     attributes.push_back(attr);
 
-    if (SAI_BRIDGE_PORT_TYPE_PORT != esalHostPortId) {
-        attr.id = SAI_BRIDGE_PORT_ATTR_VLAN_ID;
-        attr.value.u16 = vlanId;
-        attributes.push_back(attr);
-    }
+    attr.id = SAI_BRIDGE_PORT_ATTR_VLAN_ID;
+    attr.value.u16 = vlanId;
+    attributes.push_back(attr);
 
     attr.id = SAI_BRIDGE_PORT_ATTR_BRIDGE_ID;
     attr.value.oid = bridgeSai;
@@ -277,11 +273,6 @@ bool esalBridgePortCreate(sai_object_id_t portSai,
     attr.value.oid = portSai;
     attributes.push_back(attr);
 
-    attr.id = SAI_BRIDGE_PORT_ATTR_TAGGING_MODE;
-    attr.value.s32 = (portSai == esalHostPortId) ? 
-        SAI_BRIDGE_PORT_TAGGING_MODE_UNTAGGED :
-        SAI_BRIDGE_PORT_TAGGING_MODE_TAGGED;
-    attributes.push_back(attr);
 
     // Create the bridge object.
     retcode = saiBridgeApi->create_bridge_port(
