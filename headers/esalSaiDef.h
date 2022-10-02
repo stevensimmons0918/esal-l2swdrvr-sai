@@ -71,6 +71,7 @@ extern bool esalPortTableSet(
 extern bool esalBridgePortCreate(sai_object_id_t portSai,
                 sai_object_id_t *bridgePortSai, uint16_t vlanId);
 extern bool esalBridgePortRemove(sai_object_id_t portSai, uint16_t vlanId);
+extern bool esalBridgePortListInit(uint32_t port_number);
 extern void esalAlterForwardingTable(
                 sai_fdb_event_notification_data_t *fdbNotify);
 
@@ -87,6 +88,8 @@ extern const char *esalSaiError(sai_status_t rc);
 extern bool esalStpCreate(sai_object_id_t *defStpId);
 extern bool esalStpPortCreate(sai_object_id_t stpSai,
                     sai_object_id_t bridgePortSai, sai_object_id_t *stpPortSai);
+extern bool esalCreateBpduTrapAcl();
+extern bool esalEnableBpduTrapOnPort(uint16_t lPort);
 
 #ifndef LARCH_ENVIRON
 extern SFPLibInitialize_fp_t esalSFPLibInitialize;
