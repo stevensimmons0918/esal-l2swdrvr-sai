@@ -304,12 +304,13 @@ static int get_mac_addr(const char* interfaceName, sai_mac_t* mac) {
 #endif
 
 void onPacketEvent(sai_object_id_t sid,
-                   const void *buffer,
                    sai_size_t bufferSize,
+                   const void *buffer,
                    uint32_t attrCount,
                    const sai_attribute_t *attrList) {
     std::cout << "onPacketEvent: ";
     std::cout.write((const char*)buffer, bufferSize);
+
     (void) esalHandleSaiHostRxPacket(buffer, bufferSize, attrCount, attrList); 
 }
 
@@ -417,11 +418,12 @@ int DllInit(void) {
     attr.value.u32 = 0;
     attributes.push_back(attr); 
 
-    // FIXME: Code needed for Eval Board to boot w/o crash.
-    // However the hwid_value must be determine at run time.
-    // http://rtx-swtl-jira.fnc.net.local/browse/LARCH-5
     attr.id = SAI_SWITCH_ATTR_SWITCH_HARDWARE_INFO;
+#ifndef LARCH_ENVIRON
     std::string hwid_value = esalProfileMap["hwId"];
+#else
+    std::string hwid_value = "ALDRIN2XLFL";;
+#endif
     attr.value.s8list.list = (sai_int8_t*)calloc(hwid_value.length() + 1, sizeof(sai_int8_t));
     std::copy(hwid_value.begin(), hwid_value.end(), attr.value.s8list.list);
     attributes.push_back(attr);
@@ -521,11 +523,20 @@ int DllInit(void) {
             return ESAL_RC_FAIL;
     }
 
-    // Create all bridge ports and host interfaces
-    sai_object_id_t bridgePortSai;
+    // Get bridge ports from bridge
+    if (!esalBridgePortListInit(port_number)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                SWERR_FILELINE, "esalBridgePortListInit fail\n"));
+        std::cout << "esalBridgePortListInit fail:" << "\n";
+            return ESAL_RC_FAIL;
+    }
+
+    // Create all host interfaces
     sai_object_id_t portSai;
     uint16_t        portId;
-    sai_object_id_t stpPortSai;    
+    sai_object_id_t stpPortSai;
+    sai_object_id_t bridgePortSai;
+
     
     for (uint32_t i = 0; i < port_number; i++) {
         
@@ -533,13 +544,6 @@ int DllInit(void) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                   SWERR_FILELINE, "esalPortTableFindSai fail in DllInit\n"));
             std::cout << "esalPortTableFindSai fail:" << "\n";
-                return ESAL_RC_FAIL;
-        }
-                
-        if (!esalBridgePortCreate(portSai, &bridgePortSai, 0)) {
-            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                  SWERR_FILELINE, "esalBridgePortCreate fail in DllInit\n"));
-            std::cout << "esalBridgePortCreate fail:" << "\n";
                 return ESAL_RC_FAIL;
         }
 
@@ -552,7 +556,14 @@ int DllInit(void) {
                   SWERR_FILELINE, "esalCreateSaiHost fail in DllInit\n"));
             std::cout << "esalCreateSaiHost fail:" << "\n";
         }
-        
+
+        if (!esalFindBridgePortSaiFromPortId(portId, &bridgePortSai)) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE, "esalFindBridgePortSaiFromPortId fail\n"));
+            std::cout << "can't find portid for bridgePortSai:" << bridgePortSai << "\n";
+            return ESAL_RC_FAIL;
+        }
+
         if (!esalStpPortCreate(defStpId, bridgePortSai, &stpPortSai)) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "esalStpPortCreate fail in DllInit\n"));
@@ -560,6 +571,37 @@ int DllInit(void) {
                 return ESAL_RC_FAIL;
         }
     }
+
+    if (!esalCreateBpduTrapAcl()) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "esalCreateBpduTrapAcl fail\n"));
+        std::cout << "can't create bpdu trap acl \n";
+        return ESAL_RC_FAIL;
+    }
+
+    // FIXME
+    // Lets enable custom BPDU trap on all ports
+    // But do we need all ports?
+    for (uint32_t i = 0; i < port_number; i++) {
+        if (!esalPortTableGetSaiByIdx(i, &portSai))
+        {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE, "esalPortTableFindSai fail in DllInit\n"));
+            std::cout << "esalPortTableFindSai fail:"
+                      << "\n";
+            return ESAL_RC_FAIL;
+        }
+
+        portId = (uint16_t)GET_OID_VAL(portSai);
+
+        if (!esalEnableBpduTrapOnPort(portId)) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                  SWERR_FILELINE, "esalEnableBpduTrapOnPort fail\n"));
+            std::cout << "can't enable bpdu trap acl on port:" << portId << " \n";
+            return ESAL_RC_FAIL;
+        }
+    }
+
 #endif
 
     return ESAL_RC_OK;

@@ -356,6 +356,73 @@ bool esalBridgePortRemove(sai_object_id_t portSai, uint16_t vlanId) {
     return true; 
 }
 
+bool esalBridgePortListInit(uint32_t port_number)
+{
+    // Grab mutex.
+    std::unique_lock<std::mutex> lock(bridgeMutex);
+
+    // Get the bridge API
+    sai_status_t retcode;
+    sai_bridge_api_t *saiBridgeApi;
+    retcode =  sai_api_query(SAI_API_BRIDGE, (void**) &saiBridgeApi);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "sai_api_query fail in esalBridgePortRemove\n"));
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
+        return false;
+    }
+
+    // Create Attribute list.
+    std::vector<sai_attribute_t> attributes;
+    sai_attribute_t attr;
+
+    // Get port list //
+    std::vector<sai_object_id_t> port_list;
+    port_list.resize(port_number);
+
+    attr.id = SAI_BRIDGE_ATTR_PORT_LIST;
+    attr.value.objlist.count = (uint32_t)port_list.size();
+    attr.value.objlist.list = port_list.data();
+    attributes.push_back(attr);
+
+    retcode = saiBridgeApi->get_bridge_attribute(
+                                bridgeSai, attributes.size(), attributes.data());
+    if (retcode){
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "get_bridge_attribute fail " \
+                              "in esalBridgePortRemove\n"));
+        std::cout << "get_bridge_attribute fail: "
+                  << esalSaiError(retcode) << std::endl;
+        return false;
+    }
+
+    for (uint32_t i = 0; i < port_number; i++) {
+        // Update the bridge port table in the shadow.  Then bump counter.
+        BridgeMember &mbr = bridgePortTable[bridgePortTableSize];
+        if (!esalPortTableGetSaiByIdx(i, &mbr.portSai)) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                  SWERR_FILELINE, "esalPortTableFindSai fail in esalBridgePortListInit\n"));
+            std::cout << "esalPortTableFindSai fail:" << "\n";
+                return ESAL_RC_FAIL;
+        }
+        mbr.vlanId = 0;
+        mbr.bridgePortSai = attr.value.objlist.list[i];
+        if (!esalPortTableFindId(mbr.portSai, &mbr.portId)) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE, "esalPortTableFindId fail "
+                                        "VendorAddPortsToVlan"));
+            std::cout << "can't find portid for portSai:" << mbr.portSai
+                      << std::endl;
+            return false;
+        }
+        bridgePortTableSize++;
+    }
+
+    return true;
+
+}
+
 static int setMacLearning(uint16_t portId, bool enabled) {
     // Grab mutex.
     std::unique_lock<std::mutex> lock(bridgeMutex);
