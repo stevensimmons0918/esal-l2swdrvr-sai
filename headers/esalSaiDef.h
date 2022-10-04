@@ -89,7 +89,7 @@ extern bool esalStpCreate(sai_object_id_t *defStpId);
 extern bool esalStpPortCreate(sai_object_id_t stpSai,
                     sai_object_id_t bridgePortSai, sai_object_id_t *stpPortSai);
 extern bool esalCreateBpduTrapAcl();
-extern bool esalEnableBpduTrapOnPort(uint16_t lPort);
+extern bool esalEnableBpduTrapOnPort(std::vector<sai_object_id_t>& portSaiList);
 
 #ifndef LARCH_ENVIRON
 extern SFPLibInitialize_fp_t esalSFPLibInitialize;

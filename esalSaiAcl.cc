@@ -633,36 +633,19 @@ bool esalCreateBpduTrapAcl()
     return true;
 }
 
-bool esalEnableBpduTrapOnPort(uint16_t lPort)
+bool esalEnableBpduTrapOnPort(std::vector<sai_object_id_t>& portSaiList)
 {
-    uint32_t dev;
-    uint32_t pPort;
-    bool rc = saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort);
-
-    if (!rc) {
-        std::cout << "esalEnableBpduTrapOnPort failed to get pPort "
-                  << " lPort=" << lPort << std::endl;
-        return ESAL_RC_FAIL;
+    // Add all new ports to the list
+    for (auto portSai : portSaiList) {
+        auto res = find(bpduEnablePorts.begin(), bpduEnablePorts.end(), portSai);
+        if (res == bpduEnablePorts.end())
+            bpduEnablePorts.push_back(portSai);
     }
 
-    // Find the port sai first.
-    //
-    sai_object_id_t portSai;
-    if (!esalPortTableFindSai(pPort, &portSai)) {
-        std::cout << "esalEnableBpduTrapOnPort not find port\n";
-        return ESAL_RC_OK;
-    }
+    std::vector<sai_object_id_t> port_list;
 
-    bool portExists = false;
-    for(auto bpduEnablePort : bpduEnablePorts) {
-        if (bpduEnablePort == portSai){
-            portExists = true;
-            break;
-        }
-    }
-
-    if (!portExists) {
-        bpduEnablePorts.push_back(portSai);
+    for (auto portSai : bpduEnablePorts) {
+        port_list.push_back(portSai);
     }
 
     // Find ACL API
@@ -686,13 +669,6 @@ bool esalEnableBpduTrapOnPort(uint16_t lPort)
 
     sai_acl_field_data_t match_in_ports;
     match_in_ports.enable = true;
-    // Get port list //
-    std::vector<sai_object_id_t> port_list;
-    // Enable bpdu trap for all ports in port_list
-    for (auto bpduEnablePort : bpduEnablePorts) {
-        port_list.push_back(bpduEnablePort);
-    }
-
     match_in_ports.data.objlist.count = (uint32_t)port_list.size();
     match_in_ports.data.objlist.list = port_list.data();
     attr.id = SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS;

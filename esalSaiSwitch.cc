@@ -582,24 +582,11 @@ int DllInit(void) {
     // FIXME
     // Lets enable custom BPDU trap on all ports
     // But do we need all ports?
-    for (uint32_t i = 0; i < port_number; i++) {
-        if (!esalPortTableGetSaiByIdx(i, &portSai))
-        {
-            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                        SWERR_FILELINE, "esalPortTableFindSai fail in DllInit\n"));
-            std::cout << "esalPortTableFindSai fail:"
-                      << "\n";
-            return ESAL_RC_FAIL;
-        }
-
-        portId = (uint16_t)GET_OID_VAL(portSai);
-
-        if (!esalEnableBpduTrapOnPort(portId)) {
-            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                  SWERR_FILELINE, "esalEnableBpduTrapOnPort fail\n"));
-            std::cout << "can't enable bpdu trap acl on port:" << portId << " \n";
-            return ESAL_RC_FAIL;
-        }
+    if (!esalEnableBpduTrapOnPort(port_list)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "esalEnableBpduTrapOnPort fail\n"));
+        std::cout << "can't enable bpdu trap acl \n";
+        return ESAL_RC_FAIL;
     }
 
 #endif
