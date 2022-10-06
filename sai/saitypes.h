@@ -278,6 +278,7 @@ typedef enum _sai_object_type_t
     SAI_OBJECT_TYPE_SYSTEM_PORT              = 93,
     SAI_OBJECT_TYPE_FINE_GRAINED_HASH_FIELD  = 94,
     SAI_OBJECT_TYPE_SWITCH_TUNNEL            = 95,
+    SAI_OBJECT_TYPE_VLAN_STACK               = 96,
     SAI_OBJECT_TYPE_MAX,  /* Must remain in last position */
 } sai_object_type_t;
 
@@ -1109,6 +1110,20 @@ typedef struct _sai_port_err_status_list_t
 } sai_port_err_status_list_t;
 
 /**
+ * @brief Attribute data for vlan stacking rule
+ *
+ * If attribute value is 0, means the attribute is invalid.
+ */
+typedef struct _sai_vlan_stacking_vid_t
+{
+    /** Vlan ID at the inner dot1q position */
+    uint16_t inner;
+
+    /** Vlan ID at the outer dot1q position */
+    uint16_t outer;
+} sai_vlan_stacking_vid_t;
+
+/**
  * @brief Data Type
  *
  * To use enum values as attribute value is sai_int32_t s32
@@ -1270,6 +1285,9 @@ typedef union _sai_attribute_value_t
 
     /** @validonly meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_PORT_ERR_STATUS_LIST */
     sai_port_err_status_list_t porterror;
+
+    /** @validonly meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_VLAN_STACKING_VID */
+    sai_vlan_stacking_vid_t vlanstackingvid;
 } sai_attribute_value_t;
 
 /**

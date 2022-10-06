@@ -560,7 +560,7 @@ int VendorDeletePortDefaultVlan(uint16_t port, uint16_t vlanid) {
         return ESAL_RC_OK;
     }
 
-    return VendorSetPortDefaultVlan(port, 0);
+    return VendorSetPortDefaultVlan(port, 1);
 
 }
 
@@ -651,7 +651,25 @@ int VendorStripTagsOnEgress(uint16_t lPort) {
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
-    return VendorTagPacketsOnIngress(lPort);
+
+    uint32_t dev;
+    uint32_t pPort;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        std::cout << "VendorTagPacketsOnIngress, failed to get pPort"
+            << " lPort=" << lPort << std::endl;
+        return ESAL_RC_FAIL;
+    }
+    // Set port to strip tag on egress.
+    // In this mode port should pop tag on egress
+    // regardless the tags.
+    if (esalVlanAddPortTagPushPop(pPort, false, false) != ESAL_RC_OK) {
+        std::cout << "VendorStripTagsOnEgress fail pPort: " << pPort << "\n";
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "invalid port in VendorTagPacketsOnIngress\n"));
+        return ESAL_RC_FAIL;
+    }
+    return ESAL_RC_OK;
 }
 
 static int setVLANLearning(uint16_t vlanId, bool enabled) {
@@ -721,6 +739,67 @@ int VendorEnableMacLearningPerVlan(uint16_t vlanId) {
     return setVLANLearning(vlanId, true);
 }
 
+int esalVlanAddPortTagPushPop(uint16_t pPort, bool ingr, bool push) {
 
+    // Grab mutex.
+    //
+    std::unique_lock<std::mutex> lock(vlanMutex);
+
+    // Query for VLAN API
+    //
+#ifndef UTS
+    sai_status_t retcode;
+    sai_vlan_api_t *saiVlanApi;
+    retcode =  sai_api_query(SAI_API_VLAN, (void**) &saiVlanApi);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "sai_api_query fail in VendorSetPortNniMode\n"));
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+        return ESAL_RC_FAIL;
+    }
+
+    // Find the sai port.
+    sai_object_id_t portSai;
+    if (!esalPortTableFindSai(pPort, &portSai)) {
+        std::cout << "esalPortTableFindSai fail pPort: " << pPort << std::endl;
+        return ESAL_RC_FAIL; 
+    }
+
+    sai_object_id_t vlan_stacking_oid;
+    sai_attribute_t attr;
+    std::vector<sai_attribute_t> attributes;
+
+    attr.id = SAI_VLAN_STACK_ATTR_STAGE;
+    if (ingr == true)
+        attr.value.s32 = SAI_VLAN_STACK_STAGE_INGRESS;
+    else    
+        attr.value.s32 = SAI_VLAN_STACK_STAGE_EGRESS;
+    attributes.push_back(attr);
+
+    attr.id = SAI_VLAN_STACK_ATTR_ACTION; 
+    if (push)
+        attr.value.s32 = SAI_VLAN_STACK_ACTION_PUSH;
+    else
+        attr.value.s32 = SAI_VLAN_STACK_ACTION_POP;
+    attributes.push_back(attr);
+
+    attr.id = SAI_VLAN_STACK_ATTR_PORT;
+    attr.value.oid = portSai;
+    attributes.push_back(attr);
+    
+    // Create vlan stack.
+    retcode = saiVlanApi->create_vlan_stack(
+        &vlan_stacking_oid, esalSwitchId, (uint32_t)attributes.size(), attributes.data());
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "create_port Fail in "
+                                    "esalPortTableAddEntry\n"));
+        std::cout << "create_port fail: " << esalSaiError(retcode)
+                  << std::endl;
+        return ESAL_RC_FAIL;
+    }
+#endif
+   return ESAL_RC_OK;
+}
 
 }

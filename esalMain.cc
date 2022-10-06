@@ -14,7 +14,6 @@ void run_cli ()
 
     fp_cli = fopen(cli_filename, "r");
     PyRun_SimpleFile(fp_cli, cli_filename);
-
     Py_Finalize();
 }
 
@@ -22,6 +21,11 @@ int main()
 {
 
     if (DllInit() == ESAL_RC_OK) {
+        // vendor_vlan_translation_t trans;
+        // trans.newVlan = 110;
+        // trans.oldVlan = 100;
+        // //VendorSetIngressVlanTranslation(28, trans);
+        VendorSetPortNniMode(28, VENDOR_NNI_MODE_UNI);
         run_cli();
     }
 
