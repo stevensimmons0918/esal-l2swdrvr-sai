@@ -46,6 +46,8 @@ sai_object_id_t defStpId = 0;
 
 EsalSaiUtils saiUtils;
 
+std::vector<sai_object_id_t> bpdu_port_list;
+
 extern "C" {
 
 #ifndef LARCH_ENVIRON
@@ -219,6 +221,30 @@ int handleProfileMap(const std::string& profileMapFile) {
     return ESAL_RC_OK;
 }
 
+int esalHostIfListParser(std::string key , std::vector<sai_object_id_t>& out_vector) {
+        char port_buf[3], value_buf[2];
+        std::string inLine = esalProfileMap["hostIfListDisable"];
+        size_t pos = inLine.find(":");
+        // sai_object_id_t data;
+        
+        while ( inLine.size() - pos > 1 ) {
+            inLine.copy(port_buf, 3, pos-3);
+            inLine.copy(value_buf, 1, pos+1);
+
+            int port = atoi(port_buf);
+            int value = atoi(value_buf);
+
+            std::cout << "##############################################################\n";
+            std::cout << "esalHostIfListParser : " << port << "=" << value << "\n";
+            std::cout << "##############################################################\n";
+            
+            // out_vector.push_back(data);
+            
+            pos += 6;
+        }
+    return ESAL_RC_OK;
+}
+
 #ifndef UTS
 
 static const sai_service_method_table_t testServices = {
@@ -354,7 +380,7 @@ int DllInit(void) {
 
     // FIXME... This needs to handle configuration file sai.profile.ini.
     // http://rtx-swtl-jira.fnc.net.local/projects/LARCH/issues/LARCH-8
-#ifndef LARCH_ENVIRON
+// #ifndef LARCH_ENVIRON
     if (handleProfileMap(profile_file) != ESAL_RC_OK) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "handleProfileMap Fail in DllInit\n"));
@@ -370,7 +396,18 @@ int DllInit(void) {
         useSaiFlag = false;
         return ESAL_RC_FAIL;
     }
-#endif
+
+    if (!esalProfileMap.count("hostIfListDisable")) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+            SWERR_FILELINE, "hostIfListDisable read Fail in DllInit\n"));
+        std::cout << "Configuration file isn't hostIfListDisable setting" << profile_file << std::endl;
+        return ESAL_RC_FAIL;
+    } else {
+        int bpdu_port_num = esalProfileMap.count("hostIfListDisable");
+        bpdu_port_list.resize(bpdu_port_num);
+        esalHostIfListParser("hostIfListDisable", bpdu_port_list);
+    }
+// #endif
 
 #ifndef UTS
     // Initialize the SAI.
