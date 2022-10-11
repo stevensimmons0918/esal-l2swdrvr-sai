@@ -34,12 +34,9 @@
 #include "threadutils/dll_util.h"
 #endif
 
-
-#ifndef UTS
 #include "sai/sai.h"
 #include "sai/saiswitch.h"
 #include "sai/saihostif.h"
-#endif
 
 //Default STP ID 
 sai_object_id_t defStpId = 0;

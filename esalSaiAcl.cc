@@ -34,7 +34,9 @@ static std::mutex aclMutex;
 
 extern "C" {
 static sai_object_id_t aclTableBpduTrap;
+#ifndef UTS
 static sai_object_id_t aclEntryBpduTrap;
+#endif
 static sai_mac_t customBpduMac = {0x01, 0x80, 0xC2, 0x00, 0x00, 0xFF};
 static std::vector<sai_object_id_t> bpduEnablePorts;
 static void buildACLTable(uint32_t stage, std::vector<sai_attribute_t> &attributes){

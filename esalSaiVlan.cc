@@ -21,7 +21,6 @@
 
 #include <esal_vendor_api/esal_vendor_api.h>
 
-#ifndef UTS
 extern "C" {
 #include "sai/sai.h"
 #include "sai/saiport.h"
@@ -30,7 +29,6 @@ extern "C" {
 
 #ifndef LARCH_ENVIRON
 #include "sfp_vendor_api/sfp_vendor_api.h"
-#endif
 #endif
 
 extern "C" {
