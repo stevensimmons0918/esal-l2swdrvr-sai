@@ -18,14 +18,12 @@
 #include <vector>
 #include <map>
 
-#ifndef UTS
 #include "sai/sai.h"
 #include "sai/saiport.h"
 #include "sai/saibridge.h"
 #include "sai/saifdb.h"
 #ifndef LARCH_ENVIRON
 #include "sfp_vendor_api/sfp_vendor_api.h"
-#endif
 #endif
 
 #include "esal_vendor_api/esal_vendor_api.h"

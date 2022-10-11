@@ -19,10 +19,8 @@
 #ifndef LARCH_ENVIRON
 #include "pf_proto/esal_pm.pb.h" 
 #endif
-#ifndef UTS
 #include "sai/sai.h"
 #include "sai/saistp.h"
-#endif
 
 extern "C" {
 

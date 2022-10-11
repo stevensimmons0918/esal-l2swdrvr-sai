@@ -16,10 +16,8 @@
 #include <set>
 #include <inttypes.h>
 
-#ifndef UTS
 #include "sai/sai.h"
 #include "sai/saistp.h"
-#endif
 #include "esal_vendor_api/esal_vendor_api.h"
 
 // #define MC_DEBUG
