@@ -48,12 +48,6 @@ static void buildACLTable(uint32_t stage, std::vector<sai_attribute_t> &attribut
     attr.value.u32 = stage;
     attributes.push_back(attr);
 
-    // Lets try to take advantage of 4-way parallel lookup in TCAM.
-    //
-    attr.id = SAI_ACL_TABLE_ATTR_ACL_STAGE;
-    attr.value.u32 = stage;
-    attributes.push_back(attr);
-
     // Defines the types of actions
     //
     const int actTabSize = 1;
@@ -77,6 +71,12 @@ static void buildACLTable(uint32_t stage, std::vector<sai_attribute_t> &attribut
     attr.id = SAI_ACL_TABLE_ATTR_FIELD_PACKET_VLAN;
     attr.value.booldata = true;
     attributes.push_back(attr);
+
+    // Define the packet fields to look at.
+    //
+    attr.id = SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID;
+    attr.value.booldata = true;
+    attributes.push_back(attr);
 #endif 
     
 }
@@ -93,29 +93,36 @@ static void buildACLEntry(
     attr.value.oid = aclTable;
     aclAttr.push_back(attr);
     
+    sai_acl_field_data_t match;
     // Define the fields to match on...
     //
+    match.enable = true;
+    match.data.s32 = SAI_PACKET_VLAN_SINGLE_OUTER_TAG;
     attr.id = SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN;
-    attr.value.u32 = SAI_PACKET_VLAN_SINGLE_OUTER_TAG;
+    attr.value.aclfield = match;
     aclAttr.push_back(attr);
 
-    // Say what to do when there match.
-    //
-    attr.id = SAI_ACL_ENTRY_ATTR_ACTION_SET_OUTER_VLAN_ID;
-    attr.value.u16 = trans.newVlan;
-    aclAttr.push_back(attr);
+    sai_acl_field_data_t transMatch;
+    transMatch.enable = true;
+    transMatch.mask.u16 = 4095;
+    transMatch.data.u16 = trans.oldVlan;
 
     // Mark the value to match one. 
     //
     attr.id = SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID;
-    attr.value.u16 = trans.oldVlan;
+    attr.value.aclfield = transMatch;
+    aclAttr.push_back(attr);
+    // Define the action to match on...
+    //
+    sai_acl_action_data_t transAction;
+    transAction.enable = true;
+    transAction.parameter.u16 = trans.newVlan;
+    // Say what to do when there match.
+    //
+    attr.id = SAI_ACL_ENTRY_ATTR_ACTION_SET_OUTER_VLAN_ID;
+    attr.value.aclaction = transAction;
     aclAttr.push_back(attr);
 
-    // Also mark that it has VLAN TAG (not sure if necessary). 
-    // 
-    attr.id = SAI_ACL_ENTRY_ATTR_FIELD_HAS_VLAN_TAG;
-    attr.value.booldata = true;
-    aclAttr.push_back(attr);
 #endif 
 
 }

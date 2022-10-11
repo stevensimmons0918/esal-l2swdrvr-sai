@@ -416,6 +416,15 @@ bool esalBridgePortListInit(uint32_t port_number)
                       << std::endl;
             return false;
         }
+
+        // Check to see max is exceeded.
+        if (bridgePortTableSize >= BRIDGE_PORT_TABLE_MAXSIZE) {
+          SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                      SWERR_FILELINE, "table full in esalBridgePortListInit\n"));
+          std::cout << "Bridge Port Tab Exceed:" << port_number << std::endl;
+          return false;
+        }
+
         bridgePortTableSize++;
     }
 
