@@ -26,6 +26,104 @@ struct portVlanTransMap {
     sai_object_id_t attrSai; 
 };
 
+struct aclTableAttributes {
+    sai_uint32_t switch_id;
+    uint8_t field_out_port;
+    uint8_t field_inner_dst_ipv6;
+    uint8_t field_dst_ipv6;
+    sai_s32_list_t *field_acl_range_type_ptr;
+    uint8_t field_inner_src_ipv6;
+    uint8_t field_tos;
+    uint8_t field_ether_type;
+    sai_acl_stage_t acl_stage;
+    uint8_t field_src_ipv6_word0;
+    uint8_t field_ttl;
+    uint8_t field_acl_ip_type;
+    sai_s32_list_t *acl_action_type_list_ptr;
+    uint8_t field_tcp_flags;
+    uint8_t field_in_port;
+    uint8_t field_dscp;
+    uint8_t field_src_mac;
+    uint8_t field_in_ports;
+    uint8_t field_packet_vlan;
+    uint8_t field_ecn;
+    uint8_t field_dst_ip;
+    uint8_t field_gre_key;
+    uint8_t field_src_ipv6_word3;
+    uint8_t field_src_ipv6_word2;
+    uint8_t field_src_ipv6_word1;
+    uint8_t field_l4_dst_port;
+    uint8_t field_acl_ip_frag;
+    sai_uint32_t size;
+    uint8_t field_has_vlan_tag;
+    uint8_t field_dst_ipv6_word3;
+    uint8_t field_dst_ipv6_word0;
+    uint8_t field_dst_ipv6_word1;
+    uint8_t field_src_ipv6;
+    uint8_t field_dst_mac;
+    uint8_t field_tc;
+    uint8_t field_src_port;
+    uint8_t field_src_ip;
+    uint8_t field_ip_protocol;
+    sai_s32_list_t *acl_bind_point_type_list_ptr;
+    uint8_t field_l4_src_port;
+    uint8_t field_icmp_type;
+    uint8_t field_icmp_code;
+    uint8_t field_dst_ipv6_word2;
+};
+
+struct aclCounterAttributes {
+    sai_uint32_t switch_id;
+    sai_uint32_t table_id;
+    uint8_t packet_count;
+    uint32_t packet_list_ptr[];
+    uint8_t byte_count;
+    uint32_t byte_list_ptr[];
+    uint8_t enable_byte_count;
+    uint8_t enable_packet_count;
+};
+struct aclEntryAttributes {
+    sai_object_id_t switch_id;
+    sai_acl_field_data_t *field_out_ports;
+    sai_acl_action_data_t *action_egress_samplepacket_enable;
+    sai_acl_action_data_t *action_mirror_ingress;
+    sai_acl_action_data_t *action_set_policer;
+    uint8_t admin_state;
+    sai_acl_field_data_t *field_l4_src_port;
+    sai_acl_field_data_t *field_ip_protoco;
+    sai_acl_field_data_t *field_l4_dst_port;
+    sai_acl_field_data_t *field_dscp;
+    sai_acl_field_data_t *field_ipv6_next_header;
+    sai_acl_action_data_t *action_mirror_egress;
+    sai_uint32_t priority;
+    sai_acl_field_data_t *field_dst_mac;
+    sai_acl_field_data_t *field_in_port;
+    sai_acl_field_data_t *field_acl_ip_type;
+    sai_acl_field_data_t *field_src_ip;
+    sai_acl_field_data_t *field_tcp_flags;
+    sai_acl_field_data_t *field_outer_vlan_id;
+    sai_acl_field_data_t *field_dst_ip;
+    sai_acl_action_data_t *action_counter;
+    sai_acl_field_data_t *field_dst_ipv6;
+    sai_acl_field_data_t *field_tc;
+    sai_acl_field_data_t *field_tos;
+    sai_object_id_t table_id;
+    sai_acl_field_data_t *field_acl_range_type;
+    sai_acl_field_data_t *field_icmp_type;
+    sai_acl_field_data_t *field_src_ipv6;
+    sai_acl_field_data_t *field_src_mac;
+    sai_acl_field_data_t *field_icmp_code;
+    sai_acl_field_data_t *field_ether_type;
+    sai_acl_field_data_t *field_out_port;
+    sai_acl_action_data_t *action_packet_action;
+    sai_acl_action_data_t *action_ingress_samplepacket_enable;
+    sai_acl_field_data_t *field_icmpv6_type;
+    sai_acl_action_data_t *action_set_outer_vlan_id;
+    sai_acl_action_data_t *action_redirect;
+    sai_acl_field_data_t *field_in_ports;
+    sai_acl_field_data_t *field_icmpv6_code;
+};
+
 static std::vector<portVlanTransMap> ingressPortTransMap;
 static std::vector<portVlanTransMap> egressPortTransMap;
 static std::map<uint16_t, sai_object_id_t> portIngressAcl;
@@ -732,5 +830,548 @@ bool esalEnableBpduTrapOnPort(std::vector<sai_object_id_t>& portSaiList)
 
     return true;
 }
+
+bool esalCreateAclTable(aclTableAttributes aclTableAttr, sai_object_id_t *aclTableId)
+{
+    sai_attribute_t attr;
+    std::vector<sai_attribute_t> attributes;
+
+    if (aclTableAttr.field_out_port)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_OUT_PORT;
+        attr.value.booldata = aclTableAttr.field_out_port;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_dst_ipv6 == 1)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_DST_IPV6;
+        attr.value.booldata = aclTableAttr.field_dst_ipv6;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_acl_range_type_ptr->count != 0)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_ACL_RANGE_TYPE;
+        attr.value.s32list.count = aclTableAttr.field_acl_range_type_ptr->count;
+        attr.value.s32list.list = aclTableAttr.field_acl_range_type_ptr->list;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_tos)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_TOS;
+        attr.value.booldata = aclTableAttr.field_tos;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_ether_type)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_ETHER_TYPE;
+        attr.value.booldata = aclTableAttr.field_ether_type;
+        attributes.push_back(attr);
+    }
+
+    attr.id = SAI_ACL_TABLE_ATTR_ACL_STAGE;
+    attr.value.s32 = aclTableAttr.acl_stage;
+    attributes.push_back(attr);
+
+    if (aclTableAttr.field_acl_ip_type)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_TYPE;
+        attr.value.booldata = aclTableAttr.field_acl_ip_type;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.acl_action_type_list_ptr->count != 0)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_ACL_ACTION_TYPE_LIST;
+        attr.value.s32list.count = acl_action_type_list_ptr->count;
+        attr.value.s32list.list = acl_action_type_list_ptr->list;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_tcp_flags)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_TCP_FLAGS;
+        attr.value.booldata = aclTableAttr.field_tcp_flags;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_in_port)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_IN_PORT;
+        attr.value.booldata = aclTableAttr.field_in_port;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_dscp)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_DSCP;
+        attr.value.booldata = aclTableAttr.field_dscp;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_src_mac)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_SRC_MAC;
+        attr.value.booldata = aclTableAttr.field_src_mac;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_out_ports)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_OUT_PORTS;
+        attr.value.booldata = aclTableAttr.field_out_ports;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_in_ports)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_IN_PORTS;
+        attr.value.booldata = aclTableAttr.field_in_ports;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_dst_ip == 1)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_DST_IP;
+        attr.value.booldata = aclTableAttr.field_dst_ip;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_l4_dst_port)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_L4_DST_PORT;
+        attr.value.booldata = aclTableAttr.field_l4_dst_port;
+        attributes.push_back(attr);
+    }
+
+    attr.id = SAI_ACL_TABLE_ATTR_SIZE;
+    attr.value.u32 = aclTableAttr.size;
+    attributes.push_back(attr);
+
+    if (aclTableAttr.field_src_ipv6 == 1)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_SRC_IPV6;
+        attr.value.booldata = aclTableAttr.field_src_ipv6;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_dst_mac)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_DST_MAC;
+        attr.value.booldata = aclTableAttr.field_dst_mac;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_tc)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_TC;
+        attr.value.booldata = aclTableAttr.field_tc;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_icmpv6_type)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_ICMPV6_TYPE;
+        attr.value.booldata = aclTableAttr.field_icmpv6_type;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_src_ip == 1)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_SRC_IP;
+        attr.value.booldata = aclTableAttr.field_src_ip;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_ip_protocol)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_IP_PROTOCOL;
+        attr.value.booldata = aclTableAttr.field_ip_protocol;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_outer_vlan_id)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_OUTER_VLAN_ID;
+        attr.value.booldata = aclTableAttr.field_outer_vlan_id;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_icmpv6_code)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_ICMPV6_CODE;
+        attr.value.booldata = aclTableAttr.field_icmpv6_code;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_ipv6_next_header)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_IPV6_NEXT_HEADER;
+        attr.value.booldata = aclTableAttr.field_ipv6_next_header;
+        attributes.push_back(attr);
+    }
+
+    if (acl_bind_point_type_list_ptr->count != 0)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_ACL_BIND_POINT_TYPE_LIST;
+        attr.value.s32list.count = acl_bind_point_type_list_ptr->count;
+        attr.value.s32list.list = acl_bind_point_type_list_ptr->list;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_l4_src_port)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_L4_SRC_PORT;
+        attr.value.booldata = aclTableAttr.field_l4_src_port;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_icmp_type)
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_ICMP_TYPE;
+    {
+        attr.value.booldata = aclTableAttr.field_icmp_type;
+        attributes.push_back(attr);
+    }
+
+    if (aclTableAttr.field_icmp_code)
+    {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_ICMP_CODE;
+        attr.value.booldata = aclTableAttr.field_icmp_code;
+        attributes.push_back(attr);
+    }
+
+    // Find ACL API 
+    //
+#ifndef UTS
+    sai_status_t retcode;
+    sai_acl_api_t *saiAclApi;
+    retcode =  sai_api_query(SAI_API_ACL, (void**) &saiAclApi);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "sai_api_query fail " \
+                    " in esalCreateAclTable\n"));
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+        return false;
+    }
+#endif
+
+    // Create acl table
+    //
+    retcode = saiAclApi->create_acl_table(
+              aclTableId, esalSwitchId, attributes.size(), attributes.data());
+    if (retcode) {
+        std::cout << "esalCreateAclTable create acl fail: "
+                  << esalSaiError(retcode) << std::endl;
+        return false;
+    }
+	
+	return true;
+}
+
+bool esalRemoveAclTable(sai_object_id_t acl_table_id)
+{
+    // Find ACL API 
+    //
+#ifndef UTS
+    sai_status_t retcode;
+    sai_acl_api_t *saiAclApi;
+    retcode =  sai_api_query(SAI_API_ACL, (void**) &saiAclApi);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "sai_api_query fail " \
+                    " in esalCreateAclTable\n"));
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
+        return ESAL_RC_FAIL;
+    }
+#endif
+
+    // Create acl table
+    //
+    retcode = saiAclApi->remove_acl_table(aclTableId);
+    if (retcode) {
+        std::cout << "esalRemoveAclTable create acl fail: "
+                  << esalSaiError(retcode) << std::endl;
+        return ESAL_RC_FAIL;
+    }
+	
+	return true;
+}
+
+sai_object_id_t esalCreateAclCounter(aclCounterAttributes aclCounterAttr)
+{
+	uint32_t attr_count = 5;
+	sai_attribute_t * attr_list = (sai_attribute_t * ) calloc(5,sizeof(sai_attribute_t));
+	if(!attr_list) return 0;
+	sai_attribute_t * final_attr_list = (sai_attribute_t * ) calloc(5,sizeof(sai_attribute_t));
+	if(!final_attr_list) {
+		free (attr_list);
+		return 0;
+	}
+	int count = 0;
+	uint32_t final_attr_count = 0;
+	sai_object_id_t ret = 0;
+
+	for (uint32_t i = 0; i < attr_count; i++) 
+		attr_list[i].id = XP_SAI_OBJ_ATTR_INVALID;
+
+	sai_object_id_t *acl_counter_id_out = (sai_object_id_t*) calloc(1,sizeof(sai_object_id_t)) ;
+	if (!acl_counter_id_out) {
+		if (attr_list) free(attr_list);
+		if (final_attr_list) free(final_attr_list);
+		return ret; }
+
+	attr.id = SAI_ACL_COUNTER_ATTR_TABLE_ID;	attr.value.oid = table_id;
+	attr.id = SAI_ACL_COUNTER_ATTR_PACKETS;	attr.value.u64 = packets;
+	attr.id = SAI_ACL_COUNTER_ATTR_BYTES;	attr.value.u64 = bytes;
+	attr.id = SAI_ACL_COUNTER_ATTR_ENABLE_BYTE_COUNT;	attr.value.booldata = enable_byte_count;
+	attr.id = SAI_ACL_COUNTER_ATTR_ENABLE_PACKET_COUNT;	attr.value.booldata = enable_packet_count;
+
+	xpSaiShellCompressAttributes(attr_count, attr_list, &final_attr_count, final_attr_list,ACL_COUNTER_VALIDATION_ARRAY_SIZE, acl_counter_attribs);
+
+	if(((sai_acl_api_t*)(xpSaiApiTableArr[SAI_API_ACL])))
+	{
+
+		((sai_acl_api_t*)(xpSaiApiTableArr[SAI_API_ACL]))->create_acl_counter(acl_counter_id_out, switch_id,  final_attr_count,  final_attr_list );
+	}
+	printf("acl_counter_id_out = %" PRIu64 "\n",*acl_counter_id_out);
+	ret = *acl_counter_id_out;
+
+	free(acl_counter_id_out);
+	free(attr_list);
+	free(final_attr_list);
+
+	return ret;
+{
+}
+
+sai_status_t sai_remove_acl_counter(sai_object_id_t acl_counter_id)
+{
+	sai_status_t ret = SAI_STATUS_SUCCESS;
+
+	if(((sai_acl_api_t*)(xpSaiApiTableArr[SAI_API_ACL])))
+	{
+
+		ret = (((sai_acl_api_t*)(xpSaiApiTableArr[SAI_API_ACL]))->remove_acl_counter(acl_counter_id));
+	}
+
+	return ret;
+}
+
+sai_object_id_t esalCreateAclEntry(aclEntryAttributes attr_acl)
+	if(attr_acl.field_out_ports. field_out_ports->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS;
+		memcpy(&attr.value.aclfield, attr_acl ,sizeof(sai_acl_field_data_t));
+	}
+	if(action_egress_samplepacket_enable->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_ACTION_EGRESS_SAMPLEPACKET_ENABLE;
+		memcpy(&attr.value.aclaction, action_egress_samplepacket_enable ,sizeof(sai_acl_action_data_t));
+	}
+	if(action_mirror_ingress->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS;
+		memcpy(&attr.value.aclaction, action_mirror_ingress ,sizeof(sai_acl_action_data_t));
+	}
+	if(action_set_policer->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_ACTION_SET_POLICER;
+		memcpy(&attr.value.aclaction, action_set_policer ,sizeof(sai_acl_action_data_t));
+	}
+	attr.id = SAI_ACL_ENTRY_ATTR_ADMIN_STATE;
+	attr.value.booldata = admin_state;
+	if(field_l4_src_port->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT;
+		memcpy(&attr.value.aclfield, field_l4_src_port ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_ip_protocol->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL;
+		memcpy(&attr.value.aclfield, field_ip_protocol ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_l4_dst_port->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT;
+		memcpy(&attr.value.aclfield, field_l4_dst_port ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_dscp->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_DSCP;
+		memcpy(&attr.value.aclfield, field_dscp ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_ipv6_next_header->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_IPV6_NEXT_HEADER;
+		memcpy(&attr.value.aclfield, field_ipv6_next_header ,sizeof(sai_acl_field_data_t));
+	}
+	if(action_mirror_egress->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_EGRESS;
+		memcpy(&attr.value.aclaction, action_mirror_egress ,sizeof(sai_acl_action_data_t));
+	}
+	attr.id = SAI_ACL_ENTRY_ATTR_PRIORITY;
+	attr.value.u32 = priority;
+	if(field_dst_mac->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC;
+		memcpy(&attr.value.aclfield, field_dst_mac ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_in_port->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT;
+		memcpy(&attr.value.aclfield, field_in_port ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_acl_ip_type->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE;
+		memcpy(&attr.value.aclfield, field_acl_ip_type ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_src_ip->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP;
+		memcpy(&attr.value.aclfield, field_src_ip ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_tcp_flags->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS;
+		memcpy(&attr.value.aclfield, field_tcp_flags ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_outer_vlan_id->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID;
+		memcpy(&attr.value.aclfield, field_outer_vlan_id ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_dst_ip->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_DST_IP;
+		memcpy(&attr.value.aclfield, field_dst_ip ,sizeof(sai_acl_field_data_t));
+	}
+	if(action_counter->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_ACTION_COUNTER;
+		memcpy(&attr.value.aclaction, action_counter ,sizeof(sai_acl_action_data_t));
+	}
+	if(field_dst_ipv6->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6;
+		memcpy(&attr.value.aclfield, field_dst_ipv6 ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_tc->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_TC;
+		memcpy(&attr.value.aclfield, field_tc ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_tos->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_TOS;
+		memcpy(&attr.value.aclfield, field_tos ,sizeof(sai_acl_field_data_t));
+	}
+	attr.id = SAI_ACL_ENTRY_ATTR_TABLE_ID;
+	attr.value.oid = table_id;
+	if(field_acl_range_type->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_ACL_RANGE_TYPE;
+		memcpy(&attr.value.aclfield, field_acl_range_type ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_icmp_type->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_ICMP_TYPE;
+		memcpy(&attr.value.aclfield, field_icmp_type ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_src_ipv6->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6;
+		memcpy(&attr.value.aclfield, field_src_ipv6 ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_src_mac->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC;
+		memcpy(&attr.value.aclfield, field_src_mac ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_icmp_code->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_ICMP_CODE;
+		memcpy(&attr.value.aclfield, field_icmp_code ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_ether_type->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE;
+		memcpy(&attr.value.aclfield, field_ether_type ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_out_port->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT;
+		memcpy(&attr.value.aclfield, field_out_port ,sizeof(sai_acl_field_data_t));
+	}
+	if(action_packet_action->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_ACTION_PACKET_ACTION;
+		memcpy(&attr.value.aclaction, action_packet_action ,sizeof(sai_acl_action_data_t));
+	}
+	if(action_ingress_samplepacket_enable->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_ACTION_INGRESS_SAMPLEPACKET_ENABLE;
+		memcpy(&attr.value.aclaction, action_ingress_samplepacket_enable ,sizeof(sai_acl_action_data_t));
+	}
+	if(field_icmpv6_type->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_ICMPV6_TYPE;
+		memcpy(&attr.value.aclfield, field_icmpv6_type ,sizeof(sai_acl_field_data_t));
+	}
+	if(action_set_outer_vlan_id->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_ACTION_SET_OUTER_VLAN_ID;
+		memcpy(&attr.value.aclaction, action_set_outer_vlan_id ,sizeof(sai_acl_action_data_t));
+	}
+	if(action_redirect->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_ACTION_REDIRECT;
+		memcpy(&attr.value.aclaction, action_redirect ,sizeof(sai_acl_action_data_t));
+	}
+	if(field_in_ports->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS;
+		memcpy(&attr.value.aclfield, field_in_ports ,sizeof(sai_acl_field_data_t));
+	}
+	if(field_icmpv6_code->enable != 0)
+	{
+		attr.id = SAI_ACL_ENTRY_ATTR_FIELD_ICMPV6_CODE;
+		memcpy(&attr.value.aclfield, field_icmpv6_code ,sizeof(sai_acl_field_data_t));
+	}
+
+	xpSaiShellCompressAttributes(count, attr_list, &final_attr_count, final_attr_list,ACL_ENTRY_VALIDATION_ARRAY_SIZE, acl_entry_attribs);
+
+	if(((sai_acl_api_t*)(xpSaiApiTableArr[SAI_API_ACL])))
+	{
+
+		((sai_acl_api_t*)(xpSaiApiTableArr[SAI_API_ACL]))->create_acl_entry(acl_entry_id_out, switch_id,  final_attr_count,  final_attr_list );
+	}
+	printf("acl_entry_id_out = %" PRIu64 "\n",*acl_entry_id_out);
+	ret = *acl_entry_id_out;
+
+	free(acl_entry_id_out);
+	free(attr_list);
+	free(final_attr_list);
+
+	return ret;
+}
+
+sai_status_t sai_remove_acl_entry(sai_object_id_t acl_entry_id)
+{
+	sai_status_t ret = SAI_STATUS_SUCCESS;
+
+	if(((sai_acl_api_t*)(xpSaiApiTableArr[SAI_API_ACL])))
+	{
+
+		ret = (((sai_acl_api_t*)(xpSaiApiTableArr[SAI_API_ACL]))->remove_acl_entry(acl_entry_id));
+	}
+
+	return ret;
+}
+
 
 }
