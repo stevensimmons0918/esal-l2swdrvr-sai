@@ -66,7 +66,7 @@ bool useSaiFlag = false;
 static uint16_t esalMaxPort = 0; 
 uint16_t esalHostPortId;
 char esalHostIfName[SAI_HOSTIF_NAME_SIZE];
-static std::map<std::string, std::string> esalProfileMap;
+std::map<std::string, std::string> esalProfileMap;
 #ifndef LARCH_ENVIRON
 static void loadSFPLibrary(void) {
 

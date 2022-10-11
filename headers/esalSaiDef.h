@@ -91,6 +91,7 @@ extern bool esalStpPortCreate(sai_object_id_t stpSai,
 extern bool esalCreateBpduTrapAcl();
 extern bool esalEnableBpduTrapOnPort(std::vector<sai_object_id_t>& portSaiList);
 extern int esalVlanAddPortTagPushPop(uint16_t pPort, bool ingr, bool push);
+extern std::map<std::string, std::string> esalProfileMap;
 
 #ifndef LARCH_ENVIRON
 extern SFPLibInitialize_fp_t esalSFPLibInitialize;
