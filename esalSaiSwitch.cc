@@ -235,9 +235,7 @@ int esalHostIfListParser(std::string key , std::vector<sai_object_id_t>& out_vec
             int value = atoi(value_buf);
 
             if (value == 0 && esalPortTableFindSai(port, &portSaiTmp)) {
-                // std::cout << "esalPortTableFindSai : " << portSaiTmp << "\n";
                 out_vector.erase(std::remove(out_vector.begin(), out_vector.end(), portSaiTmp), out_vector.end());
-                // out_vector.push_back(portSaiTmp);
             } else {
                 std::cout << "esalHostIfListParser error: unknown port state" << "\n";
             }
@@ -379,9 +377,6 @@ int DllInit(void) {
     std::string profile_file(saiUtils.GetCfgPath("sai.profile.ini"));
     std::cout << "profile file: " << profile_file << "\n";
 
-
-    // FIXME... This needs to handle configuration file sai.profile.ini.
-    // http://rtx-swtl-jira.fnc.net.local/projects/LARCH/issues/LARCH-8
     if (handleProfileMap(profile_file) != ESAL_RC_OK) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "handleProfileMap Fail in DllInit\n"));
@@ -621,9 +616,6 @@ int DllInit(void) {
         return ESAL_RC_FAIL;
     }
 
-    // FIXME
-    // Lets enable custom BPDU trap on all ports
-    // But do we need all ports?
     if (!esalEnableBpduTrapOnPort(bpdu_port_list)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "esalEnableBpduTrapOnPort fail\n"));
