@@ -43,6 +43,8 @@ sai_object_id_t defStpId = 0;
 
 EsalSaiUtils saiUtils;
 
+std::vector<sai_object_id_t> bpdu_port_list;
+
 extern "C" {
 
 #ifndef LARCH_ENVIRON
@@ -216,6 +218,30 @@ int handleProfileMap(const std::string& profileMapFile) {
     return ESAL_RC_OK;
 }
 
+int esalHostIfListParser(std::string key , std::vector<sai_object_id_t>& out_vector) {
+        char port_buf[3], value_buf[2];
+        std::string inLine = esalProfileMap["hostIfListDisable"];
+        size_t pos = inLine.find(":");
+        sai_object_id_t portSaiTmp;
+        
+        while (inLine.size() > pos) {
+            inLine.copy(port_buf, 3, pos-3);
+            inLine.copy(value_buf, 1, pos+1);
+
+            int port = atoi(port_buf);
+            int value = atoi(value_buf);
+
+            if (value == 0 && esalPortTableFindSai(port, &portSaiTmp)) {
+                out_vector.erase(std::remove(out_vector.begin(), out_vector.end(), portSaiTmp), out_vector.end());
+            } else {
+                std::cout << "esalHostIfListParser error: unknown port state" << "\n";
+            }
+            
+            pos += 6;
+        }
+    return ESAL_RC_OK;
+}
+
 #ifndef UTS
 
 static const sai_service_method_table_t testServices = {
@@ -348,16 +374,14 @@ int DllInit(void) {
     std::string profile_file(saiUtils.GetCfgPath("sai.profile.ini"));
     std::cout << "profile file: " << profile_file << "\n";
 
-
-    // FIXME... This needs to handle configuration file sai.profile.ini.
-    // http://rtx-swtl-jira.fnc.net.local/projects/LARCH/issues/LARCH-8
-#ifndef LARCH_ENVIRON
     if (handleProfileMap(profile_file) != ESAL_RC_OK) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "handleProfileMap Fail in DllInit\n"));
         std::cout << "Configuration file not found at " << profile_file << std::endl;
         useSaiFlag = false;
+#ifndef LARCH_ENVIRON
         return ESAL_RC_FAIL;
+#endif
     }
 
     if (!esalProfileMap.count("hwId")) {
@@ -365,9 +389,10 @@ int DllInit(void) {
             SWERR_FILELINE, "hwId read Fail in DllInit\n"));
         std::cout << "Configuration file must contain at least hwId setting" << profile_file << std::endl;
         useSaiFlag = false;
+#ifndef LARCH_ENVIRON
         return ESAL_RC_FAIL;
-    }
 #endif
+    }
 
 #ifndef UTS
     // Initialize the SAI.
@@ -569,6 +594,18 @@ int DllInit(void) {
         }
     }
 
+    if (!esalProfileMap.count("hostIfListDisable")) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+            SWERR_FILELINE, "hostIfListDisable read Fail in DllInit\n"));
+        std::cout << "Configuration file isn't hostIfListDisable setting" << profile_file << std::endl;
+        return ESAL_RC_FAIL;
+    } else {
+        for (uint ii = 0; ii < port_list.size(); ii++) {
+            bpdu_port_list.push_back(port_list[ii]);
+        }
+        esalHostIfListParser("hostIfListDisable", bpdu_port_list);
+    }
+
     if (!esalCreateBpduTrapAcl()) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "esalCreateBpduTrapAcl fail\n"));
@@ -576,10 +613,7 @@ int DllInit(void) {
         return ESAL_RC_FAIL;
     }
 
-    // FIXME
-    // Lets enable custom BPDU trap on all ports
-    // But do we need all ports?
-    if (!esalEnableBpduTrapOnPort(port_list)) {
+    if (!esalEnableBpduTrapOnPort(bpdu_port_list)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "esalEnableBpduTrapOnPort fail\n"));
         std::cout << "can't enable bpdu trap acl \n";
