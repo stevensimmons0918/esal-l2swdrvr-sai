@@ -236,7 +236,8 @@ int esalHostIfListParser(std::string key , std::vector<sai_object_id_t>& out_vec
 
             if (value == 0 && esalPortTableFindSai(port, &portSaiTmp)) {
                 // std::cout << "esalPortTableFindSai : " << portSaiTmp << "\n";
-                out_vector.push_back(portSaiTmp);
+                out_vector.erase(std::remove(out_vector.begin(), out_vector.end(), portSaiTmp), out_vector.end());
+                // out_vector.push_back(portSaiTmp);
             } else {
                 std::cout << "esalHostIfListParser error: unknown port state" << "\n";
             }
@@ -607,6 +608,9 @@ int DllInit(void) {
         std::cout << "Configuration file isn't hostIfListDisable setting" << profile_file << std::endl;
         return ESAL_RC_FAIL;
     } else {
+        for (uint ii = 0; ii < port_list.size(); ii++) {
+            bpdu_port_list.push_back(port_list[ii]);
+        }
         esalHostIfListParser("hostIfListDisable", bpdu_port_list);
     }
 
