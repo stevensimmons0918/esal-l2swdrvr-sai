@@ -594,23 +594,19 @@ int DllInit(void) {
         }
     }
 
-    if (!esalProfileMap.count("hostIfListDisable")) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "hostIfListDisable read Fail in DllInit\n"));
-        std::cout << "Configuration file isn't hostIfListDisable setting" << profile_file << std::endl;
-        return ESAL_RC_FAIL;
-    } else {
-        for (uint ii = 0; ii < port_list.size(); ii++) {
-            bpdu_port_list.push_back(port_list[ii]);
-        }
-        esalHostIfListParser("hostIfListDisable", bpdu_port_list);
-    }
-
     if (!esalCreateBpduTrapAcl()) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "esalCreateBpduTrapAcl fail\n"));
         std::cout << "can't create bpdu trap acl \n";
         return ESAL_RC_FAIL;
+    }
+
+    for (uint ii = 0; ii < port_list.size(); ii++) {
+        bpdu_port_list.push_back(port_list[ii]);
+    }
+
+    if (esalProfileMap.count("hostIfListDisable")) {
+        esalHostIfListParser("hostIfListDisable", bpdu_port_list);
     }
 
     if (!esalEnableBpduTrapOnPort(bpdu_port_list)) {
