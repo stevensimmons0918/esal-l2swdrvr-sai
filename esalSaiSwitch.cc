@@ -378,8 +378,8 @@ int DllInit(void) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "handleProfileMap Fail in DllInit\n"));
         std::cout << "Configuration file not found at " << profile_file << std::endl;
-        useSaiFlag = false;
 #ifndef LARCH_ENVIRON
+        useSaiFlag = false;
         return ESAL_RC_FAIL;
 #endif
     }
@@ -388,8 +388,8 @@ int DllInit(void) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "hwId read Fail in DllInit\n"));
         std::cout << "Configuration file must contain at least hwId setting" << profile_file << std::endl;
-        useSaiFlag = false;
 #ifndef LARCH_ENVIRON
+        useSaiFlag = false;
         return ESAL_RC_FAIL;
 #endif
     }
