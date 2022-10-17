@@ -21,9 +21,9 @@
 #include "esal_vendor_api/esal_vendor_api.h"
 
 struct portVlanTransMap {
-    uint16_t portid; 
+    uint16_t portid;
     vendor_vlan_translation_t trans;
-    sai_object_id_t attrSai; 
+    sai_object_id_t attrSai;
 };
 
 struct aclTableAttributes {
@@ -60,12 +60,10 @@ struct aclTableAttributes {
 };
 
 struct aclCounterAttributes {
-    sai_uint32_t switch_id;
-    sai_uint32_t table_id;
-    uint8_t packet_count;
-    uint32_t packet_list_ptr[];
-    uint8_t byte_count;
-    uint32_t byte_list_ptr[];
+    sai_object_id_t switch_id;
+    sai_object_id_t table_id;
+    sai_uint64_t packets;
+    sai_uint64_t bytes;
     uint8_t enable_byte_count;
     uint8_t enable_packet_count;
 };
@@ -127,9 +125,9 @@ static std::vector<sai_object_id_t> bpduEnablePorts;
 static void buildACLTable(uint32_t stage, std::vector<sai_attribute_t> &attributes){
 #ifndef UTS
 
-    sai_attribute_t attr; 
+    sai_attribute_t attr;
 
-    // Define the stage. 
+    // Define the stage.
     //
     attr.id = SAI_ACL_TABLE_ATTR_ACL_STAGE;
     attr.value.u32 = stage;
@@ -165,7 +163,7 @@ static void buildACLTable(uint32_t stage, std::vector<sai_attribute_t> &attribut
     attr.value.booldata = true;
     attributes.push_back(attr);
 
-    // Define the packet fields to look at. 
+    // Define the packet fields to look at.
     //
     attr.id = SAI_ACL_TABLE_ATTR_FIELD_PACKET_VLAN;
     attr.value.booldata = true;
@@ -176,22 +174,22 @@ static void buildACLTable(uint32_t stage, std::vector<sai_attribute_t> &attribut
     attr.id = SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID;
     attr.value.booldata = true;
     attributes.push_back(attr);
-#endif 
-    
+#endif
+
 }
 
 static void buildACLEntry(
      vendor_vlan_translation_t trans, sai_object_id_t aclTable, std::vector<sai_attribute_t> &aclAttr) {
 
 #ifndef UTS
-    sai_attribute_t attr; 
+    sai_attribute_t attr;
 
-    // Associate with respective table. 
+    // Associate with respective table.
     //
     attr.id = SAI_ACL_ENTRY_ATTR_TABLE_ID;
     attr.value.oid = aclTable;
     aclAttr.push_back(attr);
-    
+
     sai_acl_field_data_t match;
     // Define the fields to match on...
     //
@@ -206,7 +204,7 @@ static void buildACLEntry(
     transMatch.mask.u16 = 4095;
     transMatch.data.u16 = trans.oldVlan;
 
-    // Mark the value to match one. 
+    // Mark the value to match one.
     //
     attr.id = SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID;
     attr.value.aclfield = transMatch;
@@ -222,7 +220,7 @@ static void buildACLEntry(
     attr.value.aclaction = transAction;
     aclAttr.push_back(attr);
 
-#endif 
+#endif
 
 }
 
@@ -238,12 +236,12 @@ static void removeACLEntry(sai_object_id_t aclSai) {
         return;
     }
 
-    retcode = saiAclApi->remove_acl_entry(aclSai); 
+    retcode = saiAclApi->remove_acl_entry(aclSai);
     if (retcode) {
         std::cout << "remove_acl fail: " << esalSaiError(retcode) << "\n";
         return;
     }
-#endif 
+#endif
 
 }
 
@@ -276,7 +274,7 @@ int VendorSetIngressVlanTranslation(uint16_t lPort,
         return ESAL_RC_OK;
     }
 
-    // Find ACL API 
+    // Find ACL API
     //
 #ifndef UTS
     sai_status_t retcode;
@@ -289,18 +287,18 @@ int VendorSetIngressVlanTranslation(uint16_t lPort,
         std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
     }
-#endif 
+#endif
 
     // Check to see if the ingress table has already been created.
     //
     sai_object_id_t aclTable = 0;
-    auto aclTableFound = portIngressAcl.find(pPort); 
+    auto aclTableFound = portIngressAcl.find(pPort);
     if (aclTableFound != portIngressAcl.end()) {
-        aclTable = aclTableFound->second; 
+        aclTable = aclTableFound->second;
     } else {
-        // STAGE is ingress. Build ACL Attributes. 
+        // STAGE is ingress. Build ACL Attributes.
         //
-        std::vector<sai_attribute_t> attributes; 
+        std::vector<sai_attribute_t> attributes;
         buildACLTable(SAI_ACL_STAGE_INGRESS, attributes);
 
         // Create table and add to port ingress.
@@ -313,17 +311,17 @@ int VendorSetIngressVlanTranslation(uint16_t lPort,
                 << esalSaiError(retcode) << "\n";
             return ESAL_RC_FAIL;
         }
-#endif 
+#endif
         portIngressAcl[pPort] = aclTable;
 
         // Add ACL Table to Port
         //
-        esalAddAclToPort(portSai, aclTable, true); 
+        esalAddAclToPort(portSai, aclTable, true);
     }
 
     // Set up ACL Entry
     //
-    std::vector<sai_attribute_t> aclAttr; 
+    std::vector<sai_attribute_t> aclAttr;
 
     // Build ACL Entry List item
     //
@@ -341,7 +339,7 @@ int VendorSetIngressVlanTranslation(uint16_t lPort,
     attr.value.aclfield = match_in_ports;
     aclAttr.push_back(attr);
 
-    // Create the ACL Entry. 
+    // Create the ACL Entry.
     //
     sai_object_id_t attrSai = 0;
 #ifndef UTS
@@ -354,13 +352,13 @@ int VendorSetIngressVlanTranslation(uint16_t lPort,
     }
 #endif
 
-    // Push onto the port vlan map. 
+    // Push onto the port vlan map.
     //
     portVlanTransMap newent;
-    newent.portid = pPort; 
+    newent.portid = pPort;
     newent.trans = trans;
     newent.attrSai = attrSai;
-    ingressPortTransMap.push_back(newent); 
+    ingressPortTransMap.push_back(newent);
 
     return ESAL_RC_OK;
 }
@@ -375,7 +373,7 @@ int VendorGetIngressVlanTranslation(uint16_t lPort, int *size,
     if (!rc) {
         std::cout << "VendorGetIngressVlanTranslation failed to get pPort"
             << " lPort=" << lPort << std::endl;
-        return ESAL_RC_FAIL; 
+        return ESAL_RC_FAIL;
     }
 
     // Upon entryi to the routine, size should tell max size
@@ -393,14 +391,14 @@ int VendorGetIngressVlanTranslation(uint16_t lPort, int *size,
         return ESAL_RC_FAIL;
     }
 
-    // Iterate through array, and match on ports.  Assume that it is 
-    // possible to have multiple matches but don't override the maximum. 
+    // Iterate through array, and match on ports.  Assume that it is
+    // possible to have multiple matches but don't override the maximum.
     //
-    int maxsize = *size; 
+    int maxsize = *size;
     int curSize = 0;
     for(auto &ent : ingressPortTransMap) {
         if (ent.portid == pPort) {
-            trans[curSize++] = ent.trans; 
+            trans[curSize++] = ent.trans;
             if (curSize == maxsize) {
                 std::cout << "VendorGetIngressVlanTranslation max exc: pPort="
                           << pPort << "\n";
@@ -409,9 +407,9 @@ int VendorGetIngressVlanTranslation(uint16_t lPort, int *size,
         }
     }
 
-    // Return the actual size of the table. 
+    // Return the actual size of the table.
     //
-    *size = curSize; 
+    *size = curSize;
     return ESAL_RC_OK;
 }
 
@@ -432,25 +430,25 @@ int VendorDeleteIngressVlanTranslation(uint16_t lPort,
         return ESAL_RC_FAIL;
     }
 
-    // Iterate through the Port Trans Map, and match on three-way key 
-    // of port, newVLAN, and oldVLAN. 
+    // Iterate through the Port Trans Map, and match on three-way key
+    // of port, newVLAN, and oldVLAN.
     //
     for(auto &ent : ingressPortTransMap) {
-        if ((ent.portid == pPort) && 
+        if ((ent.portid == pPort) &&
             (ent.trans.newVlan == trans.newVlan) &&
             (ent.trans.oldVlan == trans.oldVlan)) {
 
-            // Remove the ACL from the SAI. 
+            // Remove the ACL from the SAI.
             //
             removeACLEntry(ent.attrSai);
 
-            // Remove it from map translator. 
+            // Remove it from map translator.
             //
             ingressPortTransMap.erase(ingressPortTransMap.begin()+idx);
 
             return ESAL_RC_OK;
         }
-        idx++; 
+        idx++;
     }
 
     std::cout << "VendorDeleteIngressVlanTranslation entry not found: pPort="
@@ -486,7 +484,7 @@ int VendorSetEgressVlanTranslation(uint16_t lPort,
         return ESAL_RC_OK;
     }
 
-    // Find ACL API 
+    // Find ACL API
     //
 #ifndef UTS
     sai_status_t retcode;
@@ -505,11 +503,11 @@ int VendorSetEgressVlanTranslation(uint16_t lPort,
     // Check to see if the ingress table has already been created.
     //
     sai_object_id_t aclTable = 0;
-    auto aclTableFound = portEgressAcl.find(pPort); 
+    auto aclTableFound = portEgressAcl.find(pPort);
     if (aclTableFound != portEgressAcl.end()) {
-        aclTable = aclTableFound->second; 
+        aclTable = aclTableFound->second;
     } else {
-        std::vector<sai_attribute_t> attributes; 
+        std::vector<sai_attribute_t> attributes;
         buildACLTable(SAI_ACL_STAGE_EGRESS, attributes);
 
 #ifndef UTS
@@ -527,11 +525,11 @@ int VendorSetEgressVlanTranslation(uint16_t lPort,
 
         // Add ACL Table to Port
         //
-        esalAddAclToPort(portSai, aclTable, false); 
+        esalAddAclToPort(portSai, aclTable, false);
     }
 
     // Set up ACL Entry
-    std::vector<sai_attribute_t> aclAttr; 
+    std::vector<sai_attribute_t> aclAttr;
 
     // Build ACL Entry List item
     buildACLEntry(trans, aclTable, aclAttr);
@@ -559,12 +557,12 @@ int VendorSetEgressVlanTranslation(uint16_t lPort,
     }
 #endif
 
-    // Push onto the port vlan map. 
+    // Push onto the port vlan map.
     portVlanTransMap newent;
-    newent.portid = pPort; 
+    newent.portid = pPort;
     newent.trans = trans;
-    newent.attrSai = attrSai; 
-    egressPortTransMap.push_back(newent); 
+    newent.attrSai = attrSai;
+    egressPortTransMap.push_back(newent);
 
     return ESAL_RC_OK;
 }
@@ -585,22 +583,22 @@ int VendorGetEgressVlanTranslation(uint16_t lPort, int *size,
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
-    // Size should tell max size for the trans array. The returned value 
+    // Size should tell max size for the trans array. The returned value
     // is the actual size.
     if (!size) {
         std::cout << "VendorGetIngressVlanTranslation null pointer"
                   << std::endl;
-        return ESAL_RC_FAIL; 
+        return ESAL_RC_FAIL;
     }
 
-    // Iterate through array, and match on ports.  Assume that it is 
-    // possible to have multiple matches but don't override the maximum. 
+    // Iterate through array, and match on ports.  Assume that it is
+    // possible to have multiple matches but don't override the maximum.
     //
-    int maxsize = *size; 
+    int maxsize = *size;
     int curSize = 0;
     for(auto &ent : egressPortTransMap) {
         if (ent.portid == pPort) {
-            trans[curSize++] = ent.trans; 
+            trans[curSize++] = ent.trans;
             if (curSize == maxsize) {
                 std::cout << "VendorGetEgressVlanTranslation max exc: pPort"
                           << pPort << std::endl;
@@ -608,7 +606,7 @@ int VendorGetEgressVlanTranslation(uint16_t lPort, int *size,
             }
         }
     }
-    *size = curSize; 
+    *size = curSize;
     return ESAL_RC_OK;
 }
 
@@ -628,15 +626,15 @@ int VendorDeleteEgressVlanTranslation(uint16_t lPort,
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
-    // Iterate through the Port Trans Map, and match on three-way key 
-    // of port, newVLAN, and oldVLAN. 
+    // Iterate through the Port Trans Map, and match on three-way key
+    // of port, newVLAN, and oldVLAN.
     //
-    int idx = 0; 
+    int idx = 0;
     for(auto &ent : egressPortTransMap) {
-        if ((ent.portid == pPort) && 
+        if ((ent.portid == pPort) &&
             (ent.trans.newVlan == trans.newVlan) &&
             (ent.trans.oldVlan == trans.oldVlan)) {
-            // Remove the ACL Entry from SAI. 
+            // Remove the ACL Entry from SAI.
             removeACLEntry(ent.attrSai);
 
             // Erase from port map.
@@ -644,7 +642,7 @@ int VendorDeleteEgressVlanTranslation(uint16_t lPort,
 
             return ESAL_RC_OK;
         }
-        idx++; 
+        idx++;
     }
 
     // Report that nothing was deleted, but not necessary an error condition.
@@ -1027,7 +1025,7 @@ bool esalCreateAclTable(aclTableAttributes aclTableAttr, sai_object_id_t& aclTab
         attributes.push_back(attr);
     }
 
-    // Find ACL API 
+    // Find ACL API
     //
 #ifndef UTS
     sai_status_t retcode;
@@ -1051,12 +1049,12 @@ bool esalCreateAclTable(aclTableAttributes aclTableAttr, sai_object_id_t& aclTab
                   << esalSaiError(retcode) << std::endl;
         return false;
     }
-	
+
 	return true;
 }
 
 bool esalRemoveAclTable(sai_object_id_t acl_table_id) {
-    // Find ACL API 
+    // Find ACL API
     //
 #ifndef UTS
     sai_status_t retcode;
@@ -1079,66 +1077,98 @@ bool esalRemoveAclTable(sai_object_id_t acl_table_id) {
                   << esalSaiError(retcode) << std::endl;
         return ESAL_RC_FAIL;
     }
-	
+
 	return true;
 }
 
-// sai_object_id_t esalCreateAclCounter(aclCounterAttributes aclCounterAttr) {
-// 	uint32_t attr_count = 5;
-// 	sai_attribute_t * attr_list = (sai_attribute_t * ) calloc(5,sizeof(sai_attribute_t));
-// 	if(!attr_list) return 0;
-// 	sai_attribute_t * final_attr_list = (sai_attribute_t * ) calloc(5,sizeof(sai_attribute_t));
-// 	if(!final_attr_list) {
-// 		free (attr_list);
-// 		return 0;
-// 	}
-// 	int count = 0;
-// 	uint32_t final_attr_count = 0;
-// 	sai_object_id_t ret = 0;
+bool esalCreateAclCounter(aclCounterAttributes aclCounterAttr, sai_object_id_t& acl_entry_oid) {
+    sai_status_t retcode;
+    sai_attribute_t attr;
+    std::vector<sai_attribute_t> attributes;
 
-// 	for (uint32_t i = 0; i < attr_count; i++) 
-// 		attr_list[i].id = XP_SAI_OBJ_ATTR_INVALID;
+    // Find ACL API
+    //
+#ifndef UTS
+    sai_acl_api_t *saiAclApi;
+    retcode =  sai_api_query(SAI_API_ACL, (void**) &saiAclApi);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                   SWERR_FILELINE,
+                   "sai_api_query fail in esalCreateAclCounter\n"));
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
+        return false;
+    }
+#endif
 
-// 	sai_object_id_t *acl_counter_id_out = (sai_object_id_t*) calloc(1,sizeof(sai_object_id_t)) ;
-// 	if (!acl_counter_id_out) {
-// 		if (attr_list) free(attr_list);
-// 		if (final_attr_list) free(final_attr_list);
-// 		return ret; }
+	attr.id = SAI_ACL_COUNTER_ATTR_TABLE_ID;
+    attr.value.oid = aclCounterAttr.table_id;
+    attributes.push_back(attr);
 
-// 	attr.id = SAI_ACL_COUNTER_ATTR_TABLE_ID;            attr.value.oid = table_id;
-// 	attr.id = SAI_ACL_COUNTER_ATTR_PACKETS;	            attr.value.u64 = packets;
-// 	attr.id = SAI_ACL_COUNTER_ATTR_BYTES;	            attr.value.u64 = bytes;
-// 	attr.id = SAI_ACL_COUNTER_ATTR_ENABLE_BYTE_COUNT;	attr.value.booldata = enable_byte_count;
-// 	attr.id = SAI_ACL_COUNTER_ATTR_ENABLE_PACKET_COUNT;	attr.value.booldata = enable_packet_count;
+	attr.id = SAI_ACL_COUNTER_ATTR_PACKETS;
+    attr.value.u64 = aclCounterAttr.packets;
+    attributes.push_back(attr);
 
-// 	xpSaiShellCompressAttributes(attr_count, attr_list, &final_attr_count, final_attr_list,ACL_COUNTER_VALIDATION_ARRAY_SIZE, acl_counter_attribs);
+	attr.id = SAI_ACL_COUNTER_ATTR_BYTES;
+    attr.value.u64 = aclCounterAttr.bytes;
+    attributes.push_back(attr);
 
-// 	if(((sai_acl_api_t*)(xpSaiApiTableArr[SAI_API_ACL])))
-// 	{
+	attr.id = SAI_ACL_COUNTER_ATTR_ENABLE_BYTE_COUNT;
+    attr.value.booldata = aclCounterAttr.enable_byte_count;
+    attributes.push_back(attr);
 
-// 		((sai_acl_api_t*)(xpSaiApiTableArr[SAI_API_ACL]))->create_acl_counter(acl_counter_id_out, switch_id,  final_attr_count,  final_attr_list );
-// 	}
-// 	printf("acl_counter_id_out = %" PRIu64 "\n",*acl_counter_id_out);
-// 	ret = *acl_counter_id_out;
+	attr.id = SAI_ACL_COUNTER_ATTR_ENABLE_PACKET_COUNT;
+    attr.value.booldata = aclCounterAttr.enable_packet_count;
+    attributes.push_back(attr);
 
-// 	free(acl_counter_id_out);
-// 	free(attr_list);
-// 	free(final_attr_list);
+#ifndef UTS
+    retcode = saiAclApi->create_acl_counter(&acl_entry_oid, esalSwitchId , attributes.size(),  attributes.data());
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                   SWERR_FILELINE,
+                   "create_acl_counter fail in esalCreateAclCounter\n"));
+        std::cout << "create_acl_counter fail: " << esalSaiError(retcode)
+                  << std::endl;
+        return false;
+    }
+#endif
 
-// 	return ret;
-// }
+	return true;
+}
 
-// sai_status_t sai_remove_acl_counter(sai_object_id_t acl_counter_id) {
-// 	sai_status_t ret = SAI_STATUS_SUCCESS;
+bool esalRemoveAclCounter(sai_object_id_t acl_counter_id) {
+	sai_status_t retcode;
 
-// 	if(((sai_acl_api_t*)(xpSaiApiTableArr[SAI_API_ACL])))
-// 	{
+    // Find ACL API
+    //
+#ifndef UTS
+    sai_acl_api_t *saiAclApi;
+    retcode =  sai_api_query(SAI_API_ACL, (void**) &saiAclApi);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                   SWERR_FILELINE,
+                   "sai_api_query fail in esalRemoveAclCounter\n"));
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
+        return false;
+    }
 
-// 		ret = (((sai_acl_api_t*)(xpSaiApiTableArr[SAI_API_ACL]))->remove_acl_counter(acl_counter_id));
-// 	}
+    // Remove acl counter
+    //
+    retcode = saiAclApi->remove_acl_counter(acl_counter_id);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "remove_acl_counter Fail " \
+                                    "in esalRemoveAclCounter\n"));
+        std::cout << "remove_acl_counter fail: " << esalSaiError(retcode)
+                    << std::endl;
+        return false;
+    }
 
-// 	return ret;
-// }
+#endif
+
+	return true;
+}
 
 bool esalCreateAclEntry(aclEntryAttributes attr_acl, sai_object_id_t& acl_entry_oid) {
     sai_status_t retcode;
@@ -1386,6 +1416,8 @@ bool esalCreateAclEntry(aclEntryAttributes attr_acl, sai_object_id_t& acl_entry_
         attributes.push_back(attr);
 	}
 
+    // Create acl entry
+    //
 #ifndef UTS
     retcode = saiAclApi->create_acl_entry(&acl_entry_oid, esalSwitchId, attributes.size(), attributes.data());
     if (retcode) {
@@ -1418,6 +1450,8 @@ bool esalRemoveAclEntry(sai_object_id_t acl_entry_id) {
         return false;
     }
 
+    // Remove acl entry
+    //
     retcode = saiAclApi->remove_acl_entry(acl_entry_id);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
