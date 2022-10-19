@@ -570,14 +570,6 @@ int DllInit(void) {
         }
 
         portId = (uint16_t)GET_OID_VAL(portSai);
-        std::string hostifName;
-        hostifName = "Ethernet" + std::to_string(portId);
-        std::cout << hostifName << ", " << portId << ", "<< portSai << "\n";
-        if (esalCreateSaiHost(portId, hostifName.c_str()) != ESAL_RC_OK) {
-            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                  SWERR_FILELINE, "esalCreateSaiHost fail in DllInit\n"));
-            std::cout << "esalCreateSaiHost fail:" << "\n";
-        }
 
         if (!esalFindBridgePortSaiFromPortId(portId, &bridgePortSai)) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
