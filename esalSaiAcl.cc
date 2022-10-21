@@ -62,6 +62,18 @@ static void buildACLTable(uint32_t stage, std::vector<sai_attribute_t> &attribut
     attr.value.s32list = actTabList;
     attributes.push_back(attr);
 
+    // Define the packet fields to look at.
+    //
+    attr.id = SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS;
+    attr.value.booldata = true;
+    attributes.push_back(attr);
+
+    // Define the packet fields to look at.
+    //
+    attr.id = SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS;
+    attr.value.booldata = true;
+    attributes.push_back(attr);
+
     // Define the packet fields to look at. 
     //
     attr.id = SAI_ACL_TABLE_ATTR_FIELD_HAS_VLAN_TAG;
@@ -230,7 +242,19 @@ int VendorSetIngressVlanTranslation(uint16_t lPort,
 
     // Build ACL Entry List item
     //
-    buildACLEntry(trans, aclTable, aclAttr); 
+    buildACLEntry(trans, aclTable, aclAttr);
+    std::vector<sai_object_id_t> port_list;
+    port_list.push_back(portSai);
+    sai_acl_field_data_t match_in_ports;
+    match_in_ports.enable = true;
+    match_in_ports.data.objlist.count = (uint32_t)port_list.size();
+    match_in_ports.data.objlist.list = port_list.data();
+    // Define in ports for ACL
+    //
+    sai_attribute_t attr;
+    attr.id = SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS;
+    attr.value.aclfield = match_in_ports;
+    aclAttr.push_back(attr);
 
     // Create the ACL Entry. 
     //
@@ -425,7 +449,19 @@ int VendorSetEgressVlanTranslation(uint16_t lPort,
     std::vector<sai_attribute_t> aclAttr; 
 
     // Build ACL Entry List item
-    buildACLEntry(trans, aclTable, aclAttr); 
+    buildACLEntry(trans, aclTable, aclAttr);
+    std::vector<sai_object_id_t> port_list;
+    port_list.push_back(portSai);
+    sai_acl_field_data_t match_in_ports;
+    match_in_ports.enable = true;
+    match_in_ports.data.objlist.count = (uint32_t)port_list.size();
+    match_in_ports.data.objlist.list = port_list.data();
+    // Define out ports for ACL
+    //
+    sai_attribute_t attr;
+    attr.id = SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS;
+    attr.value.aclfield = match_in_ports;
+    aclAttr.push_back(attr);
 
     sai_object_id_t attrSai = 0;
 #ifndef UTS
