@@ -122,7 +122,7 @@ static sai_object_id_t aclEntryBpduTrap;
 #endif
 static sai_mac_t customBpduMac = {0x01, 0x80, 0xC2, 0x00, 0x00, 0xFF};
 static std::vector<sai_object_id_t> bpduEnablePorts;
-static void buildACLTable(uint32_t stage, std::vector<sai_attribute_t> &attributes){
+static void buildACLTable(uint32_t stage, std::vector<sai_attribute_t> &attributes) {
 #ifndef UTS
 
     sai_attribute_t attr;
@@ -479,7 +479,7 @@ int VendorSetEgressVlanTranslation(uint16_t lPort,
     // Find the port sai first.
     //
     sai_object_id_t portSai;
-    if (!esalPortTableFindSai(pPort, &portSai)){
+    if (!esalPortTableFindSai(pPort, &portSai)) {
         std::cout << "VendorSetEgressVlanTranslation not find port\n";
         return ESAL_RC_OK;
     }
@@ -1468,7 +1468,7 @@ bool esalRemoveAclEntry(sai_object_id_t acl_entry_id) {
 
 // Drop packet with a specified src mac as default
 //
-bool sample_create_acl_src_mac_rule(sai_mac_t sourceMac) {
+bool sample_create_acl_src_mac_rule(sai_mac_t srcMac, sai_acl_stage_t stage, uint16_t portId) {
     bool status;
 
     sai_object_id_t aclTableOid;
@@ -1476,16 +1476,35 @@ bool sample_create_acl_src_mac_rule(sai_mac_t sourceMac) {
 
     aclTableAttributes aclTableAttr;
     aclTableAttr.field_src_mac = 1;
+    aclTableAttr.field_acl_ip_type = 1;
+    aclTableAttr.acl_stage = stage;
     status = esalCreateAclTable(aclTableAttr, aclTableOid);
     if (!status) return false;
 
     aclEntryAttributes aclEntryAttr;
     aclEntryAttr.field_src_mac.enable = true;
-    memcpy(aclEntryAttr.field_dst_mac.data.mac, &sourceMac, sizeof(sai_mac_t));
+    memcpy(aclEntryAttr.field_src_mac.data.mac, &srcMac, sizeof(sai_mac_t));
+    aclEntryAttr.field_acl_ip_type.enable = true;
+    aclEntryAttr.field_acl_ip_type.data.s32 = SAI_ACL_IP_TYPE_ANY;
     aclEntryAttr.action_packet_action.enable = true;
     aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_DROP;
+    status = esalCreateAclEntry(aclEntryAttr, aclEntryOid);
+    if (!status) return false;
 
-    esalCreateAclEntry(aclEntryAttr, aclEntryOid);
+    sai_object_id_t portOid;
+    status = esalPortTableFindSai(portId, &portOid);
+    if (!status) return false;
+
+    bool ingr;
+    if (stage == SAI_ACL_STAGE_INGRESS) {
+        ingr = true;
+    } else if (stage == SAI_ACL_STAGE_EGRESS) {
+        ingr = false;
+    } else {
+        return false;
+    }
+
+    status = esalAddAclToPort(portOid, aclTableOid, ingr);
     if (!status) return false;
 
     return true;
@@ -1493,7 +1512,7 @@ bool sample_create_acl_src_mac_rule(sai_mac_t sourceMac) {
 
 // Drop packet with a specified dst mac as default
 //
-bool sample_create_acl_dest_mac_rule(sai_mac_t dstMac) {
+bool sample_create_acl_dst_mac_rule(sai_mac_t dstMac, sai_acl_stage_t stage, uint16_t portId) {
     bool status;
 
     sai_object_id_t aclTableOid;
@@ -1501,16 +1520,123 @@ bool sample_create_acl_dest_mac_rule(sai_mac_t dstMac) {
 
     aclTableAttributes aclTableAttr;
     aclTableAttr.field_src_mac = 1;
+    aclTableAttr.field_acl_ip_type = 1;
+    aclTableAttr.acl_stage = stage;
     status = esalCreateAclTable(aclTableAttr, aclTableOid);
     if (!status) return false;
 
     aclEntryAttributes aclEntryAttr;
-    aclEntryAttr.field_src_mac.enable = true;
+    aclEntryAttr.field_dst_mac.enable = true;
     memcpy(aclEntryAttr.field_dst_mac.data.mac, &dstMac, sizeof(sai_mac_t));
+    aclEntryAttr.field_acl_ip_type.enable = true;
+    aclEntryAttr.field_acl_ip_type.data.s32 = SAI_ACL_IP_TYPE_ANY;
     aclEntryAttr.action_packet_action.enable = true;
     aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_DROP;
+    status = esalCreateAclEntry(aclEntryAttr, aclEntryOid);
+    if (!status) return false;
 
-    esalCreateAclEntry(aclEntryAttr, aclEntryOid);
+    sai_object_id_t portOid;
+    status = esalPortTableFindSai(portId, &portOid);
+    if (!status) return false;
+
+    bool ingr;
+    if (stage == SAI_ACL_STAGE_INGRESS) {
+        ingr = true;
+    } else if (stage == SAI_ACL_STAGE_EGRESS) {
+        ingr = false;
+    } else {
+        return false;
+    }
+
+    status = esalAddAclToPort(portOid, aclTableOid, ingr);
+    if (!status) return false;
+
+    return true;
+}
+
+// Drop packet with a specified src ip as default
+//
+bool sample_create_acl_src_ip_rule(sai_ip4_t srcIp, sai_acl_stage_t stage, uint16_t portId) {
+    bool status;
+
+    sai_object_id_t aclTableOid;
+    sai_object_id_t aclEntryOid;
+
+    aclTableAttributes aclTableAttr;
+    aclTableAttr.field_src_ip = 1;
+    aclTableAttr.field_acl_ip_type = 1;
+    aclTableAttr.acl_stage = stage;
+    status = esalCreateAclTable(aclTableAttr, aclTableOid);
+    if (!status) return false;
+
+    aclEntryAttributes aclEntryAttr;
+    aclEntryAttr.field_src_ip.enable = true;
+    aclEntryAttr.field_src_ip.data.ip4 = srcIp;
+    aclEntryAttr.field_acl_ip_type.enable = true;
+    aclEntryAttr.field_acl_ip_type.data.s32 = SAI_ACL_IP_TYPE_ANY;
+    aclEntryAttr.action_packet_action.enable = true;
+    aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_DROP;
+    status = esalCreateAclEntry(aclEntryAttr, aclEntryOid);
+    if (!status) return false;
+
+    sai_object_id_t portOid;
+    status = esalPortTableFindSai(portId, &portOid);
+    if (!status) return false;
+
+    bool ingr;
+    if (stage == SAI_ACL_STAGE_INGRESS) {
+        ingr = true;
+    } else if (stage == SAI_ACL_STAGE_EGRESS) {
+        ingr = false;
+    } else {
+        return false;
+    }
+
+    status = esalAddAclToPort(portOid, aclTableOid, ingr);
+    if (!status) return false;
+
+    return true;
+}
+
+// Drop packet with a specified dst ip as default
+//
+bool sample_create_acl_dst_ip_rule(sai_ip4_t dstIp, sai_acl_stage_t stage, uint16_t portId) {
+    bool status;
+
+    sai_object_id_t aclTableOid;
+    sai_object_id_t aclEntryOid;
+
+    aclTableAttributes aclTableAttr;
+    aclTableAttr.field_dst_ip = 1;
+    aclTableAttr.field_acl_ip_type = 1;
+    aclTableAttr.acl_stage = stage;
+    status = esalCreateAclTable(aclTableAttr, aclTableOid);
+    if (!status) return false;
+
+    aclEntryAttributes aclEntryAttr;
+    aclEntryAttr.field_dst_ip.enable = true;
+    aclEntryAttr.field_dst_ip.data.ip4 = dstIp;
+    aclEntryAttr.field_acl_ip_type.enable = true;
+    aclEntryAttr.field_acl_ip_type.data.s32 = SAI_ACL_IP_TYPE_ANY;
+    aclEntryAttr.action_packet_action.enable = true;
+    aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_DROP;
+    status = esalCreateAclEntry(aclEntryAttr, aclEntryOid);
+    if (!status) return false;
+
+    sai_object_id_t portOid;
+    status = esalPortTableFindSai(portId, &portOid);
+    if (!status) return false;
+
+    bool ingr;
+    if (stage == SAI_ACL_STAGE_INGRESS) {
+        ingr = true;
+    } else if (stage == SAI_ACL_STAGE_EGRESS) {
+        ingr = false;
+    } else {
+        return false;
+    }
+
+    status = esalAddAclToPort(portOid, aclTableOid, ingr);
     if (!status) return false;
 
     return true;
