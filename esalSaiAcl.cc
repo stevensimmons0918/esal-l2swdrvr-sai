@@ -29,12 +29,12 @@ struct portVlanTransMap {
 struct aclTableAttributes {
     uint8_t field_out_port;
     uint8_t field_dst_ipv6;
-    sai_s32_list_t* field_acl_range_type_ptr;
+    sai_s32_list_t* field_acl_range_type_ptr = nullptr;
     uint8_t field_tos;
     uint8_t field_ether_type;
     sai_acl_stage_t acl_stage;
     uint8_t field_acl_ip_type;
-    sai_s32_list_t* acl_action_type_list_ptr;
+    sai_s32_list_t* acl_action_type_list_ptr = nullptr;
     uint8_t field_tcp_flags;
     uint8_t field_in_port;
     uint8_t field_dscp;
@@ -53,7 +53,7 @@ struct aclTableAttributes {
     uint8_t field_outer_vlan_id;
     uint8_t field_icmpv6_code;
     uint8_t field_ipv6_next_header;
-    sai_s32_list_t* acl_bind_point_type_list_ptr;
+    sai_s32_list_t* acl_bind_point_type_list_ptr = nullptr;
     uint8_t field_l4_src_port;
     uint8_t field_icmp_type;
     uint8_t field_icmp_code;
@@ -832,7 +832,7 @@ bool esalCreateAclTable(aclTableAttributes aclTableAttr, sai_object_id_t& aclTab
         attributes.push_back(attr);
     }
 
-    if (aclTableAttr.field_acl_range_type_ptr->count != 0)
+    if (aclTableAttr.field_acl_range_type_ptr && aclTableAttr.field_acl_range_type_ptr->count != 0)
     {
         attr.id = SAI_ACL_TABLE_ATTR_FIELD_ACL_RANGE_TYPE;
         attr.value.s32list.count = aclTableAttr.field_acl_range_type_ptr->count;
@@ -865,7 +865,7 @@ bool esalCreateAclTable(aclTableAttributes aclTableAttr, sai_object_id_t& aclTab
         attributes.push_back(attr);
     }
 
-    if (aclTableAttr.acl_action_type_list_ptr->count != 0)
+    if (aclTableAttr.acl_action_type_list_ptr && aclTableAttr.acl_action_type_list_ptr->count != 0)
     {
         attr.id = SAI_ACL_TABLE_ATTR_ACL_ACTION_TYPE_LIST;
         attr.value.s32list.count = aclTableAttr.acl_action_type_list_ptr->count;
@@ -996,7 +996,7 @@ bool esalCreateAclTable(aclTableAttributes aclTableAttr, sai_object_id_t& aclTab
         attributes.push_back(attr);
     }
 
-    if (aclTableAttr.acl_bind_point_type_list_ptr->count != 0)
+    if (aclTableAttr.acl_bind_point_type_list_ptr && aclTableAttr.acl_bind_point_type_list_ptr->count != 0)
     {
         attr.id = SAI_ACL_TABLE_ATTR_ACL_BIND_POINT_TYPE_LIST;
         attr.value.s32list.count = aclTableAttr.acl_bind_point_type_list_ptr->count;
@@ -1012,8 +1012,8 @@ bool esalCreateAclTable(aclTableAttributes aclTableAttr, sai_object_id_t& aclTab
     }
 
     if (aclTableAttr.field_icmp_type)
-        attr.id = SAI_ACL_TABLE_ATTR_FIELD_ICMP_TYPE;
     {
+        attr.id = SAI_ACL_TABLE_ATTR_FIELD_ICMP_TYPE;
         attr.value.booldata = aclTableAttr.field_icmp_type;
         attributes.push_back(attr);
     }
@@ -1474,23 +1474,39 @@ bool sample_create_acl_src_mac_rule(sai_mac_t srcMac, sai_acl_stage_t stage, uin
     sai_object_id_t aclTableOid;
     sai_object_id_t aclEntryOid;
 
+    // Table
+    //
     aclTableAttributes aclTableAttr;
+    memset(&aclTableAttr, 0, sizeof(aclTableAttr));
+
     aclTableAttr.field_src_mac = 1;
     aclTableAttr.field_acl_ip_type = 1;
     aclTableAttr.acl_stage = stage;
+
     status = esalCreateAclTable(aclTableAttr, aclTableOid);
     if (!status) return false;
 
+    // Entry
+    //
     aclEntryAttributes aclEntryAttr;
+    memset(&aclEntryAttr, 0, sizeof(aclEntryAttributes));
+
+    aclEntryAttr.table_id = aclTableOid;
+
     aclEntryAttr.field_src_mac.enable = true;
     memcpy(aclEntryAttr.field_src_mac.data.mac, &srcMac, sizeof(sai_mac_t));
+
     aclEntryAttr.field_acl_ip_type.enable = true;
     aclEntryAttr.field_acl_ip_type.data.s32 = SAI_ACL_IP_TYPE_ANY;
+
     aclEntryAttr.action_packet_action.enable = true;
     aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_DROP;
+
     status = esalCreateAclEntry(aclEntryAttr, aclEntryOid);
     if (!status) return false;
 
+    // Connect table to port
+    //
     sai_object_id_t portOid;
     status = esalPortTableFindSai(portId, &portOid);
     if (!status) return false;
@@ -1518,23 +1534,39 @@ bool sample_create_acl_dst_mac_rule(sai_mac_t dstMac, sai_acl_stage_t stage, uin
     sai_object_id_t aclTableOid;
     sai_object_id_t aclEntryOid;
 
+    // Table
+    //
     aclTableAttributes aclTableAttr;
-    aclTableAttr.field_src_mac = 1;
+    memset(&aclTableAttr, 0, sizeof(aclTableAttr));
+
+    aclTableAttr.field_dst_mac = 1;
     aclTableAttr.field_acl_ip_type = 1;
     aclTableAttr.acl_stage = stage;
+
     status = esalCreateAclTable(aclTableAttr, aclTableOid);
     if (!status) return false;
 
+    // Entry
+    //
     aclEntryAttributes aclEntryAttr;
+    memset(&aclEntryAttr, 0, sizeof(aclEntryAttributes));
+
+    aclEntryAttr.table_id = aclTableOid;
+
     aclEntryAttr.field_dst_mac.enable = true;
     memcpy(aclEntryAttr.field_dst_mac.data.mac, &dstMac, sizeof(sai_mac_t));
+
     aclEntryAttr.field_acl_ip_type.enable = true;
     aclEntryAttr.field_acl_ip_type.data.s32 = SAI_ACL_IP_TYPE_ANY;
+
     aclEntryAttr.action_packet_action.enable = true;
     aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_DROP;
+
     status = esalCreateAclEntry(aclEntryAttr, aclEntryOid);
     if (!status) return false;
 
+    // Connect table to port
+    //
     sai_object_id_t portOid;
     status = esalPortTableFindSai(portId, &portOid);
     if (!status) return false;
@@ -1562,23 +1594,37 @@ bool sample_create_acl_src_ip_rule(sai_ip4_t srcIp, sai_acl_stage_t stage, uint1
     sai_object_id_t aclTableOid;
     sai_object_id_t aclEntryOid;
 
+    // Table
+    //
     aclTableAttributes aclTableAttr;
+    memset(&aclTableAttr, 0, sizeof(aclTableAttr));
+
     aclTableAttr.field_src_ip = 1;
     aclTableAttr.field_acl_ip_type = 1;
     aclTableAttr.acl_stage = stage;
+
     status = esalCreateAclTable(aclTableAttr, aclTableOid);
     if (!status) return false;
 
+    // Entry
+    //
     aclEntryAttributes aclEntryAttr;
+    memset(&aclEntryAttr, 0, sizeof(aclEntryAttributes));
+
     aclEntryAttr.field_src_ip.enable = true;
     aclEntryAttr.field_src_ip.data.ip4 = srcIp;
+
     aclEntryAttr.field_acl_ip_type.enable = true;
     aclEntryAttr.field_acl_ip_type.data.s32 = SAI_ACL_IP_TYPE_ANY;
+
     aclEntryAttr.action_packet_action.enable = true;
     aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_DROP;
+
     status = esalCreateAclEntry(aclEntryAttr, aclEntryOid);
     if (!status) return false;
 
+    // Connect table to port
+    //
     sai_object_id_t portOid;
     status = esalPortTableFindSai(portId, &portOid);
     if (!status) return false;
@@ -1606,23 +1652,37 @@ bool sample_create_acl_dst_ip_rule(sai_ip4_t dstIp, sai_acl_stage_t stage, uint1
     sai_object_id_t aclTableOid;
     sai_object_id_t aclEntryOid;
 
+    // Table
+    //
     aclTableAttributes aclTableAttr;
+    memset(&aclTableAttr, 0, sizeof(aclTableAttr));
+
     aclTableAttr.field_dst_ip = 1;
     aclTableAttr.field_acl_ip_type = 1;
     aclTableAttr.acl_stage = stage;
+
     status = esalCreateAclTable(aclTableAttr, aclTableOid);
     if (!status) return false;
 
+    // Entry
+    //
     aclEntryAttributes aclEntryAttr;
+    memset(&aclEntryAttr, 0, sizeof(aclEntryAttributes));
+
     aclEntryAttr.field_dst_ip.enable = true;
     aclEntryAttr.field_dst_ip.data.ip4 = dstIp;
+
     aclEntryAttr.field_acl_ip_type.enable = true;
     aclEntryAttr.field_acl_ip_type.data.s32 = SAI_ACL_IP_TYPE_ANY;
+
     aclEntryAttr.action_packet_action.enable = true;
     aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_DROP;
+
     status = esalCreateAclEntry(aclEntryAttr, aclEntryOid);
     if (!status) return false;
 
+    // Connect table to port
+    //
     sai_object_id_t portOid;
     status = esalPortTableFindSai(portId, &portOid);
     if (!status) return false;
@@ -1638,6 +1698,45 @@ bool sample_create_acl_dst_ip_rule(sai_ip4_t dstIp, sai_acl_stage_t stage, uint1
 
     status = esalAddAclToPort(portOid, aclTableOid, ingr);
     if (!status) return false;
+
+    return true;
+}
+
+bool run_acl_samples() {
+    bool status;
+
+    sai_mac_t srcMac = {0};
+    srcMac[5] = 0x28; // 00:00:00:00:00:28
+
+    sai_mac_t dstMac = {0};
+    dstMac[5] = 0x29; // 00:00:00:00:00:29
+
+    sai_ip4_t srcIp = 168453130; // 10.10.100.10
+    sai_ip4_t dstIp = 168453131; // 10.10.100.11
+
+    sai_acl_stage_t stage = SAI_ACL_STAGE_INGRESS;
+
+    uint16_t portId = 28;
+
+    std::cout << "Acl test 1: drop a package with the src mac" << std::endl;
+    status = sample_create_acl_src_mac_rule(srcMac, stage, portId);
+    if (!status) return false;
+    // TODO: some pause for manual test
+
+    std::cout << "Acl test 2: drop a package with the dst mac" << std::endl;
+    status = sample_create_acl_dst_mac_rule(dstMac, stage, portId);
+    if (!status) return false;
+    // TODO: some pause for manual test
+
+    std::cout << "Acl test 3: drop a package with the src ipv4" << std::endl;
+    status = sample_create_acl_src_ip_rule(srcIp, stage, portId);
+    if (!status) return false;
+    // TODO: some pause for manual test
+
+    std::cout << "Acl test 4: drop a package with the dst ipv4" << std::endl;
+    status = sample_create_acl_dst_ip_rule(dstIp, stage, portId);
+    if (!status) return false;
+    // TODO: some pause for manual test
 
     return true;
 }
