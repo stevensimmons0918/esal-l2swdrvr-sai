@@ -281,6 +281,9 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         case VENDOR_SPEED_GIGABIT:
             attr.value.u32 = 1000;
             break;
+        case VENDOR_SPEED_TWO_AND_HALF_GIGABIT:
+            attr.value.u32 = 2500;
+            break;
         case VENDOR_SPEED_TEN_GIGABIT:
             attr.value.u32 = 10000;
             break;
