@@ -32,6 +32,8 @@ struct EsalL2Filter {
     bool has_vlanmask() { return true; };
     uint16_t vlan() { return 33; };
     uint16_t vlanmask() { return 0xff; } ;
+    int vendorport_size() { return 1; };
+    uint32_t vendorport(int) { return 1; };
 };
 
 struct EsalAppsRegMessage {
