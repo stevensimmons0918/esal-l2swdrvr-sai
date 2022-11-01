@@ -105,7 +105,7 @@ static VendorRxCallback_fp_t rcvrCb;
 static void *rcvrCbId;
 sai_object_id_t hostInterface;
 
- void convertMacStringToAddr(std::string &macString,
+static void convertMacStringToAddr(std::string &macString,
                                    unsigned char *macAddr) {
     int macIdx = 0;
     memset(macAddr, 0, MAC_SIZE);
@@ -151,12 +151,12 @@ sai_object_id_t hostInterface;
 }
 
 static bool searchFilterTable(
-    uint32_t lPort, int &idx, const void *buffer, sai_size_t bufferSz) {
+    uint16_t port, int &idx, const void *buffer, sai_size_t bufferSz) {
     const char *bufPtr = (const char*) buffer;
     unsigned char macAddr[MAC_SIZE];
  
     // Check to see that the buffer is bigger than minimum size
-    if (bufferSz < ((2*MAC_SIZE)+2+2)) {
+    if (bufferSz > ((2*MAC_SIZE)+2+2)) {
         return false;
     }
 
@@ -181,19 +181,6 @@ static bool searchFilterTable(
   
         // Ignore if marked pending delete. 
         if (filterTable[i].pendingDelete) continue; 
-
-        // Check to see if logical port matches.
-        auto vpsize = fltr.vendorport_size(); 
-        if (vpsize) {
-            bool matching = false;
-            for(int vpidx = 0; vpidx < vpsize; vpidx++) {
-                if (fltr.vendorport(vpidx) == lPort) {
-                    matching = true;
-                    break; 
-                }
-            }
-            if (!matching) continue; 
-        }
 
         // VLAN present.
         if (fltr.has_vlan()) {
@@ -253,6 +240,8 @@ static bool searchFilterTable(
         }
 #endif
 #endif
+        // FIXME ... expecting to compare against interface name but
+        // no knowledge of interface name. ClientIntf
         if (matching) {
             idx = i;
             return true;
@@ -265,7 +254,6 @@ static bool searchFilterTable(
 bool esalHandleSaiHostRxPacket(const void *buffer,
                                sai_size_t bufferSz, uint32_t attrCnt,
                                const sai_attribute_t *attrList) {
-
     // Check to see if callback is registered yet. 
     if (!rcvrCb) {
         return false;
@@ -294,18 +282,16 @@ bool esalHandleSaiHostRxPacket(const void *buffer,
         return false;
     }
 
-    // Convert to logical port. 
-    uint32_t lPort;
-    if (!saiUtils.GetLogicalPort(0, portId, &lPort)) {
-        return false;
-    }
-
     // Search the filter table for this port. 
     const char *fname = 0;
     int idx;
-    if (searchFilterTable(lPort, idx, buffer, bufferSz)) {
+    if (searchFilterTable(portId, idx, buffer, bufferSz)) {
         fname = filterTable[idx].filterName.c_str();
-    } else {
+    }
+
+    // Handle callback.
+    uint32_t lPort;
+    if (!saiUtils.GetLogicalPort(0, portId, &lPort)) {
         return false;
     }
 
@@ -325,9 +311,9 @@ int VendorRegisterRxCb(VendorRxCallback_fp_t cb, void *cbId) {
 }
 
 int VendorAddPacketFilter(const char *buf, uint16_t length) {
-    std::cout << "STEVE: VendorAddPacketFilter:" << std::endl;
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
     if (!useSaiFlag){
-        return false;
+        return ESAL_RC_OK;
     }
     std::unique_lock<std::mutex> lock(filterTableMutex);
 
@@ -348,7 +334,7 @@ int VendorAddPacketFilter(const char *buf, uint16_t length) {
 #endif
 #endif
     if (filter.filtername().empty()) {
-        return ESAL_RC_FAIL; 
+        return ESAL_RC_OK; 
     }
     // Check to see if insert the same filter name, key into the filter 
     // table. 
@@ -365,7 +351,6 @@ int VendorAddPacketFilter(const char *buf, uint16_t length) {
     newEntry->filterName = filterName;
     newEntry->filter = filter;
 
-
     // Convert MAC Address to binary representation for optimization.
     if (filter.has_mac()) {
         auto macString = filter.mac();
@@ -376,7 +361,6 @@ int VendorAddPacketFilter(const char *buf, uint16_t length) {
         convertMacStringToAddr(macMaskString, newEntry->macMask);
     }
     filterTableSize++;
-
     return ESAL_RC_OK;
 }
 
@@ -410,6 +394,7 @@ int VendorDeletePacketFilter(const char *filterName) {
 }
 
 int VendorSendPacket(uint16_t lPort, uint16_t length, const void *buf) {
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort << std::endl;
 #ifndef UTS
     sai_status_t retcode = SAI_STATUS_SUCCESS;
     sai_hostif_api_t *sai_hostif_api;
