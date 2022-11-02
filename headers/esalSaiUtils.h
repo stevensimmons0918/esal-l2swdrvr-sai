@@ -32,7 +32,26 @@ class EsalSaiUtils: public EsalSaiUtilsBase {
     friend class EsalSaiUtils_test_GetPsiFwdlType2_Test;
     friend class EsalSaiUtils_test_ParseConfig1_Test;
     friend class EsalSaiUtils_test_GetPhysicalPortInfo1_Test;
+    friend class EsalSaiUtils_test_GetSerdes_Test;
 #endif
+    typedef struct {
+        bool     has_vals;
+        uint32_t post;
+        uint32_t pre;
+        uint32_t pre3;
+        uint32_t atten;
+        uint32_t pre2;
+    } serdesTx_t;
+
+    typedef struct {
+        bool     has_vals;
+        uint32_t DC;
+        uint32_t LF;
+        uint32_t sqlch;
+        uint32_t HF;
+        uint32_t BW;
+    } serdesRx_t;
+
     //! Constructor
     EsalSaiUtils();
 
@@ -82,10 +101,26 @@ class EsalSaiUtils: public EsalSaiUtilsBase {
     bool GetLogicalPort(const uint32_t devId,
                         const uint32_t pPort, uint32_t *lPort);
 
+
+    /*!
+     * @brief           Get SERDES info for the given logical port
+     * @param lPort     Logical port number
+     * @param dev       returned chip number
+     * @param pPort     returned physical port number
+     * @param tx        SERDES TX port settings
+     * @param rx        SERDES RX port settings
+     * @return bool     Have valid logical port mapping info
+     */
+    bool GetSerdesInfo(const uint32_t lPort,
+                       uint32_t &devId, uint32_t &pPort,
+                       serdesTx_t &tx, serdesRx_t &rx);
+
  private:
     typedef struct {
         uint32_t devId;
         uint32_t pPort;
+        serdesTx_t serdesTx;
+        serdesRx_t serdesRx;
     } PhyPortInfo;
 
     //! UnitCode

@@ -182,6 +182,35 @@ bool EsalSaiUtils::GetLogicalPort(const uint32_t devId,
     return rc;
 }
 
+bool EsalSaiUtils::GetSerdesInfo(const uint32_t lPort,
+                                 uint32_t &devId, uint32_t &pPort,
+                                 serdesTx_t &tx, serdesRx_t &rx)
+{
+    bool rc = true;
+
+#ifndef LARCH_ENVIRON
+    if (phyPortInfoMap_.find(lPort) == phyPortInfoMap_.end()) {
+        devId = 9999;
+        pPort = 9999;
+        tx.has_vals = false;
+        rx.has_vals = false;
+        rc = false;
+        std::string err = "lPort not in phyPortInfoMap_" +
+            std::string(" lPort=") +
+            std::to_string(lPort) + "\n";
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, err));
+    }
+    else {
+        devId = phyPortInfoMap_[lPort].devId;
+        pPort = phyPortInfoMap_[lPort].pPort;
+        tx = phyPortInfoMap_[lPort].serdesTx;
+        rx = phyPortInfoMap_[lPort].serdesRx;
+    }
+#endif
+    return rc;
+}
+
 void EsalSaiUtils::ParseConfig(void) {
 #ifndef LARCH_ENVIRON
     std::string key = "ports";
@@ -194,12 +223,49 @@ void EsalSaiUtils::ParseConfig(void) {
             uint32_t lPort = set[i]["logicalPort"];
             portInfo.pPort = set[i]["physicalPort"];
             portInfo.devId = set[i]["devId"];
+
+            const libconfig::Setting &portsSetting = set[i];
+
+            // Check for and populate serdes TX values if present
+            serdesTx_t sTxVal;
+            memset(&sTxVal, 0, sizeof(sTxVal));
+            sTxVal.has_vals = false;
+            if (portsSetting.exists("serdesTx")) {
+              const libconfig::Setting &sTxSetting = portsSetting["serdesTx"];
+              sTxVal.post = sTxSetting["post"];
+              sTxVal.pre  = sTxSetting["pre"];
+              sTxVal.pre3 = sTxSetting["pre3"];
+              sTxVal.atten = sTxSetting["atten"];
+              sTxVal.pre2 = sTxSetting["pre2"];
+              sTxVal.has_vals = true;
+            }
+            portInfo.serdesTx = sTxVal;
+
+            // Check for and populate serdes Rx values if present
+            serdesRx_t sRxVal;
+            memset(&sRxVal, 0, sizeof(sRxVal));
+            sRxVal.has_vals = false;
+            if (portsSetting.exists("serdesRx")) {
+              const libconfig::Setting &sRxSetting = portsSetting["serdesRx"];
+              sRxVal.DC = sRxSetting["DC"];
+              sRxVal.LF = sRxSetting["LF"];
+              sRxVal.sqlch = sRxSetting["sqlch"];
+              sRxVal.HF = sRxSetting["HF"];
+              sRxVal.BW = sRxSetting["BW"];
+              sRxVal.has_vals = true;
+            }
+            portInfo.serdesRx = sRxVal;
+
             phyPortInfoMap_[lPort] = portInfo;
 
             std::cout << __FUNCTION__ << ":" << __LINE__
                       << " lPort=" << lPort
                       << " devId=" << portInfo.devId
-                      << " pPort=" << portInfo.pPort << std::endl;
+                      << " pPort=" << portInfo.pPort
+                      << " serdesTx.vals=" << portInfo.serdesTx.has_vals
+                      << " serdesRx.vals=" << portInfo.serdesRx.has_vals
+                      << std::endl;
+
         } catch(libconfig::SettingTypeException &e) {
             done = true;
             std::cout << "catch settingType " << e.what() << std::endl;

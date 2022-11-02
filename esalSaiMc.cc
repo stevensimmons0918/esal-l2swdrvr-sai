@@ -166,9 +166,9 @@ int VendorMirrorPort(uint16_t srclPort, uint16_t dstlPort) {
             &mirror_session_oid_out, esalSwitchId, attributes.size(),attributes.data());
         if (retcode) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                        SWERR_FILELINE, "create_port Fail " \
-                                        "in esalPortTableAddEntry\n"));
-            std::cout << "create_port fail: " << esalSaiError(retcode)
+                        SWERR_FILELINE, "create_mirror_session Fail " \
+                                        "in VendorMirrorPort\n"));
+            std::cout << "create_mirror_session fail: " << esalSaiError(retcode)
                       << std::endl;
             return false;
         }
@@ -216,8 +216,8 @@ int VendorMirrorPort(uint16_t srclPort, uint16_t dstlPort) {
         if (retcode) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                         SWERR_FILELINE, "set_port_attribute Fail " \
-                                        "in esalPortTableAddEntry\n"));
-            std::cout << "create_port fail: " << esalSaiError(retcode) << "\n";
+                                        "in VendorMirrorPort\n"));
+            std::cout << "set_port_attribute fail: " << esalSaiError(retcode) << "\n";
             return ESAL_RC_FAIL;
         }
 
@@ -309,7 +309,7 @@ int VendorRemoveMirrorPort(uint16_t srclPort, uint16_t dstlPort) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                         SWERR_FILELINE, "set_port_attribute Fail " \
                                         "in VendorRemoveMirrorPort\n"));
-            std::cout << "create_port fail: " << esalSaiError(retcode) << "\n";
+            std::cout << "set_port_attribute fail: " << esalSaiError(retcode) << "\n";
             return ESAL_RC_FAIL;
         }
 
