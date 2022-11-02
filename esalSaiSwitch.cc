@@ -331,6 +331,9 @@ void onPacketEvent(sai_object_id_t sid,
                    const void *buffer,
                    uint32_t attrCount,
                    const sai_attribute_t *attrList) {
+    std::cout << "onPacketEvent: ";
+    std::cout.write((const char*)buffer, bufferSize);
+
     (void) esalHandleSaiHostRxPacket(buffer, bufferSize, attrCount, attrList); 
 }
 
