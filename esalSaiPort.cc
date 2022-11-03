@@ -300,14 +300,21 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
 #else
     std::string hwid_value = "ALDRIN2XLFL";;
 #endif
-    if (esalHostPortId == pPort && (hwid_value.compare("ALDRIN2XLFL") == 0
-                                    || hwid_value.compare("ALDRIN2EVAL") == 0)) {
+    if (esalHostPortId == pPort && hwid_value.compare("ALDRIN2XLFL") == 0) {
         attr.id = SAI_PORT_ATTR_FEC_MODE;
         attr.value.s32 = SAI_PORT_FEC_MODE_FC;
         attributes.push_back(attr);
 
         attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
         attr.value.booldata = true;
+        attributes.push_back(attr);
+    } else if (esalHostPortId == pPort && hwid_value.compare("ALDRIN2EVAL") == 0) {
+        attr.id = SAI_PORT_ATTR_FEC_MODE;
+        attr.value.s32 = SAI_PORT_FEC_MODE_FC;
+        attributes.push_back(attr);
+
+        attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
+        attr.value.booldata = false;
         attributes.push_back(attr);
     }
 #ifdef HAVE_MRVL
