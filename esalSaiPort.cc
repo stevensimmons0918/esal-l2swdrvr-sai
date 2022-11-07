@@ -211,6 +211,64 @@ bool esalAddAclToPort(sai_object_id_t portSai,
     return true;
 }
 
+void processSerdesInit(uint16_t lPort) {
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+    uint32_t dev;
+    uint32_t pPort;
+    EsalSaiUtils::serdesTx_t tx;
+    EsalSaiUtils::serdesRx_t rx;
+
+    if (saiUtils.GetSerdesInfo(lPort, dev, pPort, tx, rx)) {
+        if (tx.has_vals) {
+            // We have TX serdes override values, so manage those
+            CPSS_PORT_SERDES_TX_CONFIG_STC txConfig;
+            memset(&txConfig, 0, sizeof(txConfig));
+            txConfig.type = CPSS_PORT_SERDES_AVAGO_E;
+
+            txConfig.txTune.avago.post = tx.post;
+            txConfig.txTune.avago.pre = tx.pre;
+            txConfig.txTune.avago.pre3 = tx.pre3;
+            txConfig.txTune.avago.atten = tx.atten;
+            txConfig.txTune.avago.pre2 = tx.pre2;
+            GT_STATUS rc = cpssDxChPortSerdesManualTxConfigSet(dev,
+                                                               pPort,
+                                                               0,  // lane
+                                                               &txConfig);
+            if (rc != GT_OK) {
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                            SWERR_FILELINE, "CPSS serdes TX in processSerdesInit\n"));
+                std::cout << "cpss serdes tx fail: " << rc << std::endl;
+            }
+        }
+
+        if (rx.has_vals) {
+            // We have RX serdes override values, so manage those
+            CPSS_PORT_SERDES_RX_CONFIG_STC rxConfig;
+            memset(&rxConfig, 0, sizeof(rxConfig));
+            rxConfig.type = CPSS_PORT_SERDES_AVAGO_E;
+
+            rxConfig.rxTune.avago.DC = rx.DC;
+            rxConfig.rxTune.avago.LF = rx.LF;
+            rxConfig.rxTune.avago.sqlch = rx.sqlch;
+            rxConfig.rxTune.avago.HF = rx.HF;
+            rxConfig.rxTune.avago.BW = rx.BW;
+            GT_STATUS rc = cpssDxChPortSerdesManualRxConfigSet(dev,
+                                                               pPort,
+                                                               0,  // lane
+                                                               &rxConfig);
+            if (rc != GT_OK) {
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                            SWERR_FILELINE, "CPSS serdes RX in processSerdesInit\n"));
+                std::cout << "cpss serdes rx fail: " << rc << std::endl;
+            }
+        }
+    }
+    else {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "processSerdesInit lPort lookup fail\n"));
+    }
+}
+
 int VendorSetPortRate(uint16_t lPort, bool autoneg,
                       vendor_speed_t speed, vendor_duplex_t duplex) {
     std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort << std::endl;
@@ -776,6 +834,14 @@ int VendorEnablePort(uint16_t lPort) {
         std::cout << "set_port fail: " << esalSaiError(retcode) << std::endl;
         return ESAL_RC_FAIL; 
     }
+
+#ifdef HAVE_MRVL
+#ifndef LARCH_ENVIRON
+    processSerdesInit(lPort);
+
+#endif
+#endif
+
 #endif
 
     return rc;
