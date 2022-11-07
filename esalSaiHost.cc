@@ -105,7 +105,7 @@ static VendorRxCallback_fp_t rcvrCb;
 static void *rcvrCbId;
 sai_object_id_t hostInterface;
 
-static void convertMacStringToAddr(std::string &macString,
+ void convertMacStringToAddr(std::string &macString,
                                    unsigned char *macAddr) {
     int macIdx = 0;
     memset(macAddr, 0, MAC_SIZE);
@@ -152,7 +152,7 @@ static void convertMacStringToAddr(std::string &macString,
 
 static bool searchFilterTable(
     uint32_t lPort, int &idx, const void *buffer, sai_size_t bufferSz) {
-    const char *bufPtr = (const char*) buffer;
+    const unsigned char *bufPtr = (const unsigned char*) buffer;
     unsigned char macAddr[MAC_SIZE];
  
     // Check to see that the buffer is bigger than minimum size
@@ -160,16 +160,24 @@ static bool searchFilterTable(
         return false;
     }
 
+    // Buffer is packet with the following format:
+    // 
+    //   DST MAC: 6 bytes
+    //   SRC MAC: 6 bytes
+    //   VLAN Type: 2 bytes ... must be 0x8100
+    //   VLAN ID: 2 bytes
+    //   Ether Type for packet : 2 bytes
+
     // Assuming packet starts at DST MAC.
     //     DSTMAC[6] SRCMAC[6] ETYPE[2] VLANID[2]
     memcpy(macAddr, buffer, MAC_SIZE);
  
     // Get VLAN. 
     uint16_t vlan = 0;
-    char *vlanPtr = (char*) &vlan; 
+    unsigned char *vlanPtr = (unsigned char*) &vlan; 
     if ((bufPtr[12] == 0x81) && (bufPtr[13] == 0x00)) {
-        vlanPtr[0] = bufPtr[12];
-        vlanPtr[1] = bufPtr[13];
+        vlanPtr[0] = bufPtr[14];
+        vlanPtr[1] = bufPtr[15];
         vlan = ntohs(vlan);
         vlan &= 0xfff; 
     }
@@ -185,7 +193,7 @@ static bool searchFilterTable(
         // Check to see if logical port matches.
         auto vpsize = fltr.vendorport_size(); 
         if (vpsize) {
-            bool matching = false;
+            matching = false;
             for(int vpidx = 0; vpidx < vpsize; vpidx++) {
                 if (fltr.vendorport(vpidx) == lPort) {
                     matching = true;
@@ -228,15 +236,15 @@ static bool searchFilterTable(
         // Check Raw Data
         if (fltr.rawdata_size() && matching) {
             for (auto i = 0; i < fltr.rawdata_size(); i++){
-                const char *bufPtr = (const char*) buffer;
+                unsigned const char *bufPtr = (unsigned const char*) buffer;
                 auto offset = fltr.rawdata(i).offset(); 
-                if ((offset+sizeof(long))  > bufferSz) {
+                if ((offset*sizeof(long))  > bufferSz) {
                     matching = false; 
                     break; 
                 }
                 auto data = fltr.rawdata(i).data(); 
                 auto mask = fltr.rawdata(i).mask(); 
-                const char *pktPtr = bufPtr+offset;
+                unsigned const char *pktPtr = bufPtr+offset;
 
                 // Coerce to longword alignment.
                 // Assuming mask handles bufsize that
@@ -245,6 +253,10 @@ static bool searchFilterTable(
                     (pktPtr[offset] << 24) | (pktPtr[offset+1] << 16) | 
                     (pktPtr[offset+2] << 8) | (pktPtr[offset+3]);
 
+                pkt = ntohl(pkt);
+                
+                // Compare the packet contents masked with the raw data masked. 
+                //  
                 if ((pkt & mask) != (data & mask)) {
                     matching = false;
                     break;
@@ -269,7 +281,7 @@ bool esalHandleSaiHostRxPacket(const void *buffer,
     // Check to see if callback is registered yet. 
     if (!rcvrCb) {
         return false;
-    }
+    } 
 
     // Find the incoming port.
     sai_object_id_t portSai = SAI_NULL_OBJECT_ID;
@@ -325,7 +337,7 @@ int VendorRegisterRxCb(VendorRxCallback_fp_t cb, void *cbId) {
 }
 
 int VendorAddPacketFilter(const char *buf, uint16_t length) {
-    std::cout << "VendorAddPacketFilter:" << std::endl;
+    std::cout << "STEVE: VendorAddPacketFilter:" << std::endl;
     if (!useSaiFlag){
         return false;
     }
@@ -410,6 +422,7 @@ int VendorDeletePacketFilter(const char *filterName) {
 }
 
 int VendorSendPacket(uint16_t lPort, uint16_t length, const void *buf) {
+
 #ifndef UTS
     sai_status_t retcode = SAI_STATUS_SUCCESS;
     sai_hostif_api_t *sai_hostif_api;
