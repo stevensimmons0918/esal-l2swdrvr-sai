@@ -115,6 +115,15 @@ class EsalSaiUtils: public EsalSaiUtilsBase {
                        uint32_t &devId, uint32_t &pPort,
                        serdesTx_t &tx, serdesRx_t &rx);
 
+    /*!
+     * @brief           Get list of all supported logical ports
+     * @param devId     chip number
+     * @param list      returned list of logical port numbers
+     * @return bool     true if success, false otherwise
+     */
+    bool GetLogicalPortList(const uint32_t devId,
+                            std::vector<uint32_t> *list);
+
  private:
     typedef struct {
         uint32_t devId;

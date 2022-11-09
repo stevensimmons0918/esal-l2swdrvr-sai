@@ -717,6 +717,16 @@ int VendorGetPortLinkState(uint16_t lPort, bool *ls) {
 #ifdef DEBUG
     std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort  << std::endl;
 #endif
+    // Hack to hardcode link state to UP on eval card
+    // To be removed once SFP Manager is suppported
+    if ((saiUtils.GetUnitCode() == "feed") ||
+        (saiUtils.GetUnitCode() == "FEED")) {
+        if (ls != nullptr) {
+            *ls = true;
+            return ESAL_RC_OK;
+        }
+    }
+
     int rc  = ESAL_RC_OK;
     uint32_t dev;
     uint32_t pPort;
@@ -1394,6 +1404,32 @@ int VendorRegisterL2ParamChangeCb(VendorL2ParamChangeCb_fp_t cb, void *cbId) {
     portStateChangeCb = cb;
     portStateCbData = cbId;
 #ifndef LARCH_ENVIRON
+    // Hack to hardcode link state to UP on eval card
+    // To be removed once SFP Manager is suppported
+    if ((saiUtils.GetUnitCode() == "feed") ||
+        (saiUtils.GetUnitCode() == "FEED")) {
+        std::cout << __PRETTY_FUNCTION__ << " Publishing linsktate UP for eval"
+                  << std::endl;
+        if (cb == nullptr) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "SFPRegisterL2ParamChangeCb cb nullptr"));
+            return ESAL_RC_FAIL;
+        } else {
+            std::vector<uint32_t> lPorts;
+            if (saiUtils.GetLogicalPortList(0, &lPorts)) {
+                for (uint32_t i = 0; i < lPorts.size(); i++) {
+                    std::cout << __PRETTY_FUNCTION__ << " Publishing linsktate"
+                              << " UP for lPort=" << i
+                              << std::endl;
+                    cb(cbId, i, true, true,
+                       vendor_speed_t::VENDOR_SPEED_UNKNOWN,
+                       vendor_duplex_t::VENDOR_DUPLEX_UNKNOWN);
+                }
+            }
+            return ESAL_RC_OK;
+        }
+    }
+
     if (!esalSFPRegisterL2ParamChangeCb ||
          esalSFPRegisterL2ParamChangeCb(cb, cbId)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,

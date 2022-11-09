@@ -276,3 +276,24 @@ void EsalSaiUtils::ParseConfig(void) {
     }
 #endif
 }
+
+bool EsalSaiUtils::GetLogicalPortList(const uint32_t devId,
+                                      std::vector<uint32_t> *list) {
+    bool rc = true;
+
+#ifndef LARCH_ENVIRON
+    if (list == nullptr) {
+        rc = false;
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "list nullptr\n"));
+    } else {
+        for (auto const& p : phyPortInfoMap_) {
+            if (p.second.devId == devId) {
+                list->push_back(p.first);
+            }
+        }
+    }
+#endif
+
+    return rc;
+}
