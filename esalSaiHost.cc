@@ -86,6 +86,9 @@ struct EsalL2Filter {
 
     uint16_t vlanmask() { return 0xff; } ;
 
+    int vendorport_size() { return 1; };
+    uint32_t vendorport(int) { return 1; };
+
 };
 #endif
 
