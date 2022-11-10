@@ -12,6 +12,7 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 
 class EsalSaiUtilsBase {
  public:
@@ -33,6 +34,9 @@ class EsalSaiUtilsBase {
 
     virtual bool GetLogicalPort(const uint32_t devId,
                         const uint32_t pPort, uint32_t *lPort) = 0;
+
+    virtual bool GetLogicalPortList(const uint32_t devId,
+                                    std::vector<uint32_t> *list) = 0;
 };
 
 #endif  // ESAL_VENDOR_API_HEADERS_ESALUTILSBASE_H_
