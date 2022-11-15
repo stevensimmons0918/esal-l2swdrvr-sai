@@ -1483,15 +1483,54 @@ bool sample_create_acl_src_mac_rule(sai_mac_t srcMac, sai_acl_stage_t stage, uin
     aclTableAttr.field_acl_ip_type = 1;
     aclTableAttr.acl_stage = stage;
 
+    std::vector<int32_t> actTab;
+    actTab.push_back(SAI_ACL_ACTION_TYPE_REDIRECT);
+    // actTab.push_back(SAI_ACL_ACTION_TYPE_PACKET_ACTION);
+    sai_s32_list_t actTabList;
+    actTabList.count = actTab.size();
+    actTabList.list = actTab.data();
+    aclTableAttr.acl_action_type_list_ptr = &actTabList;
+
+    std::vector<int32_t> rangTab;
+    rangTab.push_back(SAI_ACL_RANGE_TYPE_L4_SRC_PORT_RANGE);
+    sai_s32_list_t rangTabList;
+    rangTabList.count = rangTab.size();
+    rangTabList.list = rangTab.data();
+    aclTableAttr.field_acl_range_type_ptr = &rangTabList;
+
+    std::vector<int32_t> bindPointTab;
+    bindPointTab.push_back(SAI_ACL_BIND_POINT_TYPE_PORT);
+    sai_s32_list_t bindPointTabList;
+    bindPointTabList.count = bindPointTab.size();
+    bindPointTabList.list = bindPointTab.data();
+    aclTableAttr.field_acl_range_type_ptr = &bindPointTabList;
+    
+
+    // field_acl_range_type_ptr=0x55555c9e12b0, +
+    // acl_stage=SAI_ACL_STAGE_INGRESS, + 
+    // acl_action_type_list_ptr=0x55555ca20760, + 
+    // acl_bind_point_type_list_ptr=0x55555d7a58f0, +
+
+    // sai
+    // acl
+    // sai_create_acl_table 9288674231451648 0 0 0 0 0 1 1 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+    // sai_create_acl_entry 9288674231451648 1970324836974619 10
+    // back
+    // port
+    // sai_set_port_attribute 281474976710686 SAI_PORT_ATTR_EGRESS_ACL 1970324836974619 
+
+    printf("Creating ACL Table: ");
     status = esalCreateAclTable(aclTableAttr, aclTableOid);
     if (!status) return false;
+    printf("OK oid: %lX\n", aclTableOid);
 
     // Entry
     //
-    aclEntryAttributes aclEntryAttr;
+    aclEntryAttributes aclEntryAttr = {0};
     memset(&aclEntryAttr, 0, sizeof(aclEntryAttributes));
 
     aclEntryAttr.table_id = aclTableOid;
+    aclEntryAttr.priority = 10;
 
     aclEntryAttr.field_src_mac.enable = true;
     memcpy(aclEntryAttr.field_src_mac.data.mac, &srcMac, sizeof(sai_mac_t));
@@ -1502,8 +1541,10 @@ bool sample_create_acl_src_mac_rule(sai_mac_t srcMac, sai_acl_stage_t stage, uin
     aclEntryAttr.action_packet_action.enable = true;
     aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_DROP;
 
+    printf("Creating ACL Entry: ");
     status = esalCreateAclEntry(aclEntryAttr, aclEntryOid);
     if (!status) return false;
+    printf("OK oid: %lX\n", aclEntryOid);
 
     // Connect table to port
     //
@@ -1520,8 +1561,10 @@ bool sample_create_acl_src_mac_rule(sai_mac_t srcMac, sai_acl_stage_t stage, uin
         return false;
     }
 
+    printf("Connect Table to port: ");
     status = esalAddAclToPort(portOid, aclTableOid, ingr);
     if (!status) return false;
+    printf("OK\n");
 
     return true;
 }
@@ -1702,6 +1745,9 @@ bool sample_create_acl_dst_ip_rule(sai_ip4_t dstIp, sai_acl_stage_t stage, uint1
     return true;
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 bool run_acl_samples() {
     bool status;
 
@@ -1723,22 +1769,23 @@ bool run_acl_samples() {
     if (!status) return false;
     // TODO: some pause for manual test
 
-    std::cout << "Acl test 2: drop a package with the dst mac" << std::endl;
-    status = sample_create_acl_dst_mac_rule(dstMac, stage, portId);
-    if (!status) return false;
-    // TODO: some pause for manual test
+    // std::cout << "Acl test 2: drop a package with the dst mac" << std::endl;
+    // status = sample_create_acl_dst_mac_rule(dstMac, stage, portId);
+    // if (!status) return false;
+    // // TODO: some pause for manual test
 
-    std::cout << "Acl test 3: drop a package with the src ipv4" << std::endl;
-    status = sample_create_acl_src_ip_rule(srcIp, stage, portId);
-    if (!status) return false;
-    // TODO: some pause for manual test
+    // std::cout << "Acl test 3: drop a package with the src ipv4" << std::endl;
+    // status = sample_create_acl_src_ip_rule(srcIp, stage, portId);
+    // if (!status) return false;
+    // // TODO: some pause for manual test
 
-    std::cout << "Acl test 4: drop a package with the dst ipv4" << std::endl;
-    status = sample_create_acl_dst_ip_rule(dstIp, stage, portId);
-    if (!status) return false;
-    // TODO: some pause for manual test
+    // std::cout << "Acl test 4: drop a package with the dst ipv4" << std::endl;
+    // status = sample_create_acl_dst_ip_rule(dstIp, stage, portId);
+    // if (!status) return false;
+    // // TODO: some pause for manual test
 
     return true;
 }
+#pragma GCC diagnostic pop //-Wunused-variable
 
 }
