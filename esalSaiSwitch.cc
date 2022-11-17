@@ -56,8 +56,8 @@ SFPRegisterL2ParamChangeCb_fp_t esalSFPRegisterL2ParamChangeCb;
 SFPSetPort_fp_t esalSFPSetPort;
 SFPGetPort_fp_t esalSFPGetPort;
 #endif
-#ifndef SFP_RDY
 #ifndef LARCH_ENVIRON
+#ifndef UTS
 static DllUtil *sfpDll = 0;
 #endif
 #endif
@@ -72,7 +72,7 @@ static void loadSFPLibrary(void) {
     // Instantiate DLL Object.
     //
     std::cout << "SFP Library: " << SFPLibraryName << "\n";
-#ifndef SFP_RDY
+#ifndef UTS
     sfpDll = new DllUtil(SFPLibraryName);
 
     // Get pointers to the respective routines
@@ -93,27 +93,25 @@ static void loadSFPLibrary(void) {
         reinterpret_cast<SFPGetPort_fp_t>(sfpDll->getDllFunc("SFPGetPort"));
 #endif
     
+    // Initialize the SFP library. 
+    if (esalSFPLibInitialize) esalSFPLibInitialize();
+
     if (esalSFPSetPort) {
         // Following sets read/write callbacks to access CPSS SMI Read/Write
         // Registers.  This is needed support for PIU access for SFP
         // functionality.
         //
-#ifdef NOT_YET_IMPLEMENTED
         std::vector<SFPAttribute> values;
         SFPAttribute val;
         val.SFPAttr = SFPWordRead;
-        val.SFPVal.ReadWord = /* PUT Read Reg Routine Here */
+        val.SFPVal.ReadWord = (SFPReadWordFunc) VendorReadReg;
         values.push_back(val);
         val.SFPAttr = SFPWordWrite;
-        val.SFPVal.WriteWord = /* PUT Write Reg Routine Here */
+        val.SFPVal.WriteWord = (SFPWriteWordFunc) VendorWriteReg;
         values.push_back(val);
         esalSFPSetPort(0, values.size(), values.data());
-#endif
     }
 
-    // Initialize the SFP library. 
-    //
-    if (esalSFPLibInitialize) esalSFPLibInitialize();
 }
 
 static void unloadSFPLibrary(void) {
@@ -121,7 +119,7 @@ static void unloadSFPLibrary(void) {
     // Undo the SFP Library. 
     //
     if (esalSFPLibUninitialize) esalSFPLibUninitialize();
-#ifndef SFP_RDY
+#ifndef UTS
     delete sfpDll;
     sfpDll = 0; 
 #endif
@@ -343,7 +341,7 @@ int DllInit(void) {
 
     // load the sfp library.
     //
-#ifndef LARCH_ENVIRON
+#ifndef UTS
     loadSFPLibrary();
 #endif
 
