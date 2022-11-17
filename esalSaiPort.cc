@@ -1527,6 +1527,7 @@ int VendorReadReg(uint16_t lPort, uint16_t reg, uint16_t *val) {
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
+    std::cout << "VendorReadReg port: " << lPort << " reg: " << reg << "\n" << std::flush;
 #ifdef HAVE_MRVL
     uint32_t pPort;
     uint32_t dev;
@@ -1551,6 +1552,7 @@ int VendorReadReg(uint16_t lPort, uint16_t reg, uint16_t *val) {
 }
 
 int VendorWriteReg(uint16_t lPort, uint16_t reg, uint16_t val) {
+    std::cout << "VendorWriteReg port: " << lPort << " reg: " << reg << " val: " << val << "\n" << std::flush;
     if (!useSaiFlag) {
         return ESAL_RC_OK;
     }
