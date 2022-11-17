@@ -44,7 +44,6 @@ bool esalFindStpPortSaiFromPortId(sai_object_id_t portId,
 }
 
 int VendorSetPortStpState(uint16_t lPort, vendor_stp_state_t stpState) {
-    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort  << std::endl;
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
@@ -109,7 +108,6 @@ int VendorSetPortStpState(uint16_t lPort, vendor_stp_state_t stpState) {
 }
 
 int VendorGetPortStpState(uint16_t lPort, vendor_stp_state_t *stpState) {
-    std::cout << __PRETTY_FUNCTION__ << " lPort:" << lPort  << std::endl;
     if (!useSaiFlag) {
         return ESAL_RC_OK;
     }
