@@ -1530,6 +1530,7 @@ int VendorReadReg(uint16_t lPort, uint16_t reg, uint16_t *val) {
 #ifdef HAVE_MRVL
     uint32_t pPort;
     uint32_t dev;
+    int rc;
 
     if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
@@ -1539,11 +1540,12 @@ int VendorReadReg(uint16_t lPort, uint16_t reg, uint16_t *val) {
         return ESAL_RC_FAIL;
     }
 
-    if (cpssDxChPhyPortSmiRegisterRead(dev, pPort, reg, val) != 0) {
+    rc = cpssDxChPhyPortSmiRegisterRead(dev, pPort, reg, val);
+    if (rc != 0) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "VendorReadReg fail " \
                             "in cpssDxChPhyPortSmiRegisterRead\n"));
-        std::cout << "VendorReadReg fail, for pPort: " << pPort << std::endl;
+        std::cout << "VendorReadReg fail, for dev: " << dev << ", pPort: " << pPort << ", rc =" << rc << std::endl;
         return ESAL_RC_FAIL;
     }
 #endif
@@ -1551,26 +1553,29 @@ int VendorReadReg(uint16_t lPort, uint16_t reg, uint16_t *val) {
 }
 
 int VendorWriteReg(uint16_t lPort, uint16_t reg, uint16_t val) {
+    std::cout << "VendorWriteReg lport: " << lPort << " reg: " << reg << " val: " << val << "\n" << std::flush;
     if (!useSaiFlag) {
         return ESAL_RC_OK;
     }
 #ifdef HAVE_MRVL
     uint32_t pPort;
     uint32_t dev;
+    int rc;
 
     if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-              SWERR_FILELINE, "VendorReadReg failed to get pPort\n"));
+              SWERR_FILELINE, "VendorWriteReg failed to get pPort\n"));
         std::cout << "VendorReadReg GetPhysicalPortInfo fail, pPort: "
                   << pPort << std::endl;
         return ESAL_RC_FAIL;
     }
 
-    if (cpssDxChPhyPortSmiRegisterWrite(dev, pPort, reg, val) != 0) {
+    rc = cpssDxChPhyPortSmiRegisterWrite(dev, pPort, reg, val);
+    if (rc != 0) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "VendorWriteReg fail " \
                             "in cpssDxChPhyPortSmiRegisterWrite\n"));
-        std::cout << "VendorWriteReg fail, for pPort: " << pPort << std::endl;
+        std::cout << "VendorWriteReg fail, for dev: " << dev << ", pPort: " << pPort << ", rc =" << rc << std::endl;
         return ESAL_RC_FAIL;
     }
 #endif
