@@ -1480,11 +1480,19 @@ bool sample_create_acl_src_mac_rule(sai_mac_t srcMac, sai_acl_stage_t stage, uin
     memset(&aclTableAttr, 0, sizeof(aclTableAttr));
 
     aclTableAttr.field_src_mac = 1;
-    aclTableAttr.field_acl_ip_type = 1;
     aclTableAttr.acl_stage = stage;
 
+    std::vector<int32_t> actTab;
+    actTab.push_back(SAI_ACL_ACTION_TYPE_PACKET_ACTION);
+    sai_s32_list_t actTabList;
+    actTabList.count = actTab.size();
+    actTabList.list = actTab.data();
+    aclTableAttr.acl_action_type_list_ptr = &actTabList;
+
+    printf("Creating acl table... ");
     status = esalCreateAclTable(aclTableAttr, aclTableOid);
     if (!status) return false;
+    printf("success! oid = %lX\n", aclTableOid);
 
     // Entry
     //
@@ -1496,14 +1504,13 @@ bool sample_create_acl_src_mac_rule(sai_mac_t srcMac, sai_acl_stage_t stage, uin
     aclEntryAttr.field_src_mac.enable = true;
     memcpy(aclEntryAttr.field_src_mac.data.mac, &srcMac, sizeof(sai_mac_t));
 
-    aclEntryAttr.field_acl_ip_type.enable = true;
-    aclEntryAttr.field_acl_ip_type.data.s32 = SAI_ACL_IP_TYPE_ANY;
-
     aclEntryAttr.action_packet_action.enable = true;
     aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_DROP;
 
+    printf("Creating acl entry... ");
     status = esalCreateAclEntry(aclEntryAttr, aclEntryOid);
     if (!status) return false;
+    printf("success! oid = %lX\n", aclEntryOid);
 
     // Connect table to port
     //
@@ -1520,8 +1527,10 @@ bool sample_create_acl_src_mac_rule(sai_mac_t srcMac, sai_acl_stage_t stage, uin
         return false;
     }
 
+    printf("Connecting acl table to port... ");
     status = esalAddAclToPort(portOid, aclTableOid, ingr);
     if (!status) return false;
+    printf("success!\n");
 
     return true;
 }
@@ -1540,11 +1549,19 @@ bool sample_create_acl_dst_mac_rule(sai_mac_t dstMac, sai_acl_stage_t stage, uin
     memset(&aclTableAttr, 0, sizeof(aclTableAttr));
 
     aclTableAttr.field_dst_mac = 1;
-    aclTableAttr.field_acl_ip_type = 1;
     aclTableAttr.acl_stage = stage;
 
+    std::vector<int32_t> actTab;
+    actTab.push_back(SAI_ACL_ACTION_TYPE_PACKET_ACTION);
+    sai_s32_list_t actTabList;
+    actTabList.count = actTab.size();
+    actTabList.list = actTab.data();
+    aclTableAttr.acl_action_type_list_ptr = &actTabList;
+
+    printf("Creating acl table... ");
     status = esalCreateAclTable(aclTableAttr, aclTableOid);
     if (!status) return false;
+    printf("success! oid = %lX\n", aclTableOid);
 
     // Entry
     //
@@ -1556,14 +1573,13 @@ bool sample_create_acl_dst_mac_rule(sai_mac_t dstMac, sai_acl_stage_t stage, uin
     aclEntryAttr.field_dst_mac.enable = true;
     memcpy(aclEntryAttr.field_dst_mac.data.mac, &dstMac, sizeof(sai_mac_t));
 
-    aclEntryAttr.field_acl_ip_type.enable = true;
-    aclEntryAttr.field_acl_ip_type.data.s32 = SAI_ACL_IP_TYPE_ANY;
-
     aclEntryAttr.action_packet_action.enable = true;
     aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_DROP;
 
+    printf("Creating acl entry... ");
     status = esalCreateAclEntry(aclEntryAttr, aclEntryOid);
     if (!status) return false;
+    printf("success! oid = %lX\n", aclEntryOid);
 
     // Connect table to port
     //
@@ -1580,8 +1596,10 @@ bool sample_create_acl_dst_mac_rule(sai_mac_t dstMac, sai_acl_stage_t stage, uin
         return false;
     }
 
+    printf("Connecting acl table to port... ");
     status = esalAddAclToPort(portOid, aclTableOid, ingr);
     if (!status) return false;
+    printf("success!\n");
 
     return true;
 }
@@ -1600,28 +1618,37 @@ bool sample_create_acl_src_ip_rule(sai_ip4_t srcIp, sai_acl_stage_t stage, uint1
     memset(&aclTableAttr, 0, sizeof(aclTableAttr));
 
     aclTableAttr.field_src_ip = 1;
-    aclTableAttr.field_acl_ip_type = 1;
     aclTableAttr.acl_stage = stage;
 
+    std::vector<int32_t> actTab;
+    actTab.push_back(SAI_ACL_ACTION_TYPE_PACKET_ACTION);
+    sai_s32_list_t actTabList;
+    actTabList.count = actTab.size();
+    actTabList.list = actTab.data();
+    aclTableAttr.acl_action_type_list_ptr = &actTabList;
+
+    printf("Creating acl table... ");
     status = esalCreateAclTable(aclTableAttr, aclTableOid);
     if (!status) return false;
+    printf("success! oid = %lX\n", aclTableOid);
 
     // Entry
     //
     aclEntryAttributes aclEntryAttr;
     memset(&aclEntryAttr, 0, sizeof(aclEntryAttributes));
 
+    aclEntryAttr.table_id = aclTableOid;
+
     aclEntryAttr.field_src_ip.enable = true;
     aclEntryAttr.field_src_ip.data.ip4 = srcIp;
-
-    aclEntryAttr.field_acl_ip_type.enable = true;
-    aclEntryAttr.field_acl_ip_type.data.s32 = SAI_ACL_IP_TYPE_ANY;
 
     aclEntryAttr.action_packet_action.enable = true;
     aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_DROP;
 
+    printf("Creating acl entry... ");
     status = esalCreateAclEntry(aclEntryAttr, aclEntryOid);
     if (!status) return false;
+    printf("success! oid = %lX\n", aclEntryOid);
 
     // Connect table to port
     //
@@ -1638,8 +1665,10 @@ bool sample_create_acl_src_ip_rule(sai_ip4_t srcIp, sai_acl_stage_t stage, uint1
         return false;
     }
 
+    printf("Connecting acl table to port... ");
     status = esalAddAclToPort(portOid, aclTableOid, ingr);
     if (!status) return false;
+    printf("success!\n");
 
     return true;
 }
@@ -1658,28 +1687,37 @@ bool sample_create_acl_dst_ip_rule(sai_ip4_t dstIp, sai_acl_stage_t stage, uint1
     memset(&aclTableAttr, 0, sizeof(aclTableAttr));
 
     aclTableAttr.field_dst_ip = 1;
-    aclTableAttr.field_acl_ip_type = 1;
     aclTableAttr.acl_stage = stage;
 
+    std::vector<int32_t> actTab;
+    actTab.push_back(SAI_ACL_ACTION_TYPE_PACKET_ACTION);
+    sai_s32_list_t actTabList;
+    actTabList.count = actTab.size();
+    actTabList.list = actTab.data();
+    aclTableAttr.acl_action_type_list_ptr = &actTabList;
+
+    printf("Creating acl table... ");
     status = esalCreateAclTable(aclTableAttr, aclTableOid);
     if (!status) return false;
+    printf("success! oid = %lX\n", aclTableOid);
 
     // Entry
     //
     aclEntryAttributes aclEntryAttr;
     memset(&aclEntryAttr, 0, sizeof(aclEntryAttributes));
 
+    aclEntryAttr.table_id = aclTableOid;
+
     aclEntryAttr.field_dst_ip.enable = true;
     aclEntryAttr.field_dst_ip.data.ip4 = dstIp;
-
-    aclEntryAttr.field_acl_ip_type.enable = true;
-    aclEntryAttr.field_acl_ip_type.data.s32 = SAI_ACL_IP_TYPE_ANY;
 
     aclEntryAttr.action_packet_action.enable = true;
     aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_DROP;
 
+    printf("Creating acl entry... ");
     status = esalCreateAclEntry(aclEntryAttr, aclEntryOid);
     if (!status) return false;
+    printf("success! oid = %lX\n", aclEntryOid);
 
     // Connect table to port
     //
@@ -1696,8 +1734,10 @@ bool sample_create_acl_dst_ip_rule(sai_ip4_t dstIp, sai_acl_stage_t stage, uint1
         return false;
     }
 
+    printf("Connecting acl table to port... ");
     status = esalAddAclToPort(portOid, aclTableOid, ingr);
     if (!status) return false;
+    printf("success!\n");
 
     return true;
 }
@@ -1718,25 +1758,25 @@ bool run_acl_samples() {
 
     uint16_t portId = 28;
 
-    std::cout << "Acl test 1: drop a package with the src mac" << std::endl;
+    std::cout << std::endl << "Acl test 1: drop a package with the src mac 00:00:00:00:00:28" << std::endl;
     status = sample_create_acl_src_mac_rule(srcMac, stage, portId);
     if (!status) return false;
-    // TODO: some pause for manual test
+    do {std::cout << "Press enter to continue...";} while (std::cin.get() != '\n');
 
-    std::cout << "Acl test 2: drop a package with the dst mac" << std::endl;
+    std::cout << std::endl << "Acl test 2: drop a package with the dst mac 00:00:00:00:00:29" << std::endl;
     status = sample_create_acl_dst_mac_rule(dstMac, stage, portId);
     if (!status) return false;
-    // TODO: some pause for manual test
+    do {std::cout << "Press enter to continue...";} while (std::cin.get() != '\n');
 
-    std::cout << "Acl test 3: drop a package with the src ipv4" << std::endl;
+    std::cout << std::endl << "Acl test 3: drop a package with the src ipv4 10.10.100.10" << std::endl;
     status = sample_create_acl_src_ip_rule(srcIp, stage, portId);
     if (!status) return false;
-    // TODO: some pause for manual test
+    do {std::cout << "Press enter to continue...";} while (std::cin.get() != '\n');
 
-    std::cout << "Acl test 4: drop a package with the dst ipv4" << std::endl;
+    std::cout << std::endl << "Acl test 4: drop a package with the dst ipv4 10.10.100.11" << std::endl;
     status = sample_create_acl_dst_ip_rule(dstIp, stage, portId);
     if (!status) return false;
-    // TODO: some pause for manual test
+    do {std::cout << "Press enter to continue...";} while (std::cin.get() != '\n');
 
     return true;
 }
