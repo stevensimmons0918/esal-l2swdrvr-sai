@@ -1759,24 +1759,24 @@ bool run_acl_samples() {
     uint16_t portId = 28;
 
     std::cout << std::endl << "Acl test 1: drop a package with the src mac 00:00:00:00:00:28" << std::endl;
+    do {std::cout << "Press enter to continue...";} while (std::cin.get() != '\n');
     status = sample_create_acl_src_mac_rule(srcMac, stage, portId);
     if (!status) return false;
-    do {std::cout << "Press enter to continue...";} while (std::cin.get() != '\n');
 
     std::cout << std::endl << "Acl test 2: drop a package with the dst mac 00:00:00:00:00:29" << std::endl;
+    do {std::cout << "Press enter to continue...";} while (std::cin.get() != '\n');
     status = sample_create_acl_dst_mac_rule(dstMac, stage, portId);
     if (!status) return false;
-    do {std::cout << "Press enter to continue...";} while (std::cin.get() != '\n');
 
     std::cout << std::endl << "Acl test 3: drop a package with the src ipv4 10.10.100.10" << std::endl;
+    do {std::cout << "Press enter to continue...";} while (std::cin.get() != '\n');
     status = sample_create_acl_src_ip_rule(srcIp, stage, portId);
     if (!status) return false;
-    do {std::cout << "Press enter to continue...";} while (std::cin.get() != '\n');
 
     std::cout << std::endl << "Acl test 4: drop a package with the dst ipv4 10.10.100.11" << std::endl;
+    do {std::cout << "Press enter to continue...";} while (std::cin.get() != '\n');
     status = sample_create_acl_dst_ip_rule(dstIp, stage, portId);
     if (!status) return false;
-    do {std::cout << "Press enter to continue...";} while (std::cin.get() != '\n');
 
     return true;
 }
