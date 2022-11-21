@@ -48,7 +48,7 @@ int main()
         printf("error");
     }
 
-    uint16_t ports[] = {24, 25, 26, 5};
+    uint16_t ports[] = {28, 29, 30, 5};
 
     rc = VendorAddPortsToVlan(vlan, 4, ports);
 
@@ -57,18 +57,25 @@ int main()
         printf("error");
     }
 
-    rc = VendorEnablePort(24);
+    rc = VendorEnablePort(28);
 
     if(rc != ESAL_RC_OK)
     {
         printf("error");
     }
 
-    rc = VendorEnablePort(25);
+    rc = VendorEnablePort(29);
 
     if(rc != ESAL_RC_OK)
     {
+        printf("error");
+    }
 
+    rc = VendorEnablePort(30);
+
+    if(rc != ESAL_RC_OK)
+    {
+        printf("error");
     }
     uint16_t numPorts;
     uint16_t ports1[512];

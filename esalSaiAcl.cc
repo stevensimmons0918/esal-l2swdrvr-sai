@@ -1502,7 +1502,8 @@ bool sample_create_acl_src_mac_rule(sai_mac_t srcMac, sai_acl_stage_t stage, uin
     aclEntryAttr.table_id = aclTableOid;
 
     aclEntryAttr.field_src_mac.enable = true;
-    memcpy(aclEntryAttr.field_src_mac.data.mac, &srcMac, sizeof(sai_mac_t));
+    memcpy(aclEntryAttr.field_src_mac.data.mac, srcMac, sizeof(sai_mac_t));
+    memset(aclEntryAttr.field_src_mac.mask.mac, 0xff, sizeof(sai_mac_t));
 
     aclEntryAttr.action_packet_action.enable = true;
     aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_DROP;
@@ -1571,7 +1572,8 @@ bool sample_create_acl_dst_mac_rule(sai_mac_t dstMac, sai_acl_stage_t stage, uin
     aclEntryAttr.table_id = aclTableOid;
 
     aclEntryAttr.field_dst_mac.enable = true;
-    memcpy(aclEntryAttr.field_dst_mac.data.mac, &dstMac, sizeof(sai_mac_t));
+    memcpy(aclEntryAttr.field_dst_mac.data.mac, dstMac, sizeof(sai_mac_t));
+    memset(aclEntryAttr.field_dst_mac.mask.mac, 0xff, sizeof(sai_mac_t));
 
     aclEntryAttr.action_packet_action.enable = true;
     aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_DROP;
@@ -1641,6 +1643,7 @@ bool sample_create_acl_src_ip_rule(sai_ip4_t srcIp, sai_acl_stage_t stage, uint1
 
     aclEntryAttr.field_src_ip.enable = true;
     aclEntryAttr.field_src_ip.data.ip4 = srcIp;
+    aclEntryAttr.field_src_ip.mask.ip4 = 0xffffffff;
 
     aclEntryAttr.action_packet_action.enable = true;
     aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_DROP;
@@ -1710,6 +1713,7 @@ bool sample_create_acl_dst_ip_rule(sai_ip4_t dstIp, sai_acl_stage_t stage, uint1
 
     aclEntryAttr.field_dst_ip.enable = true;
     aclEntryAttr.field_dst_ip.data.ip4 = dstIp;
+    aclEntryAttr.field_dst_ip.mask.ip4 = 0xffffffff;
 
     aclEntryAttr.action_packet_action.enable = true;
     aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_DROP;
@@ -1751,8 +1755,8 @@ bool run_acl_samples() {
     sai_mac_t dstMac = {0};
     dstMac[5] = 0x29; // 00:00:00:00:00:29
 
-    sai_ip4_t srcIp = 168453130; // 10.10.100.10
-    sai_ip4_t dstIp = 168453131; // 10.10.100.11
+    sai_ip4_t srcIp = __builtin_bswap32(168453130); // 10.10.100.10
+    sai_ip4_t dstIp = __builtin_bswap32(168453131); // 10.10.100.11
 
     sai_acl_stage_t stage = SAI_ACL_STAGE_INGRESS;
 
