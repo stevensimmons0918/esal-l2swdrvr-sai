@@ -341,7 +341,7 @@ int DllInit(void) {
 
     // load the sfp library.
     //
-#ifndef UTS
+#if !defined(UTS) && !defined(LARCH_ENVIRON)
     loadSFPLibrary();
 #endif
 
