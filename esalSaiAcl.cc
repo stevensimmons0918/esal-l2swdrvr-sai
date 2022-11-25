@@ -1477,7 +1477,7 @@ bool sample_create_acl_src_mac_rule(sai_mac_t srcMac, sai_acl_stage_t stage, uin
     // Table
     //
     aclTableAttributes aclTableAttr;
-    memset(&aclTableAttr, 0, sizeof(aclTableAttr));
+    memset((void*) &aclTableAttr, 0, sizeof(aclTableAttr));
 
     aclTableAttr.field_src_mac = 1;
     aclTableAttr.acl_stage = stage;
@@ -1547,7 +1547,7 @@ bool sample_create_acl_dst_mac_rule(sai_mac_t dstMac, sai_acl_stage_t stage, uin
     // Table
     //
     aclTableAttributes aclTableAttr;
-    memset(&aclTableAttr, 0, sizeof(aclTableAttr));
+    memset((void*) &aclTableAttr, 0, sizeof(aclTableAttr));
 
     aclTableAttr.field_dst_mac = 1;
     aclTableAttr.acl_stage = stage;
@@ -1617,7 +1617,7 @@ bool sample_create_acl_src_ip_rule(sai_ip4_t srcIp, sai_acl_stage_t stage, uint1
     // Table
     //
     aclTableAttributes aclTableAttr;
-    memset(&aclTableAttr, 0, sizeof(aclTableAttr));
+    memset((void*) &aclTableAttr, 0, sizeof(aclTableAttr));
 
     aclTableAttr.field_src_ip = 1;
     aclTableAttr.acl_stage = stage;
@@ -1687,7 +1687,7 @@ bool sample_create_acl_dst_ip_rule(sai_ip4_t dstIp, sai_acl_stage_t stage, uint1
     // Table
     //
     aclTableAttributes aclTableAttr;
-    memset(&aclTableAttr, 0, sizeof(aclTableAttr));
+    memset((void*) &aclTableAttr, 0, sizeof(aclTableAttr));
 
     aclTableAttr.field_dst_ip = 1;
     aclTableAttr.acl_stage = stage;
