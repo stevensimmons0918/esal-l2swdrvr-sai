@@ -356,6 +356,8 @@ bool esalBridgePortRemove(sai_object_id_t portSai, uint16_t vlanId) {
 
 bool esalBridgePortListInit(uint32_t port_number)
 {
+#ifndef UTS
+
     // Grab mutex.
     std::unique_lock<std::mutex> lock(bridgeMutex);
 
@@ -425,6 +427,7 @@ bool esalBridgePortListInit(uint32_t port_number)
 
         bridgePortTableSize++;
     }
+#endif
 
     return true;
 

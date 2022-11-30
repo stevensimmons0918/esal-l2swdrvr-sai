@@ -815,6 +815,8 @@ bool esalEnableBpduTrapOnPort(std::vector<sai_object_id_t>& portSaiList) {
 }
 
 bool esalCreateAclTable(aclTableAttributes aclTableAttr, sai_object_id_t& aclTableId) {
+
+#ifndef UTS
     sai_attribute_t attr;
     std::vector<sai_attribute_t> attributes;
 
@@ -1027,7 +1029,6 @@ bool esalCreateAclTable(aclTableAttributes aclTableAttr, sai_object_id_t& aclTab
 
     // Find ACL API
     //
-#ifndef UTS
     sai_status_t retcode;
     sai_acl_api_t *saiAclApi;
     retcode =  sai_api_query(SAI_API_ACL, (void**) &saiAclApi);
@@ -1038,7 +1039,6 @@ bool esalCreateAclTable(aclTableAttributes aclTableAttr, sai_object_id_t& aclTab
         std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
         return false;
     }
-#endif
 
     // Create acl table
     //
@@ -1049,17 +1049,17 @@ bool esalCreateAclTable(aclTableAttributes aclTableAttr, sai_object_id_t& aclTab
                   << esalSaiError(retcode) << std::endl;
         return false;
     }
+#endif
 
-	return true;
+    return true;
 }
 
 bool esalRemoveAclTable(sai_object_id_t aclTableId) {
     // Find ACL API
     //
 #ifndef UTS
-    sai_status_t retcode;
     sai_acl_api_t *saiAclApi;
-    retcode =  sai_api_query(SAI_API_ACL, (void**) &saiAclApi);
+    auto retcode =  sai_api_query(SAI_API_ACL, (void**) &saiAclApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "sai_api_query fail " \
@@ -1067,7 +1067,6 @@ bool esalRemoveAclTable(sai_object_id_t aclTableId) {
         std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
     }
-#endif
 
     // Remove acl table
     //
@@ -1078,11 +1077,11 @@ bool esalRemoveAclTable(sai_object_id_t aclTableId) {
         return ESAL_RC_FAIL;
     }
 
-	return true;
+#endif
+    return true;
 }
 
 bool esalCreateAclCounter(aclCounterAttributes aclCounterAttr, sai_object_id_t& aclCounterOid) {
-    sai_status_t retcode;
     sai_attribute_t attr;
     std::vector<sai_attribute_t> attributes;
 
@@ -1090,7 +1089,7 @@ bool esalCreateAclCounter(aclCounterAttributes aclCounterAttr, sai_object_id_t& 
     //
 #ifndef UTS
     sai_acl_api_t *saiAclApi;
-    retcode =  sai_api_query(SAI_API_ACL, (void**) &saiAclApi);
+    auto retcode =  sai_api_query(SAI_API_ACL, (void**) &saiAclApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                    SWERR_FILELINE,
@@ -1137,13 +1136,12 @@ bool esalCreateAclCounter(aclCounterAttributes aclCounterAttr, sai_object_id_t& 
 }
 
 bool esalRemoveAclCounter(sai_object_id_t aclCounterId) {
-	sai_status_t retcode;
 
     // Find ACL API
     //
 #ifndef UTS
     sai_acl_api_t *saiAclApi;
-    retcode =  sai_api_query(SAI_API_ACL, (void**) &saiAclApi);
+    auto retcode =  sai_api_query(SAI_API_ACL, (void**) &saiAclApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                    SWERR_FILELINE,
@@ -1167,11 +1165,10 @@ bool esalRemoveAclCounter(sai_object_id_t aclCounterId) {
 
 #endif
 
-	return true;
+    return true;
 }
 
 bool esalCreateAclEntry(aclEntryAttributes attrAcl, sai_object_id_t& aclEntryOid) {
-    sai_status_t retcode;
     sai_attribute_t attr;
     std::vector<sai_attribute_t> attributes;
 
@@ -1179,7 +1176,7 @@ bool esalCreateAclEntry(aclEntryAttributes attrAcl, sai_object_id_t& aclEntryOid
     //
 #ifndef UTS
     sai_acl_api_t *saiAclApi;
-    retcode =  sai_api_query(SAI_API_ACL, (void**) &saiAclApi);
+    auto retcode =  sai_api_query(SAI_API_ACL, (void**) &saiAclApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                    SWERR_FILELINE,
@@ -1434,13 +1431,12 @@ bool esalCreateAclEntry(aclEntryAttributes attrAcl, sai_object_id_t& aclEntryOid
 }
 
 bool esalRemoveAclEntry(sai_object_id_t acl_entry_id) {
-	sai_status_t retcode;
 
     // Find ACL API
     //
 #ifndef UTS
     sai_acl_api_t *saiAclApi;
-    retcode =  sai_api_query(SAI_API_ACL, (void**) &saiAclApi);
+    auto retcode =  sai_api_query(SAI_API_ACL, (void**) &saiAclApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                    SWERR_FILELINE,

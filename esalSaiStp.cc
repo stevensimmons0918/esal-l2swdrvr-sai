@@ -56,11 +56,11 @@ int VendorSetPortStpState(uint16_t lPort, vendor_stp_state_t stpState) {
         return ESAL_RC_FAIL;
     }
 
-    sai_status_t retcode;
+#ifndef UTS
     sai_stp_api_t *saiStpApi;
     sai_attribute_t attr;
 
-    retcode = sai_api_query(SAI_API_STP, (void**) &saiStpApi);
+    auto retcode = sai_api_query(SAI_API_STP, (void**) &saiStpApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "sai_api_query fail in VendorSetPortStpState\n"));
@@ -103,6 +103,7 @@ int VendorSetPortStpState(uint16_t lPort, vendor_stp_state_t stpState) {
         std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
     }
+#endif
     
     return ESAL_RC_OK;
 }
@@ -121,6 +122,7 @@ int VendorGetPortStpState(uint16_t lPort, vendor_stp_state_t *stpState) {
         return ESAL_RC_FAIL;
     }
 
+#ifndef UTS
     sai_status_t retcode;
     sai_stp_api_t *saiStpApi;
     
@@ -174,16 +176,18 @@ int VendorGetPortStpState(uint16_t lPort, vendor_stp_state_t *stpState) {
         *stpState = VENDOR_STP_STATE_UNKNOWN;
         break;
     }
+#endif
     
     return ESAL_RC_OK;
 }
 
 bool esalStpCreate(sai_object_id_t *defStpId) {
+
+#ifndef UTS
     // Get the STP API
     //
-    sai_status_t retcode;
     sai_stp_api_t *saiStpApi;
-    retcode =  sai_api_query(SAI_API_STP, (void**) &saiStpApi);
+    auto retcode =  sai_api_query(SAI_API_STP, (void**) &saiStpApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "sai_api_query fail in esalStpCreate\n"));
@@ -204,13 +208,15 @@ bool esalStpCreate(sai_object_id_t *defStpId) {
         std::cout << "create_stp fail" << esalSaiError(retcode) << "\n";
         return false;
     }
+#endif
     return true; 
 }
 
 bool esalStpPortCreate(sai_object_id_t stpSai, sai_object_id_t bridgePortSai, sai_object_id_t *stpPortSai) {
-    sai_status_t retcode;
+    
+#ifndef UTS
     sai_stp_api_t *saiStpApi;
-    retcode =  sai_api_query(SAI_API_STP, (void**) &saiStpApi);
+    auto retcode =  sai_api_query(SAI_API_STP, (void**) &saiStpApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "sai_api_query fail in esalStpPortCreate\n"));
@@ -255,6 +261,7 @@ bool esalStpPortCreate(sai_object_id_t stpSai, sai_object_id_t bridgePortSai, sa
               return ESAL_RC_FAIL;    
     }
     stpPortTable.push_back(mbr);
+#endif
 
     return true;   
 }
