@@ -220,6 +220,7 @@ void processSerdesInit(uint16_t lPort) {
 
     if (saiUtils.GetSerdesInfo(lPort, dev, pPort, tx, rx)) {
         if (tx.has_vals) {
+#ifndef UTS
             // We have TX serdes override values, so manage those
             CPSS_PORT_SERDES_TX_CONFIG_STC txConfig;
             memset(&txConfig, 0, sizeof(txConfig));
@@ -239,9 +240,11 @@ void processSerdesInit(uint16_t lPort) {
                             SWERR_FILELINE, "CPSS serdes TX in processSerdesInit\n"));
                 std::cout << "cpss serdes tx fail: " << rc << std::endl;
             }
+#endif
         }
 
         if (rx.has_vals) {
+#ifndef UTS
             // We have RX serdes override values, so manage those
             CPSS_PORT_SERDES_RX_CONFIG_STC rxConfig;
             memset(&rxConfig, 0, sizeof(rxConfig));
@@ -261,6 +264,7 @@ void processSerdesInit(uint16_t lPort) {
                             SWERR_FILELINE, "CPSS serdes RX in processSerdesInit\n"));
                 std::cout << "cpss serdes rx fail: " << rc << std::endl;
             }
+#endif
         }
     }
     else {
@@ -1527,6 +1531,7 @@ int VendorReadReg(uint16_t lPort, uint16_t reg, uint16_t *val) {
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
+#ifndef UTS
 #ifdef HAVE_MRVL
     uint32_t pPort;
     uint32_t dev;
@@ -1549,6 +1554,7 @@ int VendorReadReg(uint16_t lPort, uint16_t reg, uint16_t *val) {
         return ESAL_RC_FAIL;
     }
 #endif
+#endif
     return ESAL_RC_OK;
 }
 
@@ -1557,6 +1563,7 @@ int VendorWriteReg(uint16_t lPort, uint16_t reg, uint16_t val) {
     if (!useSaiFlag) {
         return ESAL_RC_OK;
     }
+#ifndef UTS
 #ifdef HAVE_MRVL
     uint32_t pPort;
     uint32_t dev;
@@ -1578,6 +1585,7 @@ int VendorWriteReg(uint16_t lPort, uint16_t reg, uint16_t val) {
         std::cout << "VendorWriteReg fail, for dev: " << dev << ", pPort: " << pPort << ", rc =" << rc << std::endl;
         return ESAL_RC_FAIL;
     }
+#endif
 #endif
     return ESAL_RC_OK;
 }

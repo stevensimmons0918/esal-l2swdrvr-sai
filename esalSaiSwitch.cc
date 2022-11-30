@@ -67,7 +67,7 @@ uint16_t esalHostPortId;
 char esalHostIfName[SAI_HOSTIF_NAME_SIZE];
 std::map<std::string, std::string> esalProfileMap;
 #ifndef LARCH_ENVIRON
-static void loadSFPLibrary(void) {
+void loadSFPLibrary(void) {
 
     // Instantiate DLL Object.
     //
