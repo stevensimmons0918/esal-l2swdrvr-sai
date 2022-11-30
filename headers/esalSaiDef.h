@@ -104,6 +104,7 @@ extern SFPGetPort_fp_t esalSFPGetPort;
 #endif
 
 bool portCfgFlowControlInit();
+bool perPortCfgFlowControlInit(uint16_t portNum);
 }
 
 #define OID_VALUE_MASK 0x000000FFFFFFFFFFULL

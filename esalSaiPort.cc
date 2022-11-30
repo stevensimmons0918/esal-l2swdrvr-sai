@@ -280,10 +280,33 @@ bool portCfgFlowControlInit() {
                 SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "Auto negotiation set fail in portCfgFlowControlInit\n"));
                 std::cout << "Auto negotiation set fail in portCfgFlowControlInit for port num " << i << std::endl;
-            } else {
-                autoNegFlowControlCfg[i].readyToUpdFlag = GT_FALSE;
-            }
+            } else 
         }
+    }
+    return true;
+}
+
+bool perPortCfgFlowControlInit(uint16_t portNum) {
+// Port configuration update
+    if (autoNegFlowControlCfg[portNum].readyToUpdFlag == GT_TRUE) {
+        if (cpssDxChPortInbandAutoNegEnableSet(esalSwitchId, portNum, 
+                    autoNegFlowControlCfg[portNum].inbandEnable) != GT_OK ||
+            cpssDxChPortDuplexAutoNegEnableSet(esalSwitchId, portNum, 
+                    autoNegFlowControlCfg[portNum].duplexEnable) != GT_OK ||
+            cpssDxChPortSpeedAutoNegEnableSet(esalSwitchId, portNum, 
+                    autoNegFlowControlCfg[portNum].speedEnable) != GT_OK ||
+            cpssDxChPortInBandAutoNegBypassEnableSet(esalSwitchId, portNum, 
+                    autoNegFlowControlCfg[portNum].byPassEnable) != GT_OK ||
+            cpssDxChPortFlowControlEnableSet(esalSwitchId, portNum, 
+                    (CPSS_PORT_FLOW_CONTROL_ENT)autoNegFlowControlCfg[portNum].flowCtrlEnable) != GT_OK ||
+            cpssDxChPortFlowCntrlAutoNegEnableSet(esalSwitchId, portNum, 
+                    autoNegFlowControlCfg[portNum].flowCtrlEnable, 
+                    autoNegFlowControlCfg[portNum].flowCtrlPauseAdvertiseEnable) != GT_OK
+                    /* autoNegFlowControlCfg[i].flowCtrlAsmAdvertiseEnable */) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                SWERR_FILELINE, "Auto negotiation set fail in perPortCfgFlowControlInit\n"));
+            std::cout << "Auto negotiation set fail in perPortCfgFlowControlInit for port num " << portNum << std::endl;
+        } 
     }
     return true;
 }
@@ -905,6 +928,12 @@ int VendorEnablePort(uint16_t lPort) {
     if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "VendorEnablePort failed to get pPort\n"));
+        return ESAL_RC_FAIL;
+    }
+
+    if (!perPortCfgFlowControlInit(lPort)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "perPortCfgFlowControlInit in VendorEnablePort fail\n"));
         return ESAL_RC_FAIL;
     }
 
