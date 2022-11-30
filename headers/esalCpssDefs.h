@@ -176,19 +176,54 @@ typedef struct{
 
 } CPSS_DXCH_PORT_AUTONEG_ADVERTISMENT_STC;
 
-extern unsigned int cpssDxChPhyPortSmiRegisterWrite(uint8_t devNum, uint32_t portNum,
-                    uint8_t phyReg, uint16_t data);
-extern unsigned int cpssDxChPhyPortSmiRegisterRead(uint8_t devNum, uint32_t portNum,
-                    uint8_t phyReg, uint16_t *data);
+typedef struct {
+    GT_BOOL inbandEnable;
+    GT_BOOL duplexEnable;
+    GT_BOOL speedEnable;
+    GT_BOOL byPassEnable;
+    GT_BOOL flowCtrlEnable;
+    GT_BOOL flowCtrlPauseAdvertiseEnable;
+    GT_BOOL flowCtrlAsmAdvertiseEnable;
+    GT_BOOL readyToUpdFlag;
+} CPSS_PORT_MANAGER_SGMII_AUTO_NEGOTIATION_STC;
 
-extern unsigned int cpssDxChPortDuplexModeSet(uint8_t devNum, uint32_t portNum, int dMode);
-extern unsigned int cpssDxChPortDuplexModeGet(uint8_t devNum, uint32_t portNum, int *dModePtr);
-extern unsigned int cpssDxChPortAutoNegAdvertismentConfigSet(uint8_t devNum, uint32_t portNum,
+typedef enum{
+    CPSS_PORT_FLOW_CONTROL_DISABLE_E = GT_FALSE,
+    CPSS_PORT_FLOW_CONTROL_RX_TX_E = GT_TRUE,
+    CPSS_PORT_FLOW_CONTROL_RX_ONLY_E,
+    CPSS_PORT_FLOW_CONTROL_TX_ONLY_E
+} CPSS_PORT_FLOW_CONTROL_ENT;
+
+extern GT_STATUS cpssDxChPhyPortSmiRegisterWrite(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum,
+                    GT_U8 phyReg, uint16_t data);
+extern GT_STATUS cpssDxChPhyPortSmiRegisterRead(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum,
+                    GT_U8 phyReg, uint16_t *data);
+
+extern GT_STATUS cpssDxChPortDuplexModeSet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, int dMode);
+extern GT_STATUS cpssDxChPortDuplexModeGet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, int *dModePtr);
+
+extern GT_STATUS cpssDxChPortAutoNegAdvertismentConfigSet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum,
                                                              CPSS_DXCH_PORT_AUTONEG_ADVERTISMENT_STC *portAnAdvertismentPtr);
-extern unsigned int cpssDxChPortAutoNegAdvertismentConfigGet(uint8_t devNum, uint32_t portNum,
+extern GT_STATUS cpssDxChPortAutoNegAdvertismentConfigGet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum,
                                                              CPSS_DXCH_PORT_AUTONEG_ADVERTISMENT_STC *portAnAdvertismentPtr);
-extern unsigned int cpssDxChPortInbandAutoNegEnableSet(uint8_t devNum, uint32_t portNum, int enable);
-extern unsigned int cpssDxChPortInbandAutoNegEnableGet(uint8_t devNum, uint32_t portNum, int *enablePtr);
+
+extern GT_STATUS cpssDxChPortInbandAutoNegEnableSet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, GT_BOOL enable);
+extern GT_STATUS cpssDxChPortInbandAutoNegEnableGet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, GT_BOOL *enablePtr);
+
+extern GT_STATUS cpssDxChPortDuplexAutoNegEnableSet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, GT_BOOL  state);
+extern GT_STATUS cpssDxChPortDuplexAutoNegEnableGet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, GT_BOOL *statePtr);
+
+extern GT_STATUS cpssDxChPortSpeedAutoNegEnableSet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, GT_BOOL state);
+extern GT_STATUS cpssDxChPortSpeedAutoNegEnableGet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, GT_BOOL *statePtr);
+
+extern GT_STATUS cpssDxChPortInBandAutoNegBypassEnableSet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, GT_BOOL  enable);
+extern GT_STATUS cpssDxChPortInBandAutoNegBypassEnableGet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, GT_BOOL *enablePtr);
+
+extern GT_STATUS cpssDxChPortFlowCntrlAutoNegEnableSet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, GT_BOOL  enable, GT_BOOL pauseAdvertise);
+extern GT_STATUS cpssDxChPortFlowCntrlAutoNegEnableGet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, GT_BOOL *statePtr, GT_BOOL *pauseAdvertisePtr);
+
+extern GT_STATUS cpssDxChPortFlowControlEnableSet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, CPSS_PORT_FLOW_CONTROL_ENT  state);
+extern GT_STATUS cpssDxChPortFlowControlEnableGet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, CPSS_PORT_FLOW_CONTROL_ENT *statePtr);
 
 #endif
 }

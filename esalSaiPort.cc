@@ -58,6 +58,7 @@ struct SaiPortEntry{
 
 const int MAX_PORT_TABLE_SIZE = 512;
 SaiPortEntry portTable[MAX_PORT_TABLE_SIZE];
+CPSS_PORT_MANAGER_SGMII_AUTO_NEGOTIATION_STC autoNegFlowControlCfg[MAX_PORT_TABLE_SIZE];
 int portTableSize = 0;
 std::mutex portTableMutex; 
 
@@ -208,6 +209,82 @@ bool esalAddAclToPort(sai_object_id_t portSai,
     }
 
 #endif
+    return true;
+}
+
+bool portCfgFlowControlInit() {
+// Database init
+    for (auto i = 0; i < MAX_PORT_TABLE_SIZE; i++){
+    autoNegFlowControlCfg[i].readyToUpdFlag = GT_FALSE;
+    }
+
+// Cfg file parse
+    FILE *cfg_file;
+    char *startP, *endP, *line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    int8_t params[7], portNum;
+
+    if (!(cfg_file = fopen("iniFiles/portCfgAutoNeg.ini","r"))){
+        printf("portCfgAutoNegParser open port configuration faile fail");
+        return false;
+    }
+
+    while ((read = getline(&line, &len, cfg_file)) != -1){
+        if (strstr(line, "#")){
+            continue;
+        }
+        startP = line;
+        endP = startP + len;
+        portNum = (int8_t)strtol(startP+3, &endP, 10);
+        for (auto i = 0; i < 7; i++){
+            params[i] = (int8_t)strtol(line+7+i*2, &endP, 10);
+            startP += 2;
+        }
+        autoNegFlowControlCfg[portNum].inbandEnable = 
+                                    params[0]?GT_TRUE:GT_FALSE;
+        autoNegFlowControlCfg[portNum].duplexEnable = 
+                                    params[1]?GT_TRUE:GT_FALSE;
+        autoNegFlowControlCfg[portNum].speedEnable = 
+                                    params[2]?GT_TRUE:GT_FALSE;
+        autoNegFlowControlCfg[portNum].byPassEnable = 
+                                    params[3]?GT_TRUE:GT_FALSE;
+        autoNegFlowControlCfg[portNum].flowCtrlEnable = 
+                                    params[4]?GT_TRUE:GT_FALSE;
+        autoNegFlowControlCfg[portNum].flowCtrlPauseAdvertiseEnable = 
+                                    params[5]?GT_TRUE:GT_FALSE;
+        autoNegFlowControlCfg[portNum].flowCtrlAsmAdvertiseEnable = 
+                                    params[6]?GT_TRUE:GT_FALSE;
+        autoNegFlowControlCfg[portNum].readyToUpdFlag = GT_TRUE;
+    }
+    free(line);
+    fclose(cfg_file);
+
+// Port configuration update
+    for (auto i = 0; i < MAX_PORT_TABLE_SIZE; i++){
+        if (autoNegFlowControlCfg[i].readyToUpdFlag == GT_TRUE) {
+            if (cpssDxChPortInbandAutoNegEnableSet(esalSwitchId, i, 
+                        autoNegFlowControlCfg[i].inbandEnable) != GT_OK ||
+                cpssDxChPortDuplexAutoNegEnableSet(esalSwitchId, i, 
+                        autoNegFlowControlCfg[i].duplexEnable) != GT_OK ||
+                cpssDxChPortSpeedAutoNegEnableSet(esalSwitchId, i, 
+                        autoNegFlowControlCfg[i].speedEnable) != GT_OK ||
+                cpssDxChPortInBandAutoNegBypassEnableSet(esalSwitchId, i, 
+                        autoNegFlowControlCfg[i].byPassEnable) != GT_OK ||
+                cpssDxChPortFlowControlEnableSet(esalSwitchId, i, 
+                        (CPSS_PORT_FLOW_CONTROL_ENT)autoNegFlowControlCfg[i].flowCtrlEnable) != GT_OK ||
+                cpssDxChPortFlowCntrlAutoNegEnableSet(esalSwitchId, i, 
+                        autoNegFlowControlCfg[i].flowCtrlEnable, 
+                        autoNegFlowControlCfg[i].flowCtrlPauseAdvertiseEnable) != GT_OK
+                        /* autoNegFlowControlCfg[i].flowCtrlAsmAdvertiseEnable */) {
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "Auto negotiation set fail in portCfgFlowControlInit\n"));
+                std::cout << "Auto negotiation set fail in portCfgFlowControlInit for port num " << i << std::endl;
+            } else {
+                autoNegFlowControlCfg[i].readyToUpdFlag = GT_FALSE;
+            }
+        }
+    }
     return true;
 }
 
@@ -404,11 +481,11 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
     else
         cpssDuplexMode = CPSS_PORT_FULL_DUPLEX_E;
 
-    int cppsAutoneg;
+    GT_BOOL cppsAutoneg;
     if (autoneg)
-        cppsAutoneg = 1;
+        cppsAutoneg = GT_TRUE;
     else
-        cppsAutoneg = 0;
+        cppsAutoneg = GT_FALSE;
 
     if (speed == VENDOR_SPEED_TEN || speed == VENDOR_SPEED_HUNDRED || speed == VENDOR_SPEED_GIGABIT) {
         if (cpssDxChPortDuplexModeSet(devNum, portNum, cpssDuplexMode) != 0) {
@@ -440,6 +517,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
 
 
 #endif
+
     return rc;
 }
 
@@ -710,7 +788,7 @@ int VendorGetPortAutoNeg(uint16_t lPort, bool *aneg) {
     uint32_t devNum = 0;
     // Get portNum from oid
     uint16_t portNum = (uint16_t)GET_OID_VAL(portSai);
-    int cpssAutoneg;
+    GT_BOOL cpssAutoneg;
     if (cpssDxChPortInbandAutoNegEnableGet(devNum, portNum, &cpssAutoneg) != 0) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "VendorGetPortAutoNeg fail in cpssDxChPortInbandAutoNegEnableGet\n"));

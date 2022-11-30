@@ -605,6 +605,13 @@ int DllInit(void) {
 
 #endif
 
+    if (!portCfgFlowControlInit()) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "portCfgFlowControlInit fail\n"));
+        std::cout << "portCfgFlowControlInit fail \n";
+        return ESAL_RC_FAIL;
+    }
+
     return ESAL_RC_OK;
 }
 
