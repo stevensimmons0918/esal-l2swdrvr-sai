@@ -62,12 +62,12 @@ typedef unsigned int GT_STATUS;
 #define GT_OUT_OF_CPU_MEM        (0x1C) /* Cpu memory allocation failed.         */
 #define GT_ABORTED               (0x1D) /* Operation has been aborted.           */
 #define GT_NOT_APPLICABLE_DEVICE (0x1E) /* API not applicable to device , can
-                                           be returned only on devNum parameter  */
+                                        //    be returned only on devNum parameter  */
 #define GT_UNFIXABLE_ECC_ERROR   (0x1F) /* the CPSS detected ECC error that can't
-                                           be fixed when reading from the memory which is protected by ECC.
-                                           NOTE: relevant only when the table resides in the CSU ,
-                                           the ECC is used , and the CPSS emulates the ECC detection
-                                           and correction for 'Read entry' operations */
+                                        //    be fixed when reading from the memory which is protected by ECC.
+                                        //    NOTE: relevant only when the table resides in the CSU ,
+                                        //    the ECC is used , and the CPSS emulates the ECC detection
+                                        //    and correction for 'Read entry' operations */
 #define GT_UNFIXABLE_BIST_ERROR  (0x20) /* Built-in self-test detected unfixable error */
 #define GT_CHECKSUM_ERROR        (0x21) /* checksum doesn't fits received data */
 #define GT_DSA_PARSING_ERROR     (0x22) /* DSA tag parsing error */
@@ -79,6 +79,9 @@ typedef unsigned int GT_STATUS;
 #define GT_LEARN_LIMIT_GLOBAL_EPORT_ERROR       (0x28)/* FDB manager - learn limit on global eport reached */
 #define GT_LEARN_LIMIT_FID_ERROR                (0x29)/* FDB manager - learn limit on fid reached   */
 #define GT_LEARN_LIMIT_GLOBAL_ERROR             (0x2a)/* FDB manager - learn limit globally reached */
+
+/* size of array of interfaces advertised by port during AP process */
+#define CPSS_DXCH_PORT_AP_IF_ARRAY_SIZE_CNS 10
 
 typedef int8_t      GT_8,   *GT_8_PTR;
 typedef uint8_t     GT_U8,  *GT_U8_PTR;
@@ -222,8 +225,19 @@ extern GT_STATUS cpssDxChPortInBandAutoNegBypassEnableGet(GT_U8 devNum, GT_PHYSI
 extern GT_STATUS cpssDxChPortFlowCntrlAutoNegEnableSet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, GT_BOOL  enable, GT_BOOL pauseAdvertise);
 extern GT_STATUS cpssDxChPortFlowCntrlAutoNegEnableGet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, GT_BOOL *statePtr, GT_BOOL *pauseAdvertisePtr);
 
-extern GT_STATUS cpssDxChPortFlowControlEnableSet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, CPSS_PORT_FLOW_CONTROL_ENT  state);
-extern GT_STATUS cpssDxChPortFlowControlEnableGet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, CPSS_PORT_FLOW_CONTROL_ENT *statePtr);
+extern GT_STATUS cpssDxChPortFlowControlEnableSet(GT_U8 devNum, 
+                    GT_PHYSICAL_PORT_NUM portNum, 
+                    CPSS_PORT_FLOW_CONTROL_ENT  state);
+extern GT_STATUS cpssDxChPortFlowControlEnableGet(GT_U8 devNum, 
+                    GT_PHYSICAL_PORT_NUM portNum, 
+                    CPSS_PORT_FLOW_CONTROL_ENT *statePtr);
+
+extern GT_STATUS cpssDxChPortApPortConfigSet(GT_U8 devNum, 
+                    GT_PHYSICAL_PORT_NUM portNum, GT_BOOL apEnable, 
+                    CPSS_DXCH_PORT_AP_PARAMS_STC *apParamsPtr);
+extern GT_STATUS cpssDxChPortApPortConfigGet(GT_U8 devNum, 
+                    GT_PHYSICAL_PORT_NUM portNum, GT_BOOL *apEnablePtr, 
+                    CPSS_DXCH_PORT_AP_PARAMS_STC *apParamsPtr);
 
 #endif
 }
