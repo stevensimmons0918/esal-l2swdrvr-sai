@@ -239,6 +239,16 @@ extern GT_STATUS cpssDxChPortApPortConfigGet(GT_U8 devNum,
                     GT_PHYSICAL_PORT_NUM portNum, GT_BOOL *apEnablePtr, 
                     CPSS_DXCH_PORT_AP_PARAMS_STC *apParamsPtr);
 
+extern GT_STATUS cpssDxChSamplePortManagerAutoNegotiationSet(GT_U8 devNum,
+                    GT_PHYSICAL_PORT_NUM   portNum,
+                    GT_BOOL                enableInband,
+                    GT_BOOL                enableDuplex,
+                    GT_BOOL                enableSpeed,
+                    GT_BOOL                enableFlowCtrl,
+                    GT_BOOL                enableFlowCtrlPauseAdvertise,
+                    GT_BOOL                enableFlowCtrlAsmAdvertise,
+                    GT_BOOL                enableByPass);                    
+
 #endif
 }
 
