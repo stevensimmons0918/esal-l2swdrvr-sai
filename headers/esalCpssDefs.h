@@ -62,12 +62,12 @@ typedef unsigned int GT_STATUS;
 #define GT_OUT_OF_CPU_MEM        (0x1C) /* Cpu memory allocation failed.         */
 #define GT_ABORTED               (0x1D) /* Operation has been aborted.           */
 #define GT_NOT_APPLICABLE_DEVICE (0x1E) /* API not applicable to device , can
-                                        //    be returned only on devNum parameter  */
+                                           be returned only on devNum parameter  */
 #define GT_UNFIXABLE_ECC_ERROR   (0x1F) /* the CPSS detected ECC error that can't
-                                        //    be fixed when reading from the memory which is protected by ECC.
-                                        //    NOTE: relevant only when the table resides in the CSU ,
-                                        //    the ECC is used , and the CPSS emulates the ECC detection
-                                        //    and correction for 'Read entry' operations */
+                                           be fixed when reading from the memory which is protected by ECC.
+                                           NOTE: relevant only when the table resides in the CSU ,
+                                           the ECC is used , and the CPSS emulates the ECC detection
+                                           and correction for 'Read entry' operations */
 #define GT_UNFIXABLE_BIST_ERROR  (0x20) /* Built-in self-test detected unfixable error */
 #define GT_CHECKSUM_ERROR        (0x21) /* checksum doesn't fits received data */
 #define GT_DSA_PARSING_ERROR     (0x22) /* DSA tag parsing error */
@@ -197,6 +197,120 @@ typedef enum{
     CPSS_PORT_FLOW_CONTROL_TX_ONLY_E
 } CPSS_PORT_FLOW_CONTROL_ENT;
 
+typedef enum{
+    CPSS_PORT_INTERFACE_MODE_REDUCED_10BIT_E,   /* 0 */
+    CPSS_PORT_INTERFACE_MODE_REDUCED_GMII_E,    /* 1 */
+    CPSS_PORT_INTERFACE_MODE_MII_E,             /* 2 */
+    CPSS_PORT_INTERFACE_MODE_SGMII_E,           /* 3 */ /* CPSS_PORT_SPEED_1000_E , CPSS_PORT_SPEED_2500_E   */
+    CPSS_PORT_INTERFACE_MODE_XGMII_E,           /* 4 */ /* CPSS_PORT_SPEED_10000_E, CPSS_PORT_SPEED_12000_E, CPSS_PORT_SPEED_16000_E, CPSS_PORT_SPEED_20000_E, */
+    CPSS_PORT_INTERFACE_MODE_MGMII_E,           /* 5 */
+    CPSS_PORT_INTERFACE_MODE_1000BASE_X_E,      /* 6 */ /* CPSS_PORT_SPEED_1000_E, */
+    CPSS_PORT_INTERFACE_MODE_GMII_E,            /* 7 */
+    CPSS_PORT_INTERFACE_MODE_MII_PHY_E,         /* 8 */
+    CPSS_PORT_INTERFACE_MODE_QX_E,              /* 9 */  /* CPSS_PORT_SPEED_2500_E,  CPSS_PORT_SPEED_5000_E,  */
+    CPSS_PORT_INTERFACE_MODE_HX_E,              /* 10 */ /* CPSS_PORT_SPEED_5000_E,  CPSS_PORT_SPEED_10000_E, */
+    CPSS_PORT_INTERFACE_MODE_RXAUI_E,           /* 11 */ /* CPSS_PORT_SPEED_10000_E  */
+    CPSS_PORT_INTERFACE_MODE_100BASE_FX_E,      /* 12 */
+    CPSS_PORT_INTERFACE_MODE_QSGMII_E,          /* 13 */ /* CPSS_PORT_SPEED_1000_E, */
+    CPSS_PORT_INTERFACE_MODE_XLG_E,             /* 14 */
+    CPSS_PORT_INTERFACE_MODE_LOCAL_XGMII_E,     /* 15 */
+    CPSS_PORT_INTERFACE_MODE_NO_SERDES_PORT_E =
+                                        CPSS_PORT_INTERFACE_MODE_LOCAL_XGMII_E,
+    CPSS_PORT_INTERFACE_MODE_KR_E,              /* 16 */ /* CPSS_PORT_SPEED_10000_E, CPSS_PORT_SPEED_12000_E, CPSS_PORT_SPEED_20000_E, CPSS_PORT_SPEED_40000_E, CPSS_PORT_SPEED_100G_E, */
+    CPSS_PORT_INTERFACE_MODE_HGL_E,             /* 17 */ /* CPSS_PORT_SPEED_15000_E, CPSS_PORT_SPEED_16000_E, CPSS_PORT_SPEED_40000_E */
+    CPSS_PORT_INTERFACE_MODE_CHGL_12_E,         /* 18 */ /* CPSS_PORT_SPEED_100G_E , */
+    CPSS_PORT_INTERFACE_MODE_ILKN12_E,          /* 19 */
+    CPSS_PORT_INTERFACE_MODE_SR_LR_E,           /* 20 */ /* CPSS_PORT_SPEED_5000_E, CPSS_PORT_SPEED_10000_E, CPSS_PORT_SPEED_12000_E, CPSS_PORT_SPEED_20000_E, CPSS_PORT_SPEED_40000_E */
+    CPSS_PORT_INTERFACE_MODE_ILKN16_E,          /* 21 */
+    CPSS_PORT_INTERFACE_MODE_ILKN24_E,          /* 22 */
+    CPSS_PORT_INTERFACE_MODE_ILKN4_E,           /* 23 */ /* CPSS_PORT_SPEED_12000_E, CPSS_PORT_SPEED_20000_E, */
+    CPSS_PORT_INTERFACE_MODE_ILKN8_E,           /* 24 */ /* CPSS_PORT_SPEED_20000_E, CPSS_PORT_SPEED_40000_E, */
+    CPSS_PORT_INTERFACE_MODE_XHGS_E,            /* 25 */ /* CPSS_PORT_SPEED_11800_E, CPSS_PORT_SPEED_23600_E, CPSS_PORT_SPEED_47200_E, */
+    CPSS_PORT_INTERFACE_MODE_XHGS_SR_E,         /* 26 */ /* CPSS_PORT_SPEED_11800_E, CPSS_PORT_SPEED_47200_E, */
+    CPSS_PORT_INTERFACE_MODE_KR2_E,             /* 27 */
+    CPSS_PORT_INTERFACE_MODE_KR4_E,             /* 28 */
+    CPSS_PORT_INTERFACE_MODE_SR_LR2_E,          /* 29 */ /* CPSS_PORT_SPEED_50000_E*/
+    CPSS_PORT_INTERFACE_MODE_SR_LR4_E,              /* 30 */ /* CPSS_PORT_SPEED_100G_E  */
+    CPSS_PORT_INTERFACE_MODE_MLG_40G_10G_40G_10G_E, /* 31 */ /* Multi-Link Gearbox speeds: 40G, 10G, 40G, 10G */
+    CPSS_PORT_INTERFACE_MODE_KR_C_E,            /* 32 */ /*CONSORTIUM - CPSS_PORT_SPEED_25000_E*/
+    CPSS_PORT_INTERFACE_MODE_CR_C_E,            /* 33 */ /*CONSORTIUM - CPSS_PORT_SPEED_25000_E*/
+    CPSS_PORT_INTERFACE_MODE_KR2_C_E,           /* 34 */ /*CONSORTIUM - CPSS_PORT_SPEED_50000_E*/
+    CPSS_PORT_INTERFACE_MODE_CR2_C_E,           /* 35 */ /*CONSORTIUM - CPSS_PORT_SPEED_50000_E*/
+    CPSS_PORT_INTERFACE_MODE_CR_E,              /* 36 */
+    CPSS_PORT_INTERFACE_MODE_CR2_E,             /* 37 */
+    CPSS_PORT_INTERFACE_MODE_CR4_E,             /* 38 */
+    CPSS_PORT_INTERFACE_MODE_KR_S_E,            /* 39 */
+    CPSS_PORT_INTERFACE_MODE_CR_S_E,            /* 40 */
+    CPSS_PORT_INTERFACE_MODE_KR8_E,             /* 41 */
+    CPSS_PORT_INTERFACE_MODE_CR8_E,             /* 42 */
+    CPSS_PORT_INTERFACE_MODE_SR_LR8_E,          /* 43 */
+    /* USX 1 Lane */
+    CPSS_PORT_INTERFACE_MODE_USX_2_5G_SXGMII_E, /* 44 */ /* 1 Port -> 10M/100M/1G/2.5G/5G       with SD speed 2.578125G */
+    CPSS_PORT_INTERFACE_MODE_USX_5G_SXGMII_E,   /* 45 */ /* 1 Port -> 10M/100M/1G/2.5G/5G       with SD speed 5.15625G */
+    CPSS_PORT_INTERFACE_MODE_USX_10G_SXGMII_E,  /* 46 */ /* 1 Port -> 10M/100M/1G/2.5G/5G/10G   with SD speed 10.3125G */
+    /* USX 2 Lanes */
+    CPSS_PORT_INTERFACE_MODE_USX_5G_DXGMII_E,   /* 47 */ /* 2 Ports -> 10M/100M/1G/2.5G         with SD speed 5.15625G */
+    CPSS_PORT_INTERFACE_MODE_USX_10G_DXGMII_E,  /* 48 */ /* 2 Ports -> 10M/100M/1G/2.5G/5G      with SD speed 10.3125G */
+    CPSS_PORT_INTERFACE_MODE_USX_20G_DXGMII_E,  /* 49 */ /* 2 Ports -> 10M/100M/1G/2.5G/5G/10G  with SD speed 20.625G */
+    /* USX 4 Lanes */
+    CPSS_PORT_INTERFACE_MODE_USX_QUSGMII_E,     /* 50 */ /* Like QSGMII but with PCH - maximum of 4 ports, CPSS_PORT_SPEED_1000_E */
+    CPSS_PORT_INTERFACE_MODE_USX_10G_QXGMII_E,  /* 51 */ /* 4 Ports -> 10M/100M/1G/2.5G         with SD speed 10.3125G */
+    CPSS_PORT_INTERFACE_MODE_USX_20G_QXGMII_E,  /* 52 */ /* 4 Ports -> 10M/100M/1G/2.5G/5G      with SD speed 20.625G */
+    /* USX 8 Lanes */
+    CPSS_PORT_INTERFACE_MODE_USX_OUSGMII_E,     /* 53 */ /* Maximum of 8 ports with PCH, CPSS_PORT_SPEED_1000_E, SD speed 10G */
+    CPSS_PORT_INTERFACE_MODE_USX_20G_OXGMII_E,  /* 54 */ /* 8 Ports -> 10M/100M/1G/2.5G         with SD speed 20.625G */
+    CPSS_PORT_INTERFACE_MODE_2500BASE_X_E,      /* 55 */ /* CPSS_PORT_SPEED_2500_E, */
+    CPSS_PORT_INTERFACE_MODE_REMOTE_E,          /* 56 */ /* used for remote ports configuration.(For SIP6 devices only) */
+    CPSS_PORT_INTERFACE_MODE_NA_E,              /* 57 */
+    CPSS_PORT_INTERFACE_MODE_NA_HCD_E = 0xFF    /* 255 */ /* Used to indicate we are waiting for HCD resolution in AP */
+}CPSS_PORT_INTERFACE_MODE_ENT;
+
+typedef enum{
+    CPSS_PORT_AP_FLOW_CONTROL_SYMMETRIC_E,
+    CPSS_PORT_AP_FLOW_CONTROL_ASYMMETRIC_E
+} CPSS_PORT_AP_FLOW_CONTROL_ENT;
+
+typedef enum{
+    CPSS_DXCH_PORT_AP_FLOW_CONTROL_SYMMETRIC_E = CPSS_PORT_AP_FLOW_CONTROL_SYMMETRIC_E,
+    CPSS_DXCH_PORT_AP_FLOW_CONTROL_ASYMMETRIC_E = CPSS_PORT_AP_FLOW_CONTROL_ASYMMETRIC_E
+} CPSS_DXCH_PORT_AP_FLOW_CONTROL_ENT;
+
+typedef struct{
+    CPSS_PORT_INTERFACE_MODE_ENT ifMode;
+    CPSS_PORT_SPEED_ENT speed;
+} CPSS_PORT_MODE_SPEED_STC;
+
+typedef enum{
+    CPSS_PORT_FEC_MODE_ENABLED_E,
+    CPSS_PORT_FEC_MODE_DISABLED_E,
+    CPSS_PORT_RS_FEC_MODE_ENABLED_E,
+    CPSS_PORT_BOTH_FEC_MODE_ENABLED_E,
+    CPSS_PORT_RS_FEC_544_514_MODE_ENABLED_E,
+    CPSS_PORT_FEC_MODE_LAST_E
+} CPSS_PORT_FEC_MODE_ENT;
+
+typedef enum{
+    CPSS_DXCH_PORT_FEC_MODE_ENABLED_E = CPSS_PORT_FEC_MODE_ENABLED_E,
+    CPSS_DXCH_PORT_FEC_MODE_DISABLED_E = CPSS_PORT_FEC_MODE_DISABLED_E,
+    CPSS_DXCH_PORT_RS_FEC_MODE_ENABLED_E = CPSS_PORT_RS_FEC_MODE_ENABLED_E,
+    CPSS_DXCH_PORT_BOTH_FEC_MODE_ENABLED_E = CPSS_PORT_BOTH_FEC_MODE_ENABLED_E,
+    CPSS_DXCH_PORT_RS_FEC_544_514_MODE_ENABLED_E = CPSS_PORT_RS_FEC_544_514_MODE_ENABLED_E,
+    /* Last */
+    CPSS_DXCH_PORT_FEC_MODE_LAST_E = CPSS_PORT_FEC_MODE_LAST_E
+}CPSS_DXCH_PORT_FEC_MODE_ENT;
+
+typedef struct{
+    GT_BOOL fcPause;
+    CPSS_DXCH_PORT_AP_FLOW_CONTROL_ENT fcAsmDir;
+    GT_BOOL fecSupported;
+    GT_BOOL fecRequired;
+    GT_BOOL noneceDisable;
+    GT_U32 laneNum;
+    CPSS_PORT_MODE_SPEED_STC modesAdvertiseArr [CPSS_DXCH_PORT_AP_IF_ARRAY_SIZE_CNS];
+    CPSS_DXCH_PORT_FEC_MODE_ENT fecAbilityArr [CPSS_DXCH_PORT_AP_IF_ARRAY_SIZE_CNS];
+    CPSS_DXCH_PORT_FEC_MODE_ENT fecRequestedArr [CPSS_DXCH_PORT_AP_IF_ARRAY_SIZE_CNS];
+} CPSS_DXCH_PORT_AP_PARAMS_STC;
+
 extern GT_STATUS cpssDxChPhyPortSmiRegisterWrite(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum,
                     GT_U8 phyReg, uint16_t data);
 extern GT_STATUS cpssDxChPhyPortSmiRegisterRead(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum,
@@ -238,16 +352,6 @@ extern GT_STATUS cpssDxChPortApPortConfigSet(GT_U8 devNum,
 extern GT_STATUS cpssDxChPortApPortConfigGet(GT_U8 devNum, 
                     GT_PHYSICAL_PORT_NUM portNum, GT_BOOL *apEnablePtr, 
                     CPSS_DXCH_PORT_AP_PARAMS_STC *apParamsPtr);
-
-extern GT_STATUS cpssDxChSamplePortManagerAutoNegotiationSet(GT_U8 devNum,
-                    GT_PHYSICAL_PORT_NUM   portNum,
-                    GT_BOOL                enableInband,
-                    GT_BOOL                enableDuplex,
-                    GT_BOOL                enableSpeed,
-                    GT_BOOL                enableFlowCtrl,
-                    GT_BOOL                enableFlowCtrlPauseAdvertise,
-                    GT_BOOL                enableFlowCtrlAsmAdvertise,
-                    GT_BOOL                enableByPass);                    
 
 #endif
 }

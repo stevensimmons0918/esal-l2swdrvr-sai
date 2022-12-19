@@ -214,79 +214,68 @@ bool esalAddAclToPort(sai_object_id_t portSai,
 
 bool perPortCfgFlowControlInit(uint16_t portNum) {
     uint8_t devNum = 0;
-    // CPSS_DXCH_PORT_AP_PARAMS_STC tmpStsParams; 
-    // GT_BOOL apEnable;
+    CPSS_DXCH_PORT_AP_PARAMS_STC tmpStsParams; 
+    GT_BOOL apEnable;
 
 // Port configuration update
     if (autoNegFlowControlCfg[portNum].readyToUpdFlag == GT_TRUE) {
-        // if (cpssDxChPortApPortConfigGet(devNum, portNum, &apEnable, &tmpStsParams) == GT_OK){
-        //     tmpStsParams.fcAsmDir = autoNegFlowControlCfg[portNum].flowCtrlAsmAdvertiseEnable?
-        //                                             CPSS_DXCH_PORT_AP_FLOW_CONTROL_SYMMETRIC_E:
-        //                                             CPSS_DXCH_PORT_AP_FLOW_CONTROL_ASYMMETRIC_E;
-        // }
-        // if (cpssDxChPortInbandAutoNegEnableSet(devNum, portNum, 
-        //             autoNegFlowControlCfg[portNum].inbandEnable) != GT_OK){
-        //     SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-        //         SWERR_FILELINE, "cpssDxChPortInbandAutoNegEnableSet fail in perPortCfgFlowControlInit\n"));
-        //         std::cout << "cpssDxChPortInbandAutoNegEnableSet fail in perPortCfgFlowControlInit for port num " << portNum << std::endl;
-        //     return false;
-        // }
-        // if (cpssDxChPortDuplexAutoNegEnableSet(devNum, portNum, 
-        //         autoNegFlowControlCfg[portNum].duplexEnable) != GT_OK){
-        //     SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-        //         SWERR_FILELINE, "cpssDxChPortDuplexAutoNegEnableSet fail in perPortCfgFlowControlInit\n"));
-        //         std::cout << "cpssDxChPortDuplexAutoNegEnableSet fail in perPortCfgFlowControlInit for port num " << portNum << std::endl;
-        //     return false;
-        // }
-        // if (cpssDxChPortSpeedAutoNegEnableSet(devNum, portNum, 
-        //         autoNegFlowControlCfg[portNum].speedEnable) != GT_OK){
-        //     SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-        //         SWERR_FILELINE, "cpssDxChPortSpeedAutoNegEnableSet fail in perPortCfgFlowControlInit\n"));
-        //         std::cout << "cpssDxChPortSpeedAutoNegEnableSet fail in perPortCfgFlowControlInit for port num " << portNum << std::endl;
-        //     return false;
-        // }
-        // if (cpssDxChPortInBandAutoNegBypassEnableSet(devNum, portNum, 
-        //         autoNegFlowControlCfg[portNum].byPassEnable) != GT_OK){
-        //     SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-        //         SWERR_FILELINE, "cpssDxChPortInBandAutoNegBypassEnableSet fail in perPortCfgFlowControlInit\n"));
-        //         std::cout << "cpssDxChPortInBandAutoNegBypassEnableSet fail in perPortCfgFlowControlInit for port num " << portNum << std::endl;
-        //     return false;
-        // }
-        // if (cpssDxChPortFlowControlEnableSet(devNum, portNum, 
-        //         (CPSS_PORT_FLOW_CONTROL_ENT)autoNegFlowControlCfg[portNum].flowCtrlEnable) != GT_OK){
-        //     SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-        //         SWERR_FILELINE, "cpssDxChPortFlowControlEnableSet fail in perPortCfgFlowControlInit\n"));
-        //         std::cout << "cpssDxChPortFlowControlEnableSet fail in perPortCfgFlowControlInit for port num " << portNum << std::endl;
-        //     return false;
-        // }
-        // if (cpssDxChPortFlowCntrlAutoNegEnableSet(devNum, portNum, 
-        //         autoNegFlowControlCfg[portNum].flowCtrlEnable, 
-        //         autoNegFlowControlCfg[portNum].flowCtrlPauseAdvertiseEnable) != GT_OK){
-        //     SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-        //         SWERR_FILELINE, "cpssDxChPortFlowCntrlAutoNegEnableSet fail in perPortCfgFlowControlInit\n"));
-        //         std::cout << "cpssDxChPortFlowCntrlAutoNegEnableSet fail in perPortCfgFlowControlInit for port num " << portNum << std::endl;
-        //     return false;
-        // }
-
-
-        if (cpssDxChSamplePortManagerAutoNegotiationSet(devNum, portNum, autoNegFlowControlCfg[portNum].inbandEnable,
-                                                        autoNegFlowControlCfg[portNum].duplexEnable,
-                                                        autoNegFlowControlCfg[portNum].speedEnable,
-                                                        autoNegFlowControlCfg[portNum].flowCtrlEnable,
-                                                        autoNegFlowControlCfg[portNum].flowCtrlPauseAdvertiseEnable,
-                                                        autoNegFlowControlCfg[portNum].flowCtrlAsmAdvertiseEnable,
-                                                        autoNegFlowControlCfg[portNum].byPassEnable) != GT_OK) {
+        if (cpssDxChPortInbandAutoNegEnableSet(devNum, portNum, 
+                    autoNegFlowControlCfg[portNum].inbandEnable) != GT_OK){
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                SWERR_FILELINE, "cpssDxChPortApPortConfigSet fail in perPortCfgFlowControlInit\n"));
-            std::cout << "cpssDxChPortApPortConfigSet fail in perPortCfgFlowControlInit for port num " << portNum << std::endl;
+                SWERR_FILELINE, "cpssDxChPortInbandAutoNegEnableSet fail in perPortCfgFlowControlInit\n"));
+                std::cout << "cpssDxChPortInbandAutoNegEnableSet fail in perPortCfgFlowControlInit for port num " << portNum << std::endl;
             return false;
         }
-        // if (cpssDxChPortApPortConfigSet(devNum, portNum, apEnable, &tmpStsParams) != GT_OK) {
-        //     SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-        //         SWERR_FILELINE, "cpssDxChPortApPortConfigSet fail in perPortCfgFlowControlInit\n"));
-        //     std::cout << "cpssDxChPortApPortConfigSet fail in perPortCfgFlowControlInit for port num " << portNum << std::endl;
-        //     return false;
-        // }        
+        if (cpssDxChPortDuplexAutoNegEnableSet(devNum, portNum, 
+                autoNegFlowControlCfg[portNum].duplexEnable) != GT_OK){
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                SWERR_FILELINE, "cpssDxChPortDuplexAutoNegEnableSet fail in perPortCfgFlowControlInit\n"));
+                std::cout << "cpssDxChPortDuplexAutoNegEnableSet fail in perPortCfgFlowControlInit for port num " << portNum << std::endl;
+            return false;
+        }
+        if (cpssDxChPortSpeedAutoNegEnableSet(devNum, portNum, 
+                autoNegFlowControlCfg[portNum].speedEnable) != GT_OK){
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                SWERR_FILELINE, "cpssDxChPortSpeedAutoNegEnableSet fail in perPortCfgFlowControlInit\n"));
+                std::cout << "cpssDxChPortSpeedAutoNegEnableSet fail in perPortCfgFlowControlInit for port num " << portNum << std::endl;
+            return false;
+        }
+        if (cpssDxChPortInBandAutoNegBypassEnableSet(devNum, portNum, 
+                autoNegFlowControlCfg[portNum].byPassEnable) != GT_OK){
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                SWERR_FILELINE, "cpssDxChPortInBandAutoNegBypassEnableSet fail in perPortCfgFlowControlInit\n"));
+                std::cout << "cpssDxChPortInBandAutoNegBypassEnableSet fail in perPortCfgFlowControlInit for port num " << portNum << std::endl;
+            return false;
+        }
+        if (cpssDxChPortFlowControlEnableSet(devNum, portNum, 
+                (CPSS_PORT_FLOW_CONTROL_ENT)autoNegFlowControlCfg[portNum].flowCtrlEnable) != GT_OK){
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                SWERR_FILELINE, "cpssDxChPortFlowControlEnableSet fail in perPortCfgFlowControlInit\n"));
+                std::cout << "cpssDxChPortFlowControlEnableSet fail in perPortCfgFlowControlInit for port num " << portNum << std::endl;
+            return false;
+        }
+        if (cpssDxChPortFlowCntrlAutoNegEnableSet(devNum, portNum, 
+                autoNegFlowControlCfg[portNum].flowCtrlEnable, 
+                autoNegFlowControlCfg[portNum].flowCtrlPauseAdvertiseEnable) != GT_OK){
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                SWERR_FILELINE, "cpssDxChPortFlowCntrlAutoNegEnableSet fail in perPortCfgFlowControlInit\n"));
+                std::cout << "cpssDxChPortFlowCntrlAutoNegEnableSet fail in perPortCfgFlowControlInit for port num " << portNum << std::endl;
+            return false;
+        }
+        if (cpssDxChPortApPortConfigGet(devNum, portNum, &apEnable, &tmpStsParams) == GT_OK){
+            if (tmpStsParams.fcAsmDir != CPSS_DXCH_PORT_AP_FLOW_CONTROL_SYMMETRIC_E){
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "fcAsmDir isn't equal to CPSS_DXCH_PORT_AP_FLOW_CONTROL_SYMMETRIC_E\n"));
+                std::cout << "fcAsmDir isn't equal to CPSS_DXCH_PORT_AP_FLOW_CONTROL_SYMMETRIC_E on port num " << portNum << std::endl;
+
+                tmpStsParams.fcAsmDir = CPSS_DXCH_PORT_AP_FLOW_CONTROL_SYMMETRIC_E;
+                if (cpssDxChPortApPortConfigSet(devNum, portNum, apEnable, &tmpStsParams) != GT_OK) {
+                    SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE, "cpssDxChPortApPortConfigSet fail in perPortCfgFlowControlInit\n"));
+                    std::cout << "cpssDxChPortApPortConfigSet fail in perPortCfgFlowControlInit for port num " << portNum << std::endl;
+                }  
+            }
+        }     
     }
     return true;
 }
