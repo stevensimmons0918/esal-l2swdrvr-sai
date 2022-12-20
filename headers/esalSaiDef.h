@@ -102,6 +102,9 @@ extern SFPRegisterL2ParamChangeCb_fp_t esalSFPRegisterL2ParamChangeCb;
 extern SFPSetPort_fp_t esalSFPSetPort;
 extern SFPGetPort_fp_t esalSFPGetPort;
 #endif
+
+bool portCfgFlowControlInit();
+bool perPortCfgFlowControlInit(uint16_t portNum);
 }
 
 #define OID_VALUE_MASK 0x000000FFFFFFFFFFULL
