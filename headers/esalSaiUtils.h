@@ -52,6 +52,18 @@ class EsalSaiUtils: public EsalSaiUtilsBase {
         uint32_t BW;
     } serdesRx_t;
 
+    typedef struct {
+        bool has_vals = false;
+        bool inbandEnable = false;
+        bool duplexEnable = false;
+        bool speedEnable = false;
+        bool byPassEnable = false;
+        bool flowCtrlEnable = false;
+        bool flowCtrlPauseAdvertiseEnable = false;
+        bool flowCtrlAsmAdvertiseEnable = false;
+        bool readyToUpdFlag = false;
+    } flowCtrlAttrs;
+
     //! Constructor
     EsalSaiUtils();
 
@@ -124,12 +136,16 @@ class EsalSaiUtils: public EsalSaiUtilsBase {
     bool GetLogicalPortList(const uint32_t devId,
                             std::vector<uint32_t> *list);
 
+    bool GetFlowCtrlAttr(
+     uint32_t lPort, uint32_t &devId, uint32_t &pPort, flowCtrlAttrs &fc);
+
  private:
     typedef struct {
         uint32_t devId;
         uint32_t pPort;
         serdesTx_t serdesTx;
         serdesRx_t serdesRx;
+        flowCtrlAttrs flowCtrl; 
     } PhyPortInfo;
 
     //! UnitCode

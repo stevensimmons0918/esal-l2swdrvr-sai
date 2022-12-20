@@ -58,7 +58,9 @@ struct SaiPortEntry{
 
 const int MAX_PORT_TABLE_SIZE = 512;
 SaiPortEntry portTable[MAX_PORT_TABLE_SIZE];
+#ifndef UTS
 CPSS_PORT_MANAGER_SGMII_AUTO_NEGOTIATION_STC autoNegFlowControlCfg[MAX_PORT_TABLE_SIZE];
+#endif
 int portTableSize = 0;
 std::mutex portTableMutex; 
 
@@ -213,6 +215,7 @@ bool esalAddAclToPort(sai_object_id_t portSai,
 }
 
 bool perPortCfgFlowControlInit(uint16_t portNum) {
+#ifndef UTS
     uint8_t devNum = 0;
     CPSS_DXCH_PORT_AP_PARAMS_STC tmpStsParams; 
     GT_BOOL apEnable;
@@ -277,14 +280,20 @@ bool perPortCfgFlowControlInit(uint16_t portNum) {
             }
         }     
     }
+#endif
     return true;
 }
 
 bool portCfgFlowControlInit() {
+
+#ifndef UTS
 // Database init
     for (auto i = 0; i < MAX_PORT_TABLE_SIZE; i++){
-    autoNegFlowControlCfg[i].readyToUpdFlag = GT_FALSE;
+        autoNegFlowControlCfg[i].readyToUpdFlag = GT_FALSE;
     }
+#endif
+
+#ifdef LARCH_ENVIRON
 
 // Cfg file parse
     FILE *cfg_file;
@@ -327,6 +336,30 @@ bool portCfgFlowControlInit() {
     }
     free(line);
     fclose(cfg_file);
+#else
+    std::vector<uint32_t> lPorts;
+    if (saiUtils.GetLogicalPortList(0, &lPorts)) {
+        for(auto &lPort : lPorts){
+            uint32_t devId;
+            uint32_t pPort;
+            EsalSaiUtils::flowCtrlAttrs fc;
+            if (saiUtils.GetFlowCtrlAttr(lPort, devId, pPort, fc)){
+#ifndef UTS
+                autoNegFlowControlCfg[pPort].inbandEnable = (GT_BOOL) fc.inbandEnable;
+                autoNegFlowControlCfg[pPort].duplexEnable = (GT_BOOL) fc.duplexEnable;
+                autoNegFlowControlCfg[pPort].speedEnable = (GT_BOOL) fc.speedEnable;
+                autoNegFlowControlCfg[pPort].byPassEnable = (GT_BOOL) fc.byPassEnable;
+                autoNegFlowControlCfg[pPort].flowCtrlEnable = (GT_BOOL) fc.flowCtrlEnable;
+                autoNegFlowControlCfg[pPort].flowCtrlPauseAdvertiseEnable =
+                    (GT_BOOL) fc.flowCtrlPauseAdvertiseEnable;
+                autoNegFlowControlCfg[pPort].flowCtrlAsmAdvertiseEnable =
+                    (GT_BOOL) fc.flowCtrlAsmAdvertiseEnable;
+                autoNegFlowControlCfg[pPort].readyToUpdFlag = GT_TRUE;
+#endif
+            }
+        }
+    }
+#endif
     return true;
 }
 

@@ -256,6 +256,24 @@ void EsalSaiUtils::ParseConfig(void) {
             }
             portInfo.serdesRx = sRxVal;
 
+            flowCtrlAttrs flowCtrl;
+            flowCtrl.has_vals = false; 
+            if (portsSetting.exists("flowCtrl")) {
+              const libconfig::Setting &fcSetting = portsSetting["flowCtrl"];
+              flowCtrl.inbandEnable = fcSetting["inbandEnable"];
+              flowCtrl.duplexEnable = fcSetting["duplexEnable"];
+              flowCtrl.speedEnable = fcSetting["speedEnable"];
+              flowCtrl.byPassEnable = fcSetting["byPassEnable"];
+              flowCtrl.flowCtrlEnable = fcSetting["flowCtrlEnable"];
+              flowCtrl.flowCtrlPauseAdvertiseEnable = 
+                  fcSetting["flowCtrlPauseAdvertiseEnable"];
+              flowCtrl.flowCtrlAsmAdvertiseEnable = 
+                  fcSetting["flowCtrlAsmAdvertiseEnable"];
+              flowCtrl.has_vals = true; 
+            }
+
+            portInfo.flowCtrl = flowCtrl;
+
             phyPortInfoMap_[lPort] = portInfo;
 
             std::cout << __FUNCTION__ << ":" << __LINE__
@@ -297,3 +315,21 @@ bool EsalSaiUtils::GetLogicalPortList(const uint32_t devId,
 
     return rc;
 }
+
+bool EsalSaiUtils::GetFlowCtrlAttr(
+     uint32_t lPort, uint32_t &devId, uint32_t &pPort, flowCtrlAttrs &fc) {
+
+    // Get the contents for flow control, and return failure if they have
+    // not been initialized. 
+    // 
+    if (phyPortInfoMap_.find(lPort) == phyPortInfoMap_.end()) return false;
+    if (!phyPortInfoMap_[lPort].flowCtrl.has_vals) return false; 
+
+    devId = phyPortInfoMap_[lPort].devId;
+    pPort = phyPortInfoMap_[lPort].pPort;
+    fc = phyPortInfoMap_[lPort].flowCtrl;
+
+    return true;
+
+}
+
