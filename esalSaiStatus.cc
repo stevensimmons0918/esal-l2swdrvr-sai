@@ -147,7 +147,6 @@ int VendorGetL2Pm(uint16_t *usedLen, uint16_t maxLen, char* gpbBuf) {
         uint8_t numBufs = msg.pm_buffers_size();
         for (uint8_t i = 0; i < numBufs; ++i) {
             // Allocate a cleared buffer.
-            std::cout << "Vendor PMI: " << (unsigned int) i << std::endl;
             VendorEsalPm* vendorPmi = msg.mutable_pm_buffers(i);
             if (!vendorPmi) {
                 std::cout << "NO PMI buff\n";
