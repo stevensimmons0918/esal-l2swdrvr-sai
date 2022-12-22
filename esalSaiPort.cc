@@ -1020,7 +1020,7 @@ int VendorEnablePort(uint16_t lPort) {
         return ESAL_RC_FAIL; 
     }
 
-    if (!perPortCfgFlowControlInit(lPort)) {
+    if (!perPortCfgFlowControlInit(pPort)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "perPortCfgFlowControlInit in VendorEnablePort fail\n"));
         return ESAL_RC_FAIL;
