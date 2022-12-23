@@ -579,20 +579,25 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
     else
         cppsAutoneg = GT_FALSE;
 
-    if (speed == VENDOR_SPEED_TEN || speed == VENDOR_SPEED_HUNDRED || speed == VENDOR_SPEED_GIGABIT) {
-        if (cpssDxChPortDuplexModeSet(devNum, portNum, cpssDuplexMode) != 0) {
-            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+    // Do not alter the interface in the case of the EVAL card.
+    // 
+    if (hwid_value.compare("ALDRIN2EVAL") != 0) {
+        if (speed == VENDOR_SPEED_TEN || speed == VENDOR_SPEED_HUNDRED || speed == VENDOR_SPEED_GIGABIT) {
+            if (cpssDxChPortDuplexModeSet(devNum, portNum, cpssDuplexMode) != 0) {
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                         SWERR_FILELINE, "VendorSetPortRate fail in cpssDxChPortDuplexModeSet\n"));
-            std::cout << "VendorSetPortRate fail, for pPort: " << pPort << "\n";
-            return ESAL_RC_FAIL;
-        }
-        if (cpssDxChPortInbandAutoNegEnableSet(devNum, portNum, cppsAutoneg) != 0) {
-            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                std::cout << "VendorSetPortRate fail, for pPort: " << pPort << "\n";
+                return ESAL_RC_FAIL;
+            }
+            if (cpssDxChPortInbandAutoNegEnableSet(devNum, portNum, cppsAutoneg) != 0) {
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                         SWERR_FILELINE, "VendorSetPortRate fail in cpssDxChPortInbandAutoNegEnableSet\n"));
-            std::cout << "VendorSetPortRate fail, for pPort: " << pPort << "\n";
-            return ESAL_RC_FAIL;
+                std::cout << "VendorSetPortRate fail, for pPort: " << pPort << "\n";
+                return ESAL_RC_FAIL;
+            }
         }
     }
+
 #endif
 #endif
     // Set the port attributes
