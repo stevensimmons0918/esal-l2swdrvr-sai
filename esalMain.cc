@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include <esal_vendor_api/esal_vendor_api.h>
+#include <esal_warmboot_api/esal_warmboot_api.h>
 #include "headers/esalSaiDef.h"
 
 extern "C" bool run_acl_samples(void);
@@ -23,6 +24,11 @@ int main()
 {
 
 #if 1 // Undef for shell
+
+    createFolderIfNotExist(BACKUP_FOLDER);
+    if (ESAL_WARM) {
+        esalWarmBootHandler();
+    }
 
     if (DllInit() == ESAL_RC_OK) {
         // vendor_vlan_translation_t trans;
