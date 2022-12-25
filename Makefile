@@ -41,7 +41,8 @@ FILES := \
   esalSaiSwitch.cc \
   esalSaiTag.cc \
   esalSaiUtils.cc \
-  esalSaiVlan.cc
+  esalSaiVlan.cc \
+  esalWarmbootApi.cc
 
 
 MKDIR_P = mkdir -p

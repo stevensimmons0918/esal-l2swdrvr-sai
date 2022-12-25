@@ -12,14 +12,17 @@
 #include "headers/esalSaiDef.h"
 #include "headers/esalSaiUtils.h"
 #include <iostream>
+#include <iomanip>
 
 #include <cinttypes>
 #include <mutex>
 #include <vector>
 #include <map>
 #include <string>
+#include <fstream>
 
 #include <esal_vendor_api/esal_vendor_api.h>
+#include <esal_warmboot_api/esal_warmboot_api.h>
 
 extern "C" {
 #include "sai/sai.h"
@@ -44,10 +47,16 @@ struct VlanEntry {
     uint16_t defaultPortId = 0xffff;
 };
 
+static std::map<uint16_t, VlanEntry> vlanMap; 
 std::vector<uint16_t> tagPorts;
+
 static std::mutex vlanMutex;
 
-static std::map<uint16_t, VlanEntry> vlanMap; 
+
+static bool serializeVlanMap(const std::map<uint16_t, VlanEntry>& vlanMap, const std::string& fileName);
+static bool deserializeVlanMap(std::map<uint16_t, VlanEntry>& vlanMap, const std::string& fileName);
+static bool restoreVlans(std::map<uint16_t, VlanEntry>& vlanMap);
+static void printVlanEntry(uint16_t num, const VlanEntry& vlan);
 
 
 int VendorCreateVlan(uint16_t vlanid) {
@@ -116,6 +125,8 @@ int VendorCreateVlan(uint16_t vlanid) {
     entry.vlanSai = vlanSai;
     vlanMap[vlanid] = entry;
     
+    serializeVlanMap(vlanMap, BACKUP_FILE_VLAN);
+
     return rc;
 }
 
@@ -167,6 +178,8 @@ int VendorDeleteVlan(uint16_t vlanid) {
     // Remove from map. 
     //  
     vlanMap.erase(vlanFound);
+
+    serializeVlanMap(vlanMap, BACKUP_FILE_VLAN);
 
     return rc;
 }
@@ -292,6 +305,8 @@ int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t port
 #endif
     }
 
+    serializeVlanMap(vlanMap, BACKUP_FILE_VLAN);
+
     return rc;
 }
 
@@ -370,6 +385,8 @@ int VendorDeletePortsFromVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t
         }
 #endif
     }
+
+    serializeVlanMap(vlanMap, BACKUP_FILE_VLAN);
 
     return rc;
 }
@@ -489,6 +506,9 @@ int VendorSetPortDefaultVlan(uint16_t lPort, uint16_t vlanid) {
     entry.defaultPortId = pPort; 
 
 #endif
+
+    serializeVlanMap(vlanMap, BACKUP_FILE_VLAN);
+
     return rc;
 }
 
@@ -557,6 +577,8 @@ int VendorDeletePortDefaultVlan(uint16_t port, uint16_t vlanid) {
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
+
+    serializeVlanMap(vlanMap, BACKUP_FILE_VLAN);
 
     return VendorSetPortDefaultVlan(port, 1);
 
@@ -723,7 +745,7 @@ static int setVLANLearning(uint16_t vlanId, bool enabled) {
 
 int VendorDisableMacLearningPerVlan(uint16_t vlanId) {
     std::cout << __PRETTY_FUNCTION__ << vlanId << std::endl;
-    if (!useSaiFlag){
+    if (!useSaiFlag) {
         return ESAL_RC_OK;
     }
     return setVLANLearning(vlanId, false);
@@ -731,7 +753,7 @@ int VendorDisableMacLearningPerVlan(uint16_t vlanId) {
 
 int VendorEnableMacLearningPerVlan(uint16_t vlanId) {
     std::cout << __PRETTY_FUNCTION__ << vlanId << std::endl;
-    if (!useSaiFlag){
+    if (!useSaiFlag) {
         return ESAL_RC_OK;
     }
     return setVLANLearning(vlanId, true);
@@ -798,6 +820,206 @@ int esalVlanAddPortTagPushPop(uint16_t pPort, bool ingr, bool push) {
     }
 #endif
    return ESAL_RC_OK;
+}
+
+static bool restoreVlans(std::map<uint16_t, VlanEntry>& vlanMap) {
+    int ret = ESAL_RC_OK;
+    for (auto& vlanPair : vlanMap) {
+        uint16_t vlanId = vlanPair.first;
+        VlanEntry vlanEntry = vlanPair.second;
+
+        // Create vlan
+        ret = VendorCreateVlan(vlanId);
+        if (ret != ESAL_RC_OK) {
+            std::cout << "Error creating VLAN " << vlanId << ": " << esalSaiError(ret) << std::endl;
+            continue;
+        }
+
+        // Add ports to vlan
+        std::vector<uint16_t> portIds;
+        for (const VlanMember& vlanMember : vlanEntry.ports) {
+            portIds.push_back(vlanMember.portId);
+        }
+        ret = VendorAddPortsToVlan(vlanId, portIds.size(), portIds.data());
+        if (ret != ESAL_RC_OK) {
+            std::cout << "Error adding ports to VLAN " << vlanId << ": " << esalSaiError(ret) << std::endl;
+        }
+
+        // Set default port
+        if (vlanEntry.defaultPortId != 0xffff) {
+            ret = VendorSetPortDefaultVlan(vlanEntry.defaultPortId, vlanId);
+            if (ret != ESAL_RC_OK) {
+                std::cout << "Error setting default port for VLAN " << vlanId << ": " << esalSaiError(ret) << std::endl;
+            }
+        }
+    }
+    return (ret == ESAL_RC_OK);
+}
+
+static bool serializeVlanMap(const std::map<uint16_t, VlanEntry>& vlanMap, const std::string& fileName) {
+    std::fstream vlanFile(fileName, std::ios::in | std::ios::out | std::ios::trunc | std::ios::binary);
+
+    if (!vlanFile.is_open()) {
+        std::cout << "File opening error: " << fileName << std::endl;
+        return false;
+    }
+
+    uint32_t crc;
+
+    vlanFile.seekp(sizeof(crc), std::ios::beg);
+
+    // num elements in vlanMap
+    uint32_t numElements = vlanMap.size();
+    vlanFile.write(reinterpret_cast<char*>(&numElements), sizeof(numElements));
+
+    // Iterate over the vlanMap
+    for (const auto& Id_Entry : vlanMap) {
+        // vlan id and sai oid
+        vlanFile.write(reinterpret_cast<const char*>(&Id_Entry.first), sizeof(Id_Entry.first));
+        vlanFile.write(reinterpret_cast<const char*>(&Id_Entry.second.vlanSai), sizeof(Id_Entry.second.vlanSai));
+
+        // number of vlan members
+        uint32_t numMembers = Id_Entry.second.ports.size();
+        vlanFile.write(reinterpret_cast<const char*>(&numMembers), sizeof(numMembers));
+
+        // vlan members
+        for (const auto& member : Id_Entry.second.ports) {
+            vlanFile.write(reinterpret_cast<const char*>(&member.portId), sizeof(member.portId));
+            vlanFile.write(reinterpret_cast<const char*>(&member.memberSai), sizeof(member.memberSai));
+        }
+
+        // default port id 
+        vlanFile.write(reinterpret_cast<const char*>(&Id_Entry.second.defaultPortId), sizeof(Id_Entry.second.defaultPortId));
+    }
+
+    // CRC
+    std::vector<uint8_t> data(vlanFile.tellp() - static_cast<long int>(sizeof(crc)));
+    vlanFile.seekg(sizeof(crc), std::ios::beg);
+    vlanFile.read(reinterpret_cast<char*>(data.data()), data.size());
+    crc = calculateCRC(data.data(), data.size());
+
+    vlanFile.seekp(0, std::ios::beg);
+    vlanFile.write(reinterpret_cast<char*>(&crc), sizeof(crc));
+
+    vlanFile.close();
+
+    return true;
+}
+
+static bool deserializeVlanMap(std::map<uint16_t, VlanEntry>& vlanMap, const std::string& fileName)
+{
+    std::ifstream vlanFile(fileName, std::ios::binary);
+
+    if (!vlanFile.is_open()) {
+        std::cout << "File opening error: " << fileName << std::endl;
+        return false;
+    }
+
+    uint32_t crc; 
+
+    // Read CRC
+    uint32_t storedCrc;
+    vlanFile.read(reinterpret_cast<char*>(&storedCrc), sizeof(storedCrc));
+
+    // Read data
+    vlanFile.seekg(0, std::ios::end);
+    std::vector<uint8_t> data(vlanFile.tellg() - static_cast<long int>(sizeof(crc)));
+    vlanFile.seekg(sizeof(crc), std::ios::beg);
+    vlanFile.read(reinterpret_cast<char*>(data.data()), data.size());
+
+    // CRC check
+    crc = calculateCRC(data.data(), data.size());
+
+    if (crc != storedCrc) {
+        std::cout << "CRC check failed: " << fileName << std::endl;
+        return false;
+    }
+
+    vlanFile.seekg(sizeof(storedCrc), std::ios::beg);
+
+    // num elements in vlanMap
+    uint32_t numElements;
+    vlanFile.read(reinterpret_cast<char*>(&numElements), sizeof(numElements));
+
+    // Iterate over data to restore vlanMap
+    for (size_t i = 0; i < numElements; i++) {
+        // vlan id and sai oid
+        uint16_t vlanId;
+        sai_object_id_t vlanSai;
+        vlanFile.read(reinterpret_cast<char*>(&vlanId), sizeof(vlanId));
+        vlanFile.read(reinterpret_cast<char*>(&vlanSai), sizeof(vlanSai));
+
+        // vlanEntry
+        VlanEntry vlanEntry;
+        vlanEntry.vlanSai = vlanSai;
+
+        // num of vlan members
+        uint32_t numMembers;
+        vlanFile.read(reinterpret_cast<char*>(&numMembers), sizeof(numMembers));
+
+        // vlan members
+        for (size_t j = 0; j < numMembers; j++) {
+            VlanMember member;
+            vlanFile.read(reinterpret_cast<char*>(&member.portId), sizeof(member.portId));
+            vlanFile.read(reinterpret_cast<char*>(&member.memberSai), sizeof(member.memberSai));
+            vlanEntry.ports.push_back(member);
+        }
+
+        // Default port id
+        uint16_t defaultPortId;
+        vlanFile.read(reinterpret_cast<char*>(&defaultPortId), sizeof(defaultPortId));
+        vlanEntry.defaultPortId = defaultPortId;
+
+        // Add vlanEntry to vlanMap
+        vlanMap[vlanId] = vlanEntry;
+    }
+    vlanFile.close();
+
+    return true;
+}
+
+static void printVlanEntry(uint16_t num, const VlanEntry& vlan) {
+    std::cout << "VLAN ID: " << std::dec << num 
+        << ", OID: 0x" << std::setw(16) << std::setfill('0') << std::hex << vlan.vlanSai 
+        << std::endl;  
+    std::cout << "Ports:" << std::endl;
+    for (const VlanMember& member : vlan.ports) {
+        std::cout << "  Port ID: "<< std::dec << member.portId 
+            << ", OID: 0x" << std::setw(16) << std::setfill('0') << std::hex << member.memberSai 
+            << std::endl;
+    }
+    std::cout << "Default port ID: " << vlan.defaultPortId << std::endl;
+}
+
+bool vlanWarmBootHandler () {
+    std::map<uint16_t, VlanEntry> vlanMap;
+
+    bool status = true;
+
+    status = deserializeVlanMap(vlanMap, BACKUP_FILE_VLAN);
+    if (!status) {
+        std::cout << "Error deserializing vlan map" << std::endl;
+        return status;
+    }
+
+    if (!vlanMap.size()) {
+        std::cout << "Vlan map is empty!" << std::endl;
+        return false;
+    }
+
+    std::cout << "Founded VLAN configurations:" << std::endl;
+    for (const auto& entry : vlanMap) {
+        printVlanEntry(entry.first, entry.second);
+        std::cout << std::endl;
+    }
+
+    status = restoreVlans(vlanMap);
+    if (!status) {
+        std::cout << "Error restore vlans" << std::endl;
+        return status;
+    }
+
+    return status;
 }
 
 }
