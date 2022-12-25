@@ -8,7 +8,7 @@
 bool ESAL_WARM = true;
 
 std::map<std::string, bool (*)()> warmBootHandlers = {
-    {"Vlan warm boot handler", vlanWarmBootHandler},
+    {"VLAN", vlanWarmBootHandler},
 };
 
 bool esalWarmBootHandler() {
@@ -22,7 +22,7 @@ bool esalWarmBootHandler() {
         std::string name = handler_name_fn.first;
         auto handler = handler_name_fn.second;
 
-        std::cout << "WarmBoot handler of " << name << "is running..." << std::endl;    
+        std::cout << "WarmBoot handler of " << name << " is running..." << std::endl;    
         status = handler();
         std::cout << (status ? "OK" : "Failed") << std::endl;
         std::cout << std::endl;
