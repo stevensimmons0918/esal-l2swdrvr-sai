@@ -25,11 +25,6 @@ int main()
 
 #if 1 // Undef for shell
 
-    createFolderIfNotExist(BACKUP_FOLDER);
-    if (ESAL_WARM) {
-        esalWarmBootHandler();
-    }
-
     if (DllInit() == ESAL_RC_OK) {
         // vendor_vlan_translation_t trans;
         // trans.newVlan = 110;
@@ -38,6 +33,7 @@ int main()
         //VendorSetPortNniMode(28, VENDOR_NNI_MODE_UNI);
         run_cli();
     }
+
 #endif
 
 #if 0 // Undef for testing
@@ -98,7 +94,7 @@ int main()
     {
         printf("port %d,", ports1[i]);
     }
-    
+
     run_acl_samples();
 
     while (1)
