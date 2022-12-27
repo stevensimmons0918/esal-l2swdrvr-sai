@@ -70,7 +70,7 @@ ESAL_DEP = $(patsubst %.o,%.d,$(ESAL_OBJECTS))
 
 $(OUT_DIR)/%.o:%.cc
 	$(call compile,$(CFLAGS),$(OUT_DIR))
-#-L. -lsai -lXdkCpssgit 
+#-L. -lsai -lXdkCpssgit
 
 esal_app: esal_lib
 	$(MKDIR_P) $(BIN_DIR)

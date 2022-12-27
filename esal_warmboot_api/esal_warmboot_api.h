@@ -35,6 +35,6 @@ extern std::map<std::string, bool (*)()> warmBootHandlers;
 
 // Warmboot runner
 //
-bool esalWarmBootHandler(); 
+bool esalWarmBootHandler();
 
 #endif //WARMBOOT_DEFS_H
