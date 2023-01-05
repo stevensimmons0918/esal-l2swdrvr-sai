@@ -690,6 +690,9 @@ int VendorGetPortRate(uint16_t lPort, vendor_speed_t *speed) {
     }
 
     switch (attributes[0].value.u32) {
+        case 4:
+            *speed = VENDOR_SPEED_TWO_AND_HALF_GIGABIT;
+            break;
         case 10:
             *speed = VENDOR_SPEED_TEN;
             break;
@@ -703,9 +706,9 @@ int VendorGetPortRate(uint16_t lPort, vendor_speed_t *speed) {
             *speed = VENDOR_SPEED_TEN_GIGABIT;
             break;
         default:
-            std::cout << "Switch statement speed fail: " << attr.value.u32
-                      << std::endl; 
+            *speed = VENDOR_SPEED_UNKNOWN;
     }
+
 #endif
 
     return rc;
