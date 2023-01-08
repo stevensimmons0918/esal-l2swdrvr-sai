@@ -54,6 +54,12 @@ extern "C" {
 struct SaiPortEntry{
     uint16_t portId;
     sai_object_id_t portSai;
+    bool isCopper = false;
+    bool isSGMII = false;
+    uint16_t lPort;
+    bool autoneg;
+    vendor_speed_t speed; 
+    vendor_duplex_t duplex;
 };
 
 const int MAX_PORT_TABLE_SIZE = 512;
@@ -64,6 +70,8 @@ CPSS_PORT_MANAGER_SGMII_AUTO_NEGOTIATION_STC autoNegFlowControlCfg[MAX_PORT_TABL
 int portTableSize = 0;
 std::mutex portTableMutex; 
 
+void processSerdesInit(uint16_t lPort);
+ 
 bool esalPortTableFindId(sai_object_id_t portSai, uint16_t* portId) {
     // Search array for match.
     for(auto i = 0; i < portTableSize; i++) {
@@ -74,6 +82,100 @@ bool esalPortTableFindId(sai_object_id_t portSai, uint16_t* portId) {
     }
     *portId = 0;
     return false; 
+}
+
+void esalPortSavePortAttr(
+    uint16_t portId, uint16_t lPort, bool autoneg, vendor_speed_t speed, vendor_duplex_t duplex) {
+    for(auto i = 0; i < portTableSize; i++) {
+        if (portTable[i].portId == portId) {
+            portTable[i].lPort = lPort;
+            portTable[i].autoneg = autoneg;
+            portTable[i].speed = speed;
+            portTable[i].duplex = duplex;
+            return;
+        }
+    }
+}
+
+void esalPortTableSetCopper(uint16_t portId, bool isCopper) {
+    for(auto i = 0; i < portTableSize; i++) {
+        if (portTable[i].portId == portId) {
+            portTable[i].isCopper = isCopper;
+            return;
+        }
+    }
+    return;
+}
+
+void esalPortTableSetSGMII(uint16_t portId) {
+    for(auto i = 0; i < portTableSize; i++) {
+        if (portTable[i].portId == portId) {
+            
+            // No change if (isCopper and isSGMII) or (!isCopper and !SGMII)
+            //  
+            if ((portTable[i].isCopper && portTable[i].isSGMII) ||
+                (!portTable[i].isCopper && !portTable[i].isSGMII)) {
+                return;
+            }
+
+            // Now, transitioning between SGMII and 1000Base_X with following steps:
+            //  1. Delete the port from CPSS (required by SDK, or error returned
+            //       when calling cpssDxChSamplePortManagerMandatoryParamsSet
+            //  2. Call into cpssDxChSamplePortManagerMandatoryParamsSet to set ifmode:
+            //     CPSS_PORT_INTERFACE_MODE_SGMII_E or 
+            //     CPSS_PORT_INTERFACE_MODE_1000BASE_X_E
+            //  3. Create the interface again for CPSS.
+            //  4. Create the SAI port by calling into VendorSetPortRate.
+            //  5. Set Flow Control Attributes.
+            //  6. Set SerDes Attributes. 
+            //
+            CPSS_PORT_MANAGER_STC portEventStc;
+            portEventStc.portEvent = CPSS_PORT_MANAGER_EVENT_DELETE_E;
+            if (cpssDxChPortManagerEventSet(0, portId, &portEventStc)) {
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "cpssDxChPortManagerEventSet fail1\n"));
+            }
+            bool autoneg = true;
+            vendor_speed_t speed = VENDOR_SPEED_GIGABIT;
+            vendor_duplex_t duplex = VENDOR_DUPLEX_FULL; 
+            if (portTable[i].isCopper && !portTable[i].isSGMII) {
+               if (cpssDxChSamplePortManagerMandatoryParamsSet(
+                      0, portId, CPSS_PORT_INTERFACE_MODE_SGMII_E, CPSS_PORT_SPEED_1000_E, CPSS_PORT_FEC_MODE_DISABLED_E)){
+                   SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                       SWERR_FILELINE, "cpssDxChSamplePortManagerMandatoryParamsSet fail2\n"));
+               }
+               portTable[i].isSGMII = true;
+            } else if (!portTable[i].isCopper && portTable[i].isSGMII) {
+               if (cpssDxChSamplePortManagerMandatoryParamsSet(
+                      0, portId, CPSS_PORT_INTERFACE_MODE_1000BASE_X_E, CPSS_PORT_SPEED_1000_E, CPSS_PORT_FEC_MODE_DISABLED_E)){
+                   SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                       SWERR_FILELINE, "cpssDxChSamplePortManagerMandatoryParamsSet fail3\n"));
+               }
+               portTable[i].isSGMII = false;
+               autoneg = portTable[i].autoneg;
+               speed =  portTable[i].speed;
+               duplex = portTable[i].duplex;
+            }
+            portEventStc.portEvent = CPSS_PORT_MANAGER_EVENT_CREATE_E;
+            if (cpssDxChPortManagerEventSet(0, portId, &portEventStc)) {
+                 SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                     SWERR_FILELINE, "cpssDxChPortManagerEventSet fail4\n"));
+            }
+            (void) VendorSetPortRate(portTable[i].lPort, autoneg, speed, duplex);
+            if (!perPortCfgFlowControlInit(portId)) {
+                 SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                     SWERR_FILELINE, "perPortCfgFlowControlInit fail5\n"));
+            }
+
+#ifdef HAVE_MRVL
+#ifndef LARCH_ENVIRON
+            processSerdesInit(portTable[i].lPort);
+#endif
+#endif
+            return;
+        }
+    }
+    return;
 }
 
 bool esalPortTableFindSai(uint16_t portId, sai_object_id_t *portSai) {
@@ -431,6 +533,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
     int rc  = ESAL_RC_OK;
     uint32_t pPort;
     uint32_t dev;
+    bool isCopper = false; 
 
     if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
@@ -453,6 +556,13 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         values.push_back(val); 
         if (!esalSFPSetPort) return ESAL_RC_FAIL;
         esalSFPSetPort(lPort, values.size(), values.data());
+        val.SFPAttr = SFPCopper;
+        val.SFPVal.Copper = false;
+        values.clear();
+        values.push_back(val); 
+        if (!esalSFPGetPort) return ESAL_RC_FAIL;
+        esalSFPGetPort(lPort, values.size(), values.data());
+        isCopper = values[0].SFPVal.Copper;
     }
 
     if (!useSaiFlag){
@@ -550,6 +660,8 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
     uint32_t devNum = 0;
     // Get portNum from oid
     uint16_t portNum = (uint16_t)GET_OID_VAL(portSai);
+    esalPortSavePortAttr(portNum, lPort, autoneg, speed, duplex);
+    esalPortTableSetCopper(portNum, isCopper);
     int cpssDuplexMode;
     if (duplex == VENDOR_DUPLEX_HALF)
         cpssDuplexMode = CPSS_PORT_HALF_DUPLEX_E;
@@ -563,7 +675,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         cppsAutoneg = GT_FALSE;
 
     // Do not alter the interface in the case of the EVAL card.
-    // 
+    //
     if (hwid_value.compare("ALDRIN2EVAL") != 0) {
         if (speed == VENDOR_SPEED_TEN || speed == VENDOR_SPEED_HUNDRED || speed == VENDOR_SPEED_GIGABIT) {
             if (cpssDxChPortDuplexModeSet(devNum, portNum, cpssDuplexMode) != 0) {
@@ -594,7 +706,6 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
                       << std::endl;
         }
     }
-
 
 #endif
 
@@ -690,8 +801,9 @@ int VendorGetPortRate(uint16_t lPort, vendor_speed_t *speed) {
             break;
         default:
             *speed = VENDOR_SPEED_UNKNOWN;
+            std::cout << "Switch statement speed fail: " << attr.value.u32
+                      << std::endl; 
     }
-
 #endif
 
     return rc;
@@ -890,8 +1002,9 @@ int VendorGetPortAutoNeg(uint16_t lPort, bool *aneg) {
 
 int VendorGetPortLinkState(uint16_t lPort, bool *ls) {
 #ifdef DEBUG
-    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort  << std::endl;
+     std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort  << std::endl;
 #endif
+
     // Hack to hardcode link state to UP on eval card
     // To be removed once SFP Manager is suppported
     if ((saiUtils.GetUnitCode() == "feed") ||
@@ -920,9 +1033,13 @@ int VendorGetPortLinkState(uint16_t lPort, bool *ls) {
         val.SFPAttr = SFPLinkStatus;
         val.SFPVal.LinkStatus = *ls;
         values.push_back(val); 
+        val.SFPAttr = SFPCopper;
+        values.push_back(val); 
         if (!esalSFPGetPort) return ESAL_RC_FAIL; 
         esalSFPGetPort(lPort, values.size(), values.data());
-        *ls = values[0].SFPVal.AutoNeg;
+        *ls = values[0].SFPVal.LinkStatus;
+        esalPortTableSetCopper(pPort, values[1].SFPVal.Copper);
+        esalPortTableSetSGMII(pPort);
         return rc; 
     }
 #endif    
@@ -1027,6 +1144,8 @@ int VendorEnablePort(uint16_t lPort) {
         std::cout << "set_port fail: " << esalSaiError(retcode) << std::endl;
         return ESAL_RC_FAIL; 
     }
+   
+    esalPortTableSetSGMII(pPort);
 
     if (!perPortCfgFlowControlInit(pPort)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
@@ -1578,8 +1697,6 @@ VendorL2ParamChangeCb_fp_t portStateChangeCb = 0;
 void *portStateCbData = 0; 
 
 int VendorRegisterL2ParamChangeCb(VendorL2ParamChangeCb_fp_t cb, void *cbId) {
-    std::cout << __PRETTY_FUNCTION__ << std::endl;
-
     // Register global callback used for autoneg and link status. 
     std::unique_lock<std::mutex> lock(portTableMutex);
     portStateChangeCb = cb;
@@ -1734,7 +1851,6 @@ int VendorReadReg(uint16_t lPort, uint16_t reg, uint16_t *val) {
 }
 
 int VendorWriteReg(uint16_t lPort, uint16_t reg, uint16_t val) {
-    std::cout << "VendorWriteReg lport: " << lPort << " reg: " << reg << " val: " << val << "\n" << std::flush;
     if (!useSaiFlag) {
         return ESAL_RC_OK;
     }
