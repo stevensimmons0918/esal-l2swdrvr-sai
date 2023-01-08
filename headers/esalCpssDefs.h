@@ -311,6 +311,43 @@ typedef struct{
     CPSS_DXCH_PORT_FEC_MODE_ENT fecRequestedArr [CPSS_DXCH_PORT_AP_IF_ARRAY_SIZE_CNS];
 } CPSS_DXCH_PORT_AP_PARAMS_STC;
 
+
+typedef enum{
+
+    CPSS_PORT_MANAGER_EVENT_CREATE_E,   /* 0 */
+    CPSS_PORT_MANAGER_EVENT_DELETE_E,   /* 1 */
+    CPSS_PORT_MANAGER_EVENT_ENABLE_E,   /* 2 */
+    CPSS_PORT_MANAGER_EVENT_DISABLE_E,   /* 3 */
+    CPSS_PORT_MANAGER_EVENT_INIT_E,   /* 4 */
+    CPSS_PORT_MANAGER_EVENT_LOW_LEVEL_STATUS_CHANGED_E,   /* 5 */
+    CPSS_PORT_MANAGER_EVENT_MAC_LEVEL_STATUS_CHANGED_E,   /* 6 */
+    CPSS_PORT_MANAGER_EVENT_PORT_AP_HCD_FOUND_E,          /* 7 */
+    CPSS_PORT_MANAGER_EVENT_CREATE_AND_DISABLE_E,           /* 8 */
+    CPSS_PORT_MANAGER_EVENT_REMOTE_FAULT_TX_CHANGE_E,       /* 9 */
+    CPSS_PORT_MANAGER_EVENT_PORT_AP_DISABLE_E,              /* 10 */
+    CPSS_PORT_MANAGER_EVENT_PORT_DEBUG_E,                   /* 11 */
+    CPSS_PORT_MANAGER_EVENT_PORT_AP_RESTART_E,              /* 12 */
+    CPSS_PORT_MANAGER_EVENT_PORT_NO_DEBUG_E,                /* 13 */
+    CPSS_PORT_MANAGER_EVENT_CREATE_AND_FORCE_LINK_DOWN_E,   /* 14 */
+    CPSS_PORT_MANAGER_EVENT_FORCE_LINK_DOWN_E,              /* 15 */
+    CPSS_PORT_MANAGER_EVENT_UNFORCE_LINK_DOWN_E,            /* 16 */
+    CPSS_PORT_MANAGER_EVENT_PORT_AP_PARALLEL_DETECT_E,    /* 17 */
+    CPSS_PORT_MANAGER_EVENT_TYPE_LAST_E
+} CPSS_PORT_MANAGER_EVENT_ENT;
+
+
+typedef struct{
+
+    /** @brief Event which is used to operate the port within the
+      *  port manager state machine
+      *  Comments:
+      *  None.
+      */
+    CPSS_PORT_MANAGER_EVENT_ENT portEvent;
+
+} CPSS_PORT_MANAGER_STC;
+
+
 extern GT_STATUS cpssDxChPhyPortSmiRegisterWrite(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum,
                     GT_U8 phyReg, uint16_t data);
 extern GT_STATUS cpssDxChPhyPortSmiRegisterRead(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum,
@@ -323,6 +360,19 @@ extern GT_STATUS cpssDxChPortAutoNegAdvertismentConfigSet(GT_U8 devNum, GT_PHYSI
                                                              CPSS_DXCH_PORT_AUTONEG_ADVERTISMENT_STC *portAnAdvertismentPtr);
 extern GT_STATUS cpssDxChPortAutoNegAdvertismentConfigGet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum,
                                                              CPSS_DXCH_PORT_AUTONEG_ADVERTISMENT_STC *portAnAdvertismentPtr);
+
+extern GT_STATUS cpssDxChPortInterfaceModeSet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, CPSS_PORT_INTERFACE_MODE_ENT modev);
+extern GT_STATUS cpssDxChSamplePortManagerMandatoryParamsSet
+(
+      GT_U8                           devNum,
+      GT_PHYSICAL_PORT_NUM            portNum,
+      CPSS_PORT_INTERFACE_MODE_ENT    ifMode,
+      CPSS_PORT_SPEED_ENT             speed,
+      CPSS_PORT_FEC_MODE_ENT          fecMode
+);
+
+extern GT_STATUS cpssDxChPortManagerEventSet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum,  CPSS_PORT_MANAGER_STC   *portEventStc);
+
 
 extern GT_STATUS cpssDxChPortInbandAutoNegEnableSet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, GT_BOOL enable);
 extern GT_STATUS cpssDxChPortInbandAutoNegEnableGet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, GT_BOOL *enablePtr);
