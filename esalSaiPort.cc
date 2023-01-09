@@ -137,6 +137,7 @@ void esalPortTableSetSGMII(uint16_t portId) {
             //  5. Set Flow Control Attributes.
             //  6. Set SerDes Attributes. 
             //
+#ifndef UTS
             CPSS_PORT_MANAGER_STC portEventStc;
             portEventStc.portEvent = CPSS_PORT_MANAGER_EVENT_DELETE_E;
             if (cpssDxChPortManagerEventSet(0, portId, &portEventStc)) {
@@ -181,6 +182,7 @@ void esalPortTableSetSGMII(uint16_t portId) {
 #endif
 #endif
             return;
+#endif
         }
     }
     return;
@@ -550,7 +552,9 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
     int rc  = ESAL_RC_OK;
     uint32_t pPort;
     uint32_t dev;
+#ifndef UTS
     bool isCopper = false; 
+#endif
 
     if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
@@ -579,7 +583,9 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         values.push_back(val); 
         if (!esalSFPGetPort) return ESAL_RC_FAIL;
         esalSFPGetPort(lPort, values.size(), values.data());
+#ifndef UTS
         isCopper = values[0].SFPVal.Copper;
+#endif
     }
 
     if (!useSaiFlag){
