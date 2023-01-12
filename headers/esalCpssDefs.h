@@ -1,14 +1,14 @@
 /*
- *  esalCpssDefs.h 
+ *  esalCpssDefs.h
  *
  *  Copyright (C) 2022, Fujitsu Networks Communications, Inc.
  *
- *  Brief: Global Definitions of CPSS (Marvell SDK) used by ESAL. 
+ *  Brief: Global Definitions of CPSS (Marvell SDK) used by ESAL.
  *
  *  Author: Steve Simmons
  */
 
-#ifndef _ESAL_CPSS_DEFS_H_ 
+#ifndef _ESAL_CPSS_DEFS_H_
 #define _ESAL_CPSS_DEFS_H_
 extern "C" {
 
@@ -573,23 +573,25 @@ extern GT_STATUS cpssDxChPortInBandAutoNegBypassEnableGet(GT_U8 devNum, GT_PHYSI
 extern GT_STATUS cpssDxChPortFlowCntrlAutoNegEnableSet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, GT_BOOL  enable, GT_BOOL pauseAdvertise);
 extern GT_STATUS cpssDxChPortFlowCntrlAutoNegEnableGet(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum, GT_BOOL *statePtr, GT_BOOL *pauseAdvertisePtr);
 
-extern GT_STATUS cpssDxChPortFlowControlEnableSet(GT_U8 devNum, 
-                    GT_PHYSICAL_PORT_NUM portNum, 
+extern GT_STATUS cpssDxChPortFlowControlEnableSet(GT_U8 devNum,
+                    GT_PHYSICAL_PORT_NUM portNum,
                     CPSS_PORT_FLOW_CONTROL_ENT  state);
-extern GT_STATUS cpssDxChPortFlowControlEnableGet(GT_U8 devNum, 
-                    GT_PHYSICAL_PORT_NUM portNum, 
+extern GT_STATUS cpssDxChPortFlowControlEnableGet(GT_U8 devNum,
+                    GT_PHYSICAL_PORT_NUM portNum,
                     CPSS_PORT_FLOW_CONTROL_ENT *statePtr);
 
-extern GT_STATUS cpssDxChPortApPortConfigSet(GT_U8 devNum, 
-                    GT_PHYSICAL_PORT_NUM portNum, GT_BOOL apEnable, 
+extern GT_STATUS cpssDxChPortApPortConfigSet(GT_U8 devNum,
+                    GT_PHYSICAL_PORT_NUM portNum, GT_BOOL apEnable,
                     CPSS_DXCH_PORT_AP_PARAMS_STC *apParamsPtr);
-extern GT_STATUS cpssDxChPortApPortConfigGet(GT_U8 devNum, 
-                    GT_PHYSICAL_PORT_NUM portNum, GT_BOOL *apEnablePtr, 
+extern GT_STATUS cpssDxChPortApPortConfigGet(GT_U8 devNum,
+                    GT_PHYSICAL_PORT_NUM portNum, GT_BOOL *apEnablePtr,
                     CPSS_DXCH_PORT_AP_PARAMS_STC *apParamsPtr);
 
 extern GT_STATUS cpssDxChDiagDeviceTemperatureGet(GT_U8 devNum,
                      GT_32 *temperaturePtr);
 extern GT_STATUS cpssSystemRecoveryStateSet(CPSS_SYSTEM_RECOVERY_INFO_STC *recovery_info);
+
+extern GT_STATUS prvCpssDrvHwPpWriteRegister (GT_U8 devNum, GT_U32 regAddr, GT_U32 value);
 
 #endif
 }
