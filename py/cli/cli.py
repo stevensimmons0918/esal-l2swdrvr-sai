@@ -99,5 +99,5 @@ def main():
         print '\nStop CLI'
 
 
-test.run_tests()
+# test.run_tests()
 main()

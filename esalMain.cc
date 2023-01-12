@@ -8,6 +8,27 @@
 
 extern "C" bool run_acl_samples(void);
 
+// #define REG_RESTORE
+
+#ifdef REG_RESTORE
+#include "headers/esalCpssDefs.h"
+typedef struct
+{
+    GT_U32  regAddr;
+    GT_U32  value;
+} regsToRestore_t;
+
+void restoreRegisters() {
+    regsToRestore_t regsToRestore[] =
+    #include "registers.h"
+
+    for (auto regval : regsToRestore) {
+        prvCpssDrvHwPpWriteRegister(0, regval.regAddr, regval.value);
+    }
+}
+
+#endif
+
 void run_cli ()
 {
     char cli_filename[] = "py/cli/cli.py";
@@ -31,6 +52,10 @@ int main()
         // trans.oldVlan = 100;
         // //VendorSetIngressVlanTranslation(28, trans);
         VendorSetPortNniMode(28, VENDOR_NNI_MODE_UNI);
+
+#ifdef REG_RESTORE
+        restoreRegisters();
+#endif
 
         if (ESAL_WARM) {
             createFolderIfNotExist(BACKUP_FOLDER);
