@@ -74,7 +74,7 @@ $(OUT_DIR)/%.o:%.cc
 
 esal_app: esal_lib
 	$(MKDIR_P) $(BIN_DIR)
-	$(CC) -o esalApp $(CFLAGS) $(LDFLAGS) esalMain.cc -lesal -I/usr/include/python2.7 -lpython2.7
+	$(CC) -o esalApp $(CFLAGS) $(LDFLAGS) esalMain.cc -lesal -lsai -I/usr/include/python2.7 -lpython2.7
 
 esal_lib: $(ESAL_OBJECTS)
 	echo ESAL objects: $(ESAL_OBJECTS)
