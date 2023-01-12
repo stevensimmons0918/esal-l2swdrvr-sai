@@ -658,7 +658,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         attr.value.s32 = SAI_PORT_FEC_MODE_FC;
         attributes.push_back(attr);
 
-    } else if (esalHostPortId == pPort && hwid_value.compare("ALDRIN2EVAL") == 0) {
+    } else if (hwid_value.compare("ALDRIN2EVAL") == 0) {
         // Just return immediately and ignore any requests to set. 
         // This is the eval board, and changes disrupted behavior.
         // FSS-3595.
