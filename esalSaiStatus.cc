@@ -174,7 +174,7 @@ int VendorGetL2Pm(uint16_t *usedLen, uint16_t maxLen, char* gpbBuf) {
                 continue;
             }
             // Get the stats
-            const int numCtrs = 6;
+            const int numCtrs = 16;
             uint64_t ctrs[numCtrs];
             sai_stat_id_t ctrIds[numCtrs];
             ctrIds[0] = SAI_PORT_STAT_IF_IN_OCTETS;
@@ -183,6 +183,16 @@ int VendorGetL2Pm(uint16_t *usedLen, uint16_t maxLen, char* gpbBuf) {
             ctrIds[3] = SAI_PORT_STAT_IF_IN_NON_UCAST_PKTS;
             ctrIds[4] = SAI_PORT_STAT_IF_OUT_UCAST_PKTS;
             ctrIds[5] = SAI_PORT_STAT_IF_OUT_NON_UCAST_PKTS;
+            ctrIds[6] = SAI_PORT_STAT_IF_IN_BROADCAST_PKTS;
+            ctrIds[7] = SAI_PORT_STAT_IF_IN_MULTICAST_PKTS;
+            ctrIds[8] = SAI_PORT_STAT_IF_IN_DISCARDS;
+            ctrIds[9] = SAI_PORT_STAT_IF_OUT_BROADCAST_PKTS;
+            ctrIds[10] = SAI_PORT_STAT_IF_OUT_MULTICAST_PKTS;
+            ctrIds[11] = SAI_PORT_STAT_IF_OUT_DISCARDS;
+            ctrIds[12] = SAI_PORT_STAT_IF_OUT_OCTETS;
+            ctrIds[13] = SAI_PORT_STAT_IF_OUT_ERRORS;
+            ctrIds[14] = SAI_PORT_STAT_PAUSE_RX_PKTS;
+            ctrIds[15] = SAI_PORT_STAT_PAUSE_TX_PKTS;
 
             retcode = saiPortApi->get_port_stats(
                                     portSai, numCtrs, ctrIds, ctrs); 
@@ -196,6 +206,20 @@ int VendorGetL2Pm(uint16_t *usedLen, uint16_t maxLen, char* gpbBuf) {
             pmCtrs->set_errorrxframes(ctrs[1]);
             pmCtrs->set_goodrxframes(ctrs[2] + ctrs[3]);
             pmCtrs->set_goodtxframes(ctrs[4] + ctrs[5]);
+            pmCtrs->set_snmpifinucastpkts(ctrs[2]);
+            pmCtrs->set_snmpifinerrors(ctrs[1]);
+            pmCtrs->set_snmpifinbroadcastpkts(ctrs[6]);
+            pmCtrs->set_snmpifinmulticastpkts(ctrs[7]);
+            pmCtrs->set_snmpifindiscards(ctrs[8]);
+            pmCtrs->set_snmpdot3inpauseframes(ctrs[14]);
+            pmCtrs->set_snmpifinoctets(ctrs[0]);
+            pmCtrs->set_snmpifoutucastpkts(ctrs[4]);
+            pmCtrs->set_snmpifoutbroadcastpkts(ctrIds[9]);
+            pmCtrs->set_snmpifoutmulticastpkts(ctrIds[10]);
+            pmCtrs->set_snmpdot3outpauseframes(ctrs[15]);
+            pmCtrs->set_snmpifoutdiscards(ctrIds[11]);
+            pmCtrs->set_snmpifoutoctets(ctrIds[12]);
+            pmCtrs->set_snmpifouterrors(ctrIds[13]);
 
             // Cleaar the stats.
             retcode = saiPortApi->clear_port_stats(portSai, numCtrs, ctrIds);

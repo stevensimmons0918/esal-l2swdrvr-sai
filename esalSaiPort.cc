@@ -468,7 +468,6 @@ bool portCfgFlowControlInit() {
 }
 
 void processSerdesInit(uint16_t lPort) {
-    std::cout << __PRETTY_FUNCTION__ << std::endl;
     uint32_t dev;
     uint32_t pPort;
     EsalSaiUtils::serdesTx_t tx;
@@ -642,14 +641,12 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         attr.value.s32 = SAI_PORT_FEC_MODE_FC;
         attributes.push_back(attr);
 
-    } else if (esalHostPortId == pPort && hwid_value.compare("ALDRIN2EVAL") == 0) {
-        attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
-        attr.value.booldata = false;
-        attributes.push_back(attr);
-
-        attr.id = SAI_PORT_ATTR_FEC_MODE;
-        attr.value.s32 = SAI_PORT_FEC_MODE_FC;
-        attributes.push_back(attr);
+    } else if (hwid_value.compare("ALDRIN2EVAL") == 0) {
+        // Just return immediately and ignore any requests to set. 
+        // This is the eval board, and changes disrupted behavior.
+        // FSS-3595.
+        //
+        return rc; 
 
     } else if (esalHostPortId == pPort && hwid_value.compare("AC3XILA") == 0) {
         attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
@@ -682,20 +679,18 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
 
     // Do not alter the interface in the case of the EVAL card.
     //
-    if (hwid_value.compare("ALDRIN2EVAL") != 0) {
-        if (speed == VENDOR_SPEED_TEN || speed == VENDOR_SPEED_HUNDRED || speed == VENDOR_SPEED_GIGABIT) {
-            if (cpssDxChPortDuplexModeSet(devNum, portNum, cpssDuplexMode) != 0) {
-                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                        SWERR_FILELINE, "VendorSetPortRate fail in cpssDxChPortDuplexModeSet\n"));
-                std::cout << "VendorSetPortRate fail, for pPort: " << pPort << "\n";
-                return ESAL_RC_FAIL;
-            }
-            if (cpssDxChPortInbandAutoNegEnableSet(devNum, portNum, cppsAutoneg) != 0) {
-                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                        SWERR_FILELINE, "VendorSetPortRate fail in cpssDxChPortInbandAutoNegEnableSet\n"));
-                std::cout << "VendorSetPortRate fail, for pPort: " << pPort << "\n";
-                return ESAL_RC_FAIL;
-            }
+    if (speed == VENDOR_SPEED_TEN || speed == VENDOR_SPEED_HUNDRED || speed == VENDOR_SPEED_GIGABIT) {
+        if (cpssDxChPortDuplexModeSet(devNum, portNum, cpssDuplexMode) != 0) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "VendorSetPortRate fail in cpssDxChPortDuplexModeSet\n"));
+            std::cout << "VendorSetPortRate fail, for pPort: " << pPort << "\n";
+            return ESAL_RC_FAIL;
+        }
+        if (cpssDxChPortInbandAutoNegEnableSet(devNum, portNum, cppsAutoneg) != 0) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "VendorSetPortRate fail in cpssDxChPortInbandAutoNegEnableSet\n"));
+            std::cout << "VendorSetPortRate fail, for pPort: " << pPort << "\n";
+            return ESAL_RC_FAIL;
         }
     }
 
@@ -790,9 +785,6 @@ int VendorGetPortRate(uint16_t lPort, vendor_speed_t *speed) {
     }
 
     switch (attributes[0].value.u32) {
-        case 4:
-            *speed = VENDOR_SPEED_TWO_AND_HALF_GIGABIT;
-            break;
         case 10:
             *speed = VENDOR_SPEED_TEN;
             break;
@@ -802,12 +794,15 @@ int VendorGetPortRate(uint16_t lPort, vendor_speed_t *speed) {
         case 1000:
             *speed = VENDOR_SPEED_GIGABIT;
             break;
+        case 2500:
+            *speed = VENDOR_SPEED_TWO_AND_HALF_GIGABIT;
+            break;
         case 10000:
             *speed = VENDOR_SPEED_TEN_GIGABIT;
             break;
         default:
             *speed = VENDOR_SPEED_UNKNOWN;
-            std::cout << "Switch statement speed fail: " << attr.value.u32
+            std::cout << "Switch statement speed fail: " << attributes[0].value.u32
                       << std::endl; 
     }
 #endif
