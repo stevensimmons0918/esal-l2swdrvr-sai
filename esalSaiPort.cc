@@ -644,6 +644,8 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
             break; 
     }
 
+
+    // Eval does not need to set speed or duplex mode.  It can confused the reasl hardware.
     if (hwid_value.compare("ALDRIN2EVAL") != 0) {
         attributes.push_back(attr); 
     }
