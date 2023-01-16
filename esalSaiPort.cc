@@ -611,6 +611,12 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         return ESAL_RC_FAIL; 
     }
 
+#ifndef LARCH_ENVIRON
+    std::string hwid_value = esalProfileMap["hwId"];
+#else
+    std::string hwid_value = "ALDRIN2XLFL";;
+#endif
+
     // Add attributes. 
     std::vector<sai_attribute_t> attributes;
     sai_attribute_t attr;
@@ -638,17 +644,16 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
             break; 
     }
 
-    attributes.push_back(attr); 
+    if (hwid_value.compare("ALDRIN2EVAL") != 0) {
+        attributes.push_back(attr); 
+    }
 #ifdef NOT_SUPPORTED_BY_SAI
-    attr.id = SAI_PORT_ATTR_FULL_DUPLEX_MODE;
-    attr.value.booldata = (duplex == VENDOR_DUPLEX_FULL) ? true : false; 
-    attributes.push_back(attr); 
+    if (hwid_value.compare("ALDRIN2EVAL") != 0) {
+        attr.id = SAI_PORT_ATTR_FULL_DUPLEX_MODE;
+        attr.value.booldata = (duplex == VENDOR_DUPLEX_FULL) ? true : false; 
+        attributes.push_back(attr); 
+    }
 #else // NOT_SUPPORTED_BY_SAI
-#ifndef LARCH_ENVIRON
-    std::string hwid_value = esalProfileMap["hwId"];
-#else
-    std::string hwid_value = "ALDRIN2XLFL";;
-#endif
     if (esalHostPortId == pPort && hwid_value.compare("ALDRIN2XLFL") == 0) {
         attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
         attr.value.booldata = true;
@@ -658,12 +663,14 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         attr.value.s32 = SAI_PORT_FEC_MODE_FC;
         attributes.push_back(attr);
 
-    } else if (hwid_value.compare("ALDRIN2EVAL") == 0) {
-        // Just return immediately and ignore any requests to set. 
-        // This is the eval board, and changes disrupted behavior.
-        // FSS-3595.
-        //
-        return rc; 
+    } else if (esalHostPortId == pPort && hwid_value.compare("ALDRIN2EVAL") == 0) {
+        attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
+        attr.value.booldata = false;
+        attributes.push_back(attr);
+
+        attr.id = SAI_PORT_ATTR_FEC_MODE;
+        attr.value.s32 = SAI_PORT_FEC_MODE_FC;
+        attributes.push_back(attr);
 
     } else if (esalHostPortId == pPort && hwid_value.compare("AC3XILA") == 0) {
         attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
@@ -696,21 +703,22 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
 
     // Do not alter the interface in the case of the EVAL card.
     //
-    if (speed == VENDOR_SPEED_TEN || speed == VENDOR_SPEED_HUNDRED || speed == VENDOR_SPEED_GIGABIT) {
-        if (cpssDxChPortDuplexModeSet(devNum, portNum, cpssDuplexMode) != 0) {
-            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+    if (hwid_value.compare("ALDRIN2EVAL") != 0) {
+        if (speed == VENDOR_SPEED_TEN || speed == VENDOR_SPEED_HUNDRED || speed == VENDOR_SPEED_GIGABIT) {
+            if (cpssDxChPortDuplexModeSet(devNum, portNum, cpssDuplexMode) != 0) {
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "VendorSetPortRate fail in cpssDxChPortDuplexModeSet\n"));
-            std::cout << "VendorSetPortRate fail, for pPort: " << pPort << "\n";
-            return ESAL_RC_FAIL;
-        }
-        if (cpssDxChPortInbandAutoNegEnableSet(devNum, portNum, cppsAutoneg) != 0) {
-            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                std::cout << "VendorSetPortRate fail, for pPort: " << pPort << "\n";
+                return ESAL_RC_FAIL;
+            }
+            if (cpssDxChPortInbandAutoNegEnableSet(devNum, portNum, cppsAutoneg) != 0) {
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "VendorSetPortRate fail in cpssDxChPortInbandAutoNegEnableSet\n"));
-            std::cout << "VendorSetPortRate fail, for pPort: " << pPort << "\n";
-            return ESAL_RC_FAIL;
+                std::cout << "VendorSetPortRate fail, for pPort: " << pPort << "\n";
+                return ESAL_RC_FAIL;
+            }
         }
     }
-
 #endif
 #endif
     // Set the port attributes
