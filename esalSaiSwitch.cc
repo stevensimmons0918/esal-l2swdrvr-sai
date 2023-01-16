@@ -38,7 +38,7 @@
 #include "sai/saiswitch.h"
 #include "sai/saihostif.h"
 
-//Default STP ID 
+//Default STP ID
 sai_object_id_t defStpId = 0;
 
 EsalSaiUtils saiUtils;
@@ -62,7 +62,7 @@ static DllUtil *sfpDll = 0;
 #endif
 #endif
 bool useSaiFlag = false;
-static uint16_t esalMaxPort = 0; 
+static uint16_t esalMaxPort = 0;
 uint16_t esalHostPortId;
 char esalHostIfName[SAI_HOSTIF_NAME_SIZE];
 std::map<std::string, std::string> esalProfileMap;
@@ -92,8 +92,8 @@ void loadSFPLibrary(void) {
     esalSFPGetPort =
         reinterpret_cast<SFPGetPort_fp_t>(sfpDll->getDllFunc("SFPGetPort"));
 #endif
-    
-    // Initialize the SFP library. 
+
+    // Initialize the SFP library.
     if (esalSFPLibInitialize) esalSFPLibInitialize();
 
     if (esalSFPSetPort) {
@@ -116,12 +116,12 @@ void loadSFPLibrary(void) {
 
 static void unloadSFPLibrary(void) {
 
-    // Undo the SFP Library. 
+    // Undo the SFP Library.
     //
     if (esalSFPLibUninitialize) esalSFPLibUninitialize();
 #ifndef UTS
     delete sfpDll;
-    sfpDll = 0; 
+    sfpDll = 0;
 #endif
     esalSFPLibInitialize = 0;
     esalSFPLibUninitialize = 0;
@@ -134,7 +134,7 @@ static void unloadSFPLibrary(void) {
 #endif
 #ifndef UTS
 static const char* profileGetValue(sai_switch_profile_id_t profileId, const char* variable){
-    (void) profileId; 
+    (void) profileId;
 
     if (variable == NULL) {
         return NULL;
@@ -187,7 +187,7 @@ int handleProfileMap(const std::string& profileMapFile) {
     std::ifstream profile(profileMapFile);
 
     if (!profile.is_open()) {
-        return ESAL_RC_FAIL; 
+        return ESAL_RC_FAIL;
     }
 
     std::string line;
@@ -206,9 +206,9 @@ int handleProfileMap(const std::string& profileMapFile) {
 
         std::cout << "ESAL SAI Profile: " << key << "=" << value << "\n";
         esalProfileMap[key] = value;
- 
+
         if (key == "HostPortId") {
-            esalHostPortId = std::stoi(value.c_str()); 
+            esalHostPortId = std::stoi(value.c_str());
         } else if (key == "HostPortIfName") {
             memcpy(esalHostIfName, value.c_str(), SAI_HOSTIF_NAME_SIZE);
         }
@@ -221,7 +221,7 @@ int esalHostIfListParser(std::string key , std::vector<sai_object_id_t>& out_vec
         std::string inLine = esalProfileMap["hostIfListDisable"];
         size_t pos = inLine.find(":");
         sai_object_id_t portSaiTmp;
-        
+
         while (inLine.size() > pos) {
             inLine.copy(port_buf, 3, pos-3);
             inLine.copy(value_buf, 1, pos+1);
@@ -234,7 +234,7 @@ int esalHostIfListParser(std::string key , std::vector<sai_object_id_t>& out_vec
             } else {
                 std::cout << "esalHostIfListParser error: unknown port state" << "\n";
             }
-            
+
             pos += 6;
         }
     return ESAL_RC_OK;
@@ -265,14 +265,14 @@ esal_vendor_api_version_t VendorApiGetVersion() {
             ESAL_VENDOR_API_VERSION_MAJOR});
 }
 
-bool switchStateUp = false; 
+bool switchStateUp = false;
 
-#ifndef UTS 
+#ifndef UTS
 static void onSwitchStateChange(sai_object_id_t sid, sai_switch_oper_status_t switchOp)
 {
     std::cout << "onSwitchStateChange: " << switchOp << " " << sid << "\n";
     if ((switchOp == SAI_SWITCH_OPER_STATUS_DOWN) && switchStateUp) {
-        switchStateUp = false; 
+        switchStateUp = false;
 #if 0
         VendorWarmRestartRequest();
 #endif
@@ -283,7 +283,7 @@ static void onSwitchStateChange(sai_object_id_t sid, sai_switch_oper_status_t sw
 
 static void onFdbEvent(uint32_t count, sai_fdb_event_notification_data_t *data)
 {
-    (void) data; 
+    (void) data;
     for(uint32_t i = 0; i < count; i++) {
         (void) esalAlterForwardingTable(data+i);
     }
@@ -329,7 +329,7 @@ void onPacketEvent(sai_object_id_t sid,
                    const void *buffer,
                    uint32_t attrCount,
                    const sai_attribute_t *attrList) {
-    (void) esalHandleSaiHostRxPacket(buffer, bufferSize, attrCount, attrList); 
+    (void) esalHandleSaiHostRxPacket(buffer, bufferSize, attrCount, attrList);
 }
 
 #endif
@@ -345,12 +345,12 @@ int DllInit(void) {
     loadSFPLibrary();
 #endif
 
-    // Verify that a config file is present first. 
+    // Verify that a config file is present first.
     //
     std::string marvellScript(saiUtils.GetCfgPath("mvll.cfg"));
     auto fptr = fopen(marvellScript.c_str(), "r");
     if (fptr) {
-        // Now, send the appDemo command if file exists. 
+        // Now, send the appDemo command if file exists.
         //
         fclose(fptr);
         std::string cmdLine("/usr/bin/appDemo -daemon -config ");
@@ -395,37 +395,37 @@ int DllInit(void) {
     sai_api_initialize(0, &testServices);
 
     // Query to get switch_api
-    //  
-    sai_switch_api_t *saiSwitchApi; 
+    //
+    sai_switch_api_t *saiSwitchApi;
     sai_status_t retcode = sai_api_query(SAI_API_SWITCH, (void**)&saiSwitchApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "API Query Fail in DllInit\n"));
-        std::cout << "sai_api_query failed: " << esalSaiError(retcode) << "\n"; 
+        std::cout << "sai_api_query failed: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
-    } 
+    }
 
-    // Determine which switch attributes to set. 
-    // 
+    // Determine which switch attributes to set.
+    //
     std::vector<sai_attribute_t> attributes;
 
     sai_attribute_t attr;
-    
+
     attr.id = SAI_SWITCH_ATTR_INIT_SWITCH;
     attr.value.booldata = true;
-    attributes.push_back(attr); 
+    attributes.push_back(attr);
 
     attr.id = SAI_SWITCH_ATTR_SWITCH_STATE_CHANGE_NOTIFY;
     attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onSwitchStateChange);
-    attributes.push_back(attr); 
+    attributes.push_back(attr);
 
     attr.id = SAI_SWITCH_ATTR_FDB_EVENT_NOTIFY;
     attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onFdbEvent);
-    attributes.push_back(attr); 
+    attributes.push_back(attr);
 
     attr.id = SAI_SWITCH_ATTR_PORT_STATE_CHANGE_NOTIFY;
     attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onPortStateChange);
-    attributes.push_back(attr); 
+    attributes.push_back(attr);
 
     attr.id = SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY;
     attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onPacketEvent);
@@ -433,13 +433,13 @@ int DllInit(void) {
 
     attr.id = SAI_SWITCH_ATTR_SWITCH_PROFILE_ID;
     attr.value.u32 = 0;
-    attributes.push_back(attr); 
+    attributes.push_back(attr);
 
     attr.id = SAI_SWITCH_ATTR_SWITCH_HARDWARE_INFO;
 #ifndef LARCH_ENVIRON
     std::string hwid_value = esalProfileMap["hwId"];
 #else
-    std::string hwid_value = "ALDRIN2XLFL";;
+    std::string hwid_value = "AC3XFS";;
 #endif
     attr.value.s8list.list = (sai_int8_t*)calloc(hwid_value.length() + 1, sizeof(sai_int8_t));
     std::copy(hwid_value.begin(), hwid_value.end(), attr.value.s8list.list);
@@ -447,7 +447,7 @@ int DllInit(void) {
 
     attr.id = SAI_SWITCH_ATTR_FDB_AGING_TIME;
     attr.value.u32 = 0;
-    attributes.push_back(attr); 
+    attributes.push_back(attr);
 
 #if 0 // Currently FNC does not need this.
     // If we don't set this attribute then all interfaces have random MAC.
@@ -456,7 +456,7 @@ int DllInit(void) {
     // In normal situation this mac
     // will be derived from sai.profile
     // FIXME: http://rtx-swtl-jira.fnc.net.local/browse/LARCH-4
-    // Value must be determine by reading lladdr for eth interface. 
+    // Value must be determine by reading lladdr for eth interface.
     //
     attr.id = SAI_SWITCH_ATTR_SRC_MAC_ADDRESS;
     memset(&attr.value.mac, 0, sizeof(attr.value.mac));
@@ -469,37 +469,37 @@ int DllInit(void) {
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "create_switch Fail in DllInit\n"));
-        std::cout << "create failed: " << esalSaiError(retcode) << "\n"; 
+        std::cout << "create failed: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
-    } 
+    }
 
     attr.id = SAI_SWITCH_ATTR_DEFAULT_1Q_BRIDGE_ID;
-    
+
     retcode =  saiSwitchApi->get_switch_attribute(esalSwitchId, 1, &attr);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "get_switch_attribute Fail in DllInit\n"));
-        std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
+        std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
-    } 
-    
+    }
+
     if (!esalSetDefaultBridge(attr.value.oid)) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                   SWERR_FILELINE, "esalSetDefaultBridge fail VendorAddPortsToVlan\n"));
             std::cout << "can't set default bridge object:" << "\n";
                 return ESAL_RC_FAIL;
-            
+
     }
-     
+
     attr.id = SAI_SWITCH_ATTR_PORT_NUMBER;
-    
+
     retcode =  saiSwitchApi->get_switch_attribute(esalSwitchId, 1, &attr);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "get_switch_attribute Fail in DllInit\n"));
-        std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
+        std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
-    } 
+    }
     uint32_t port_number = attr.value.u32;
 
     // Get port list //
@@ -509,14 +509,14 @@ int DllInit(void) {
     attr.id = SAI_SWITCH_ATTR_PORT_LIST;
     attr.value.objlist.count = (uint32_t)port_list.size();
     attr.value.objlist.list = port_list.data();
-    
+
     retcode =  saiSwitchApi->get_switch_attribute(esalSwitchId, 1, &attr);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "get_switch_attribute Fail in DllInit\n"));
-        std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
+        std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
-    } 
+    }
 
     for (uint32_t i = 0; i < port_number; i++) {
         if (!esalPortTableAddEntry(i, &attr.value.objlist.list[i])) {
@@ -527,7 +527,7 @@ int DllInit(void) {
         }
         auto portId = (uint16_t)GET_OID_VAL(attr.value.objlist.list[i]);
         if (portId > esalMaxPort) {
-            esalMaxPort = portId; 
+            esalMaxPort = portId;
         }
 
     }
@@ -554,9 +554,9 @@ int DllInit(void) {
     sai_object_id_t stpPortSai;
     sai_object_id_t bridgePortSai;
 
-    
+
     for (uint32_t i = 0; i < port_number; i++) {
-        
+
         if (!esalPortTableGetSaiByIdx(i, &portSai)) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                   SWERR_FILELINE, "esalPortTableFindSai fail in DllInit\n"));
@@ -624,18 +624,18 @@ int DllDestroy(void) {
 #ifndef UTS
 
     // Query to get switch_api
-    //  
-    sai_switch_api_t *saiSwitchApi; 
+    //
+    sai_switch_api_t *saiSwitchApi;
     sai_status_t retcode = sai_api_query(SAI_API_SWITCH, (void**)&saiSwitchApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "sai_api_query Fail in DllDestroy\n"));
-        std::cout << "sai_api_query failed: " << esalSaiError(retcode) << "\n"; 
+        std::cout << "sai_api_query failed: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
-    } 
-   
+    }
+
     // Mark pre-shutdoown
-    //   
+    //
     sai_attribute_t attr;
     attr.id = SAI_SWITCH_ATTR_PRE_SHUTDOWN;
     attr.value.booldata = true;
@@ -643,24 +643,24 @@ int DllDestroy(void) {
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "set_switch_attribute Fail in DllDestroy\n"));
-        std::cout << "set switch shutown: " << esalSaiError(retcode) << "\n"; 
+        std::cout << "set switch shutown: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
     }
-    
-    // Remove all switch resoources. 
-    //   
+
+    // Remove all switch resoources.
+    //
     retcode = saiSwitchApi->remove_switch(esalSwitchId);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "remove_switch Fail in DllDestroy\n"));
-        std::cout << "remove switch fail: " << esalSaiError(retcode) << "\n"; 
+        std::cout << "remove switch fail: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
     }
     sai_api_uninitialize();
     esalSwitchId = SAI_NULL_OBJECT_ID;
 
 
-#endif 
+#endif
 
     // Unload the SFP Library.
     //
@@ -683,7 +683,7 @@ int VendorBoardInit(void) {
         return ESAL_RC_OK;
     }
 
-    // WARNING: VendorBoardInit is different than DLL calls. 
+    // WARNING: VendorBoardInit is different than DLL calls.
     //    In this case, the returned value of "0" is SUCCESS, and all other
     //    returned values are FAILURE.
     //
@@ -701,10 +701,10 @@ int VendorWarmRestartRequest(void) {
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
-    switchStateUp = false; 
+    switchStateUp = false;
 
 #ifndef LARCH_ENVIRON
-     // Inform SFP about cold restart. 
+     // Inform SFP about cold restart.
      //
      if (esalSFPLibraryRestart) {
          if (!esalSFPLibraryRestart(false)) {
@@ -714,22 +714,22 @@ int VendorWarmRestartRequest(void) {
          std::cout << "esalSFPLibraryRestart uninitialized\n";
      }
 #endif
-    
+
     // Query to get switch_api
-    //  
+    //
 
 #ifndef UTS
-    sai_switch_api_t *saiSwitchApi; 
+    sai_switch_api_t *saiSwitchApi;
     sai_status_t retcode = sai_api_query(SAI_API_SWITCH, (void**)&saiSwitchApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "sai_api_query Fail in VendorWarmRestartRequest\n"));
-        std::cout << "sai_api_query failed: " << esalSaiError(retcode) << "\n"; 
+        std::cout << "sai_api_query failed: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
-    } 
-   
+    }
+
     // Set switch attribute
-    // 
+    //
     sai_attribute_t attr;
     attr.id = SAI_SWITCH_ATTR_RESTART_WARM;
     attr.value.booldata = true;
@@ -737,9 +737,9 @@ int VendorWarmRestartRequest(void) {
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "set_switch_attribute Fail in VendorWarmRestartRequest\n"));
-        std::cout << "set_switch_attribute failed: " << retcode << "\n"; 
+        std::cout << "set_switch_attribute failed: " << retcode << "\n";
         return ESAL_RC_FAIL;
-    } 
+    }
 #endif
 
     return ESAL_RC_OK;

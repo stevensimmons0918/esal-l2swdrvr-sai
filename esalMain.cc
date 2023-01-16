@@ -53,6 +53,51 @@ int main()
         // //VendorSetIngressVlanTranslation(28, trans);
         VendorSetPortNniMode(28, VENDOR_NNI_MODE_UNI);
 
+        vendor_vlan_translation_t vv_tr;
+
+        vv_tr.oldVlan = 2050;
+        vv_tr.newVlan = 2060;
+        VendorSetIngressVlanTranslation(10, vv_tr);
+        vv_tr.oldVlan = 2053;
+        vv_tr.newVlan = 2040;
+        VendorSetIngressVlanTranslation(10, vv_tr);
+        vv_tr.oldVlan = 3950;
+        vv_tr.newVlan = 3900;
+        VendorSetIngressVlanTranslation(10, vv_tr);
+        vv_tr.oldVlan = 3951;
+        vv_tr.newVlan = 3948;
+        VendorSetIngressVlanTranslation(10, vv_tr);
+
+        vv_tr.oldVlan = 2060;
+        vv_tr.newVlan = 2050;
+        VendorSetIngressVlanTranslation(10, vv_tr);
+        vv_tr.oldVlan = 2040;
+        vv_tr.newVlan = 2053;
+        VendorSetIngressVlanTranslation(10, vv_tr);
+        vv_tr.oldVlan = 3900;
+        vv_tr.newVlan = 3950;
+        VendorSetIngressVlanTranslation(10, vv_tr);
+        vv_tr.oldVlan = 3948;
+        vv_tr.newVlan = 3951;
+        VendorSetIngressVlanTranslation(10, vv_tr);
+
+        vv_tr.oldVlan = 2050;
+        vv_tr.newVlan = 2061;
+        VendorSetIngressVlanTranslation(13, vv_tr);
+        vv_tr.oldVlan = 2053;
+        vv_tr.newVlan = 2041;
+        VendorSetIngressVlanTranslation(13, vv_tr);
+        vv_tr.oldVlan = 3950;
+        vv_tr.newVlan = 3901;
+        VendorSetIngressVlanTranslation(13, vv_tr);
+        vv_tr.oldVlan = 3951;
+        vv_tr.newVlan = 3949;
+        VendorSetIngressVlanTranslation(13, vv_tr);
+
+        vv_tr.oldVlan = 2061;
+        vv_tr.newVlan = 2050;
+        VendorSetIngressVlanTranslation(13, vv_tr);
+
 #ifdef REG_RESTORE
         restoreRegisters();
 #endif

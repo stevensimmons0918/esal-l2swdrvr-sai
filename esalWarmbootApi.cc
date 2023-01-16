@@ -5,7 +5,8 @@
 #include <string>
 #include <sys/stat.h>
 
-bool ESAL_WARM = true;
+// bool ESAL_WARM = true;
+bool ESAL_WARM = false;
 
 std::map<std::string, bool (*)()> warmBootHandlers = {
     {"VLAN", vlanWarmBootHandler},
