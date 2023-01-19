@@ -142,8 +142,10 @@ void esalAlterForwardingTable(sai_fdb_event_notification_data_t *fdbNotify) {
                  int cpyIdx = 0;
                  for(int i = 0; i < fdbTableSize; i++) {
                      auto &fdb = fdbTable[i];
-                     if (fdb.egressPort != portId) { 
-                         fdbTable[cpyIdx++] = fdb; 
+                     if (fdb.egressPort != portId ) { 
+                         fdbTable[cpyIdx++] = fdb;
+                         memcpy(fdbUpd.mac_address, fdb.macAddr, sizeof(sai_mac_t));
+                         fdbUpd.bv_id = portId;
                      }
                  }
                  fdbTableSize = cpyIdx;
@@ -157,6 +159,8 @@ void esalAlterForwardingTable(sai_fdb_event_notification_data_t *fdbNotify) {
                      auto &fdb = fdbTable[i];
                      if (fdb.vlanSai != vlanSai) { 
                          fdbTable[cpyIdx++] = fdb; 
+                         memcpy(fdbUpd.mac_address, fdb.macAddr, sizeof(sai_mac_t));
+                         fdbUpd.bv_id = vlanSai;
                      }
                  }
                  fdbTableSize = cpyIdx;
