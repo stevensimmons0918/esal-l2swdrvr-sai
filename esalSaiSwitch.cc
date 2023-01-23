@@ -446,7 +446,7 @@ int DllInit(void) {
     attributes.push_back(attr);
 
     attr.id = SAI_SWITCH_ATTR_FDB_AGING_TIME;
-    attr.value.u32 = 0;
+    attr.value.u32 = 300;
     attributes.push_back(attr); 
 
 #if 0 // Currently FNC does not need this.
