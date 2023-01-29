@@ -78,7 +78,7 @@ esal_app: esal_lib
 
 esal_lib: $(ESAL_OBJECTS)
 	echo ESAL objects: $(ESAL_OBJECTS)
-	$(CC) -shared -o $(OUT_DIR)/libesal.so $(LDFLAGS) $(ESAL_OBJECTS) -ldl -lpthread -lrt -lstdc++ -lm -lsai -ldl
+	$(CC) -shared -o $(OUT_DIR)/libesal.so $(LDFLAGS) $(ESAL_OBJECTS) -ldl -lpthread -lrt -lstdc++ -lm -lsai -ldl -lconfig++
 	sudo cp $(OUT_DIR)/libesal.so /usr/lib
 
 clean:
