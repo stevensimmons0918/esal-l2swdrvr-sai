@@ -6,6 +6,8 @@
 #include <map>
 #include <string>
 
+#include <libconfig.h++>
+
 #define BACKUP_FOLDER "wb_backup/"
 
 #define BACKUP_FILE_VLAN BACKUP_FOLDER "wb_vlan"
