@@ -23,6 +23,8 @@
 #include <string>
 #include <fstream>
 
+#include <libconfig.h++>
+
 #include <esal_vendor_api/esal_vendor_api.h>
 #include <esal_warmboot_api/esal_warmboot_api.h>
 
