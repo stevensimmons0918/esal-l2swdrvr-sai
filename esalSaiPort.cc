@@ -2036,6 +2036,8 @@ int VendorDropUntaggedPacketsOnIngress(uint16_t lPort) {
 
 bool serializePortTableConfig(SaiPortEntry *portTable, int *portTableSize,
                                                             const std::string &fileName) {
+    std::unique_lock<std::mutex> lock(portTableMutex);
+
     libconfig::Config cfg;
     libconfig::Setting &root = cfg.getRoot();
 

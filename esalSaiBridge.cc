@@ -524,6 +524,8 @@ int VendorEnableMacLearningPerPort(uint16_t lPort) {
 }
 
 bool serializeBridgePortTableConfig(BridgeMember *bridgePortTable, const int bridgePortTableSize, const std::string &fileName) {
+    std::unique_lock<std::mutex> lock(bridgeMutex);
+
     libconfig::Config cfg;
     libconfig::Setting &root = cfg.getRoot();
 
