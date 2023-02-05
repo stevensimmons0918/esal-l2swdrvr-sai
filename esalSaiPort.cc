@@ -19,7 +19,11 @@
 #include <cinttypes>
 #include <mutex>
 #include <vector>
+
+#include <libconfig.h++>
+
 #include "esal_vendor_api/esal_vendor_api.h"
+#include <esal_warmboot_api/esal_warmboot_api.h>
 
 #include "sai/sai.h"
 #include "sai/saiport.h"
@@ -2149,6 +2153,76 @@ int VendorDropUntaggedPacketsOnIngress(uint16_t lPort) {
 #endif
 
     return ESAL_RC_OK;
+}
+
+bool serializePortTableConfig(SaiPortEntry *portTable, int *portTableSize,
+                                                            const std::string &fileName) {
+    libconfig::Config cfg;
+    libconfig::Setting &root = cfg.getRoot();
+
+    libconfig::Setting &portTableSetting =
+            root.add("portTable", libconfig::Setting::TypeList);
+
+    for (int i = 0; i < *portTableSize; i++) {
+        libconfig::Setting &portEntry =
+                portTableSetting.add(libconfig::Setting::TypeGroup);
+        portEntry.add("portId", libconfig::Setting::TypeInt) = portTable[i].portId;
+        portEntry.add("portSai", libconfig::Setting::TypeInt64) =
+                static_cast<int64_t>(portTable[i].portSai);
+    }
+
+    try {
+        cfg.writeFile(fileName.c_str());
+        return true;
+    } catch (const libconfig::FileIOException &ex) {
+        std::cerr << "Error writing to file: " << ex.what() << std::endl;
+        return false;
+    }
+}
+
+bool deserializePortTableConfig(SaiPortEntry *portTable, int *portTableSize,
+                                                                const std::string &fileName) {
+    libconfig::Config cfg;
+    try {
+        cfg.readFile(fileName.c_str());
+    } catch (const libconfig::FileIOException &ex) {
+        std::cout << "Error reading file: " << ex.what() << std::endl;
+        return false;
+    } catch (const libconfig::ParseException &ex) {
+        std::cout << "Error parsing file: " << ex.what() << " at line "
+                            << ex.getLine() << std::endl;
+        return false;
+    }
+
+    libconfig::Setting &portTableSetting = cfg.lookup("portTable");
+    if (!portTableSetting.isList()) {
+        std::cerr << "portTable is not a list" << std::endl;
+        return false;
+    }
+
+    *portTableSize = 0;
+    for (int i = 0; i < portTableSetting.getLength(); ++i) {
+        libconfig::Setting &portEntry = portTableSetting[i];
+
+        int portId;
+        long long portSai;
+
+        if (!(portEntry.lookupValue("portId", portId) &&
+                    portEntry.lookupValue("portSai", portSai))) {
+            return false;
+        }
+
+        if (*portTableSize >= MAX_PORT_TABLE_SIZE) {
+            std::cerr << "portTableSize >= MAX_PORT_TABLE_SIZE" << std::endl;
+            return false;
+        }
+
+        portTable[*portTableSize].portId = static_cast<uint16_t>(portId);
+        portTable[*portTableSize].portSai = static_cast<sai_object_id_t>(portSai);
+        (*portTableSize)++;
+    }
+
+    return true;
 }
 
 }
