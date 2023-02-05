@@ -861,6 +861,8 @@ static bool restoreVlans(std::map<uint16_t, VlanEntry>& vlanMap) {
 }
 
 bool serializeVlanMapConfig(const std::map<uint16_t, VlanEntry> &vlanMap, const std::string &fileName) {
+    std::unique_lock<std::mutex> lock(vlanMutex);
+
     libconfig::Config cfg;
     libconfig::Setting &root = cfg.getRoot();
 
