@@ -12,6 +12,7 @@
 #include "headers/esalSaiDef.h"
 #include "headers/esalSaiUtils.h"
 #include <iostream>
+#include <iomanip>
 #include <cinttypes>
 #include <string>
 #include <mutex>
@@ -523,6 +524,17 @@ int VendorEnableMacLearningPerPort(uint16_t lPort) {
     return setMacLearning(pPort, true);
 }
 
+static bool restoreBridges(BridgeMember* bridgePortTable, int bridgePortTableSize) {
+    int i, ret;
+    for (i = 0; i < bridgePortTableSize; i++) {
+        ret = esalBridgePortCreate(bridgePortTable[i].portSai, &(bridgePortTable[i].bridgePortSai), bridgePortTable[i].vlanId);
+        if (!ret != true) {
+            std::cout << "Error esalBridgePortCreate portSai: " << bridgePortTable[i].portSai << " vlan id: " << bridgePortTable[i].vlanId << std::endl;
+        }
+    }
+    return true;
+}
+
 bool serializeBridgePortTableConfig(BridgeMember *bridgePortTable, const int bridgePortTableSize, const std::string &fileName) {
     std::unique_lock<std::mutex> lock(bridgeMutex);
 
@@ -592,5 +604,47 @@ bool deserializeBridgePortTableConfig(BridgeMember *bridgePortTable, int *bridge
 
     return true;
 }
+
+static void printBridgeMember(BridgeMember bridgeMember) {
+    std::cout << "Port ID: " << std::dec << bridgeMember.portId
+        << ", VLAN ID: " << std::dec << bridgeMember.vlanId
+        << std::endl;
+    std::cout << "Port OID: 0x" << std::setw(16) << std::setfill('0') << std::hex << bridgeMember.portSai
+        << ", Bridge Port OID: 0x" << std::setw(16) << std::setfill('0') << std::hex << bridgeMember.bridgePortSai
+        << std::endl;
+}
+
+bool bridgeWarmBootHandler() {
+    bool status = true;
+
+    BridgeMember bridgeTable[BRIDGE_PORT_TABLE_MAXSIZE];
+    int bridgeTableSize = 0;
+
+    status = deserializeBridgePortTableConfig(bridgeTable, &bridgeTableSize, BACKUP_FILE_BRIDGE);
+    if (!status) {
+        std::cout << "Error deserializing bridge map" << std::endl;
+        return false;
+    }
+
+    if (!bridgeTableSize) {
+        std::cout << "Bridge table is empty!" << std::endl;
+        return false;
+    }
+
+    std::cout << "Founded bridge configurations:" << std::endl;
+    for (int i = 0; i < bridgeTableSize; i++) {
+        printBridgeMember(bridgeTable[i]);
+        std::cout << std::endl;
+    }
+
+    status = restoreBridges(bridgeTable, bridgeTableSize);
+    if (!status) {
+        std::cout << "Error restore bridges" << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
 
 }

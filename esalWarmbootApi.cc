@@ -8,7 +8,9 @@
 bool ESAL_WARM = true;
 
 std::map<std::string, bool (*)()> warmBootHandlers = {
-    {"VLAN", vlanWarmBootHandler},
+    {"VLAN",    vlanWarmBootHandler},
+    {"PORT",    portWarmBootHandler},
+    {"BRIDGE",  bridgeWarmBootHandler},
 };
 
 bool esalWarmBootHandler() {

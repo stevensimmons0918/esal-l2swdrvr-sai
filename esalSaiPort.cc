@@ -10,11 +10,13 @@
  */
 
 #include "headers/esalSaiDef.h"
+#include <cstddef>
 #ifdef HAVE_MRVL
 #include "headers/esalCpssDefs.h"
 #endif
 #include "headers/esalSaiUtils.h"
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <cinttypes>
 #include <mutex>
@@ -2034,6 +2036,16 @@ int VendorDropUntaggedPacketsOnIngress(uint16_t lPort) {
     return ESAL_RC_OK;
 }
 
+static bool restorePorts(SaiPortEntry* portTable, int portTableSize) {
+    bool ret = true;
+    for (int i = 0; i < portTableSize; i++) {
+        ret = esalPortTableAddEntry(portTable[i].portId, &portTable[i].portSai);
+        if (!ret)
+            std::cout << "Error esalPortTableAddEntry " << portTable[i].portId << std::endl;
+        }
+    return true;
+}
+
 bool serializePortTableConfig(SaiPortEntry *portTable, int *portTableSize,
                                                             const std::string &fileName) {
     std::unique_lock<std::mutex> lock(portTableMutex);
@@ -2056,7 +2068,7 @@ bool serializePortTableConfig(SaiPortEntry *portTable, int *portTableSize,
         cfg.writeFile(fileName.c_str());
         return true;
     } catch (const libconfig::FileIOException &ex) {
-        std::cerr << "Error writing to file: " << ex.what() << std::endl;
+        std::cout << "Error writing to file: " << ex.what() << std::endl;
         return false;
     }
 }
@@ -2077,7 +2089,7 @@ bool deserializePortTableConfig(SaiPortEntry *portTable, int *portTableSize,
 
     libconfig::Setting &portTableSetting = cfg.lookup("portTable");
     if (!portTableSetting.isList()) {
-        std::cerr << "portTable is not a list" << std::endl;
+        std::cout << "portTable is not a list" << std::endl;
         return false;
     }
 
@@ -2094,13 +2106,51 @@ bool deserializePortTableConfig(SaiPortEntry *portTable, int *portTableSize,
         }
 
         if (*portTableSize >= MAX_PORT_TABLE_SIZE) {
-            std::cerr << "portTableSize >= MAX_PORT_TABLE_SIZE" << std::endl;
+            std::cout << "portTableSize >= MAX_PORT_TABLE_SIZE" << std::endl;
             return false;
         }
 
         portTable[*portTableSize].portId = static_cast<uint16_t>(portId);
         portTable[*portTableSize].portSai = static_cast<sai_object_id_t>(portSai);
         (*portTableSize)++;
+    }
+
+    return true;
+}
+
+static void printPortEntry(const SaiPortEntry& portEntry) {
+    std::cout << "Port ID: " << std::dec << portEntry.portId
+        << ", OID: 0x" << std::setw(16) << std::setfill('0') << std::hex << portEntry.portSai
+        << std::endl;
+}
+
+bool portWarmBootHandler () {
+    bool status = true;
+
+    SaiPortEntry portTable[MAX_PORT_TABLE_SIZE];
+    int portTableSize = 0;
+
+    status = deserializePortTableConfig(portTable, &portTableSize, BACKUP_FILE_VLAN);
+    if (!status) {
+        std::cout << "Error deserializing vlan map" << std::endl;
+        return false;
+    }
+
+    if (!portTableSize) {
+        std::cout << "Port table is empty!" << std::endl;
+        return false;
+    }
+
+    std::cout << "Founded port configurations:" << std::endl;
+    for (int i = 0; i < portTableSize; i++) {
+        printPortEntry(portTable[i]);
+        std::cout << std::endl;
+    }
+
+    status = restorePorts(portTable, portTableSize);
+    if (!status) {
+        std::cout << "Error restore ports" << std::endl;
+        return false;
     }
 
     return true;
