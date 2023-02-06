@@ -8,7 +8,9 @@
 
 #define BACKUP_FOLDER "wb_backup/"
 
-#define BACKUP_FILE_VLAN BACKUP_FOLDER "wb_vlan"
+#define BACKUP_FILE_VLAN    BACKUP_FOLDER   "wb_vlan"
+#define BACKUP_FILE_PORT    BACKUP_FOLDER   "wb_port"
+#define BACKUP_FILE_BRIDGE  BACKUP_FOLDER   "wb_bridge"
 
 // Warmboot flag
 //
@@ -21,6 +23,8 @@ bool createFolderIfNotExist(const char *path);
 // Defenition of warmboot handler functions
 //
 extern "C" bool vlanWarmBootHandler();
+extern "C" bool portWarmBootHandler();
+extern "C" bool bridgeWarmBootHandler();
 
 // Warmboot handlers
 //

@@ -886,7 +886,7 @@ bool serializeVlanMapConfig(const std::map<uint16_t, VlanEntry> &vlanMap, const 
         cfg.writeFile(fileName.c_str());
         return true;
     } catch (const libconfig::FileIOException &ex) {
-        std::cerr << "Error writing to file: " << ex.what() << std::endl;
+        std::cout << "Error writing to file: " << ex.what() << std::endl;
         return false;
     }
 }
@@ -905,7 +905,7 @@ bool deserializeVlanMapConfig(std::map<uint16_t, VlanEntry> &vlanMap, const std:
 
     libconfig::Setting &vlanMapSetting = cfg.lookup("vlanMap");
     if (!vlanMapSetting.isList()) {
-        std::cerr << "vlanMap is not a list" << std::endl;
+        std::cout << "vlanMap is not a list" << std::endl;
         return false;
     }
 
@@ -929,7 +929,7 @@ bool deserializeVlanMapConfig(std::map<uint16_t, VlanEntry> &vlanMap, const std:
 
     libconfig::Setting &ports = vlanEntry.lookup("ports");
     if (!vlanMapSetting.isList()) {
-        std::cerr << "ports is not a list" << std::endl;
+        std::cout << "ports is not a list" << std::endl;
         return false;
     }
     for (int j = 0; j < ports.getLength(); ++j) {
@@ -973,7 +973,7 @@ bool vlanWarmBootHandler () {
     status = deserializeVlanMapConfig(vlanMap, BACKUP_FILE_VLAN);
     if (!status) {
         std::cout << "Error deserializing vlan map" << std::endl;
-        return status;
+        return false;
     }
 
     if (!vlanMap.size()) {
@@ -990,10 +990,10 @@ bool vlanWarmBootHandler () {
     status = restoreVlans(vlanMap);
     if (!status) {
         std::cout << "Error restore vlans" << std::endl;
-        return status;
+        return false;
     }
 
-    return status;
+    return true;
 }
 
 }
