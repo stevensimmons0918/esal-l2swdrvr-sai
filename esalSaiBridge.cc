@@ -525,17 +525,17 @@ int VendorEnableMacLearningPerPort(uint16_t lPort) {
 }
 
 static bool restoreBridges(BridgeMember* bridgePortTable, int bridgePortTableSize) {
-    int i, ret;
-    for (i = 0; i < bridgePortTableSize; i++) {
-        ret = esalBridgePortCreate(bridgePortTable[i].portSai, &(bridgePortTable[i].bridgePortSai), bridgePortTable[i].vlanId);
-        if (!ret != true) {
+    bool status = true;
+    for (int i = 0; i < bridgePortTableSize; i++) {
+        if(!esalBridgePortCreate(bridgePortTable[i].portSai, &(bridgePortTable[i].bridgePortSai), bridgePortTable[i].vlanId)) {
+            status &= false;
             std::cout << "Error esalBridgePortCreate portSai: " << bridgePortTable[i].portSai << " vlan id: " << bridgePortTable[i].vlanId << std::endl;
         }
     }
-    return true;
+    return status;
 }
 
-bool serializeBridgePortTableConfig(BridgeMember *bridgePortTable, const int bridgePortTableSize, const std::string &fileName) {
+static bool serializeBridgePortTableConfig(BridgeMember *bridgePortTable, const int bridgePortTableSize, const std::string &fileName) {
     std::unique_lock<std::mutex> lock(bridgeMutex);
 
     libconfig::Config cfg;
@@ -563,7 +563,7 @@ bool serializeBridgePortTableConfig(BridgeMember *bridgePortTable, const int bri
     }
 }
 
-bool deserializeBridgePortTableConfig(BridgeMember *bridgePortTable, int *bridgePortTableSize, const std::string &fileName) {
+static bool deserializeBridgePortTableConfig(BridgeMember *bridgePortTable, int *bridgePortTableSize, const std::string &fileName) {
     libconfig::Config cfg;
     try {
         cfg.readFile(fileName.c_str());
@@ -614,7 +614,11 @@ static void printBridgeMember(BridgeMember bridgeMember) {
         << std::endl;
 }
 
-bool bridgeWarmBootHandler() {
+bool bridgeWarmBootSaveHandler() {
+    return serializeBridgePortTableConfig(bridgePortTable, bridgePortTableSize, BACKUP_FILE_BRIDGE);
+}
+
+bool bridgeWarmBootRestoreHandler() {
     bool status = true;
 
     BridgeMember bridgeTable[BRIDGE_PORT_TABLE_MAXSIZE];
@@ -634,9 +638,10 @@ bool bridgeWarmBootHandler() {
     std::cout << "Founded bridge configurations:" << std::endl;
     for (int i = 0; i < bridgeTableSize; i++) {
         printBridgeMember(bridgeTable[i]);
-        std::cout << std::endl;
     }
 
+    std::cout << std::endl;
+    std::cout << "Restore process:" << std::endl;
     status = restoreBridges(bridgeTable, bridgeTableSize);
     if (!status) {
         std::cout << "Error restore bridges" << std::endl;

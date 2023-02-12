@@ -20,18 +20,30 @@ extern bool ESAL_WARM;
 //
 bool createFolderIfNotExist(const char *path);
 
-// Defenition of warmboot handler functions
+// Defenition of warmboot restore handler functions
 //
-extern "C" bool vlanWarmBootHandler();
-extern "C" bool portWarmBootHandler();
-extern "C" bool bridgeWarmBootHandler();
+extern "C" bool vlanWarmBootRestoreHandler();
+extern "C" bool portWarmBootRestoreHandler();
+extern "C" bool bridgeWarmBootRestoreHandler();
+
+// Warmboot restore handlers
+//
+extern std::map<std::string, bool (*)()> warmBootRestoreHandlers;
+
+
+// Definition of warmboot save handler functions
+//
+extern "C" bool vlanWarmBootSaveHandler();
+extern "C" bool portWarmBootSaveHandler();
+extern "C" bool bridgeWarmBootSaveHandler();
+
+// Warmboot save handlers
+//
+extern std::map<std::string, bool (*)()> warmBootSaveHandlers;
 
 // Warmboot handlers
 //
-extern std::map<std::string, bool (*)()> warmBootHandlers;
-
-// Warmboot runner
-//
-bool esalWarmBootHandler();
+extern "C" bool VendorWarmBootRestoreHandler();
+extern "C" bool VendorWarmBootSaveHandler();
 
 #endif //WARMBOOT_DEFS_H
