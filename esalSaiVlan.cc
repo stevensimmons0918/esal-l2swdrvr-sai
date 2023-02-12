@@ -129,8 +129,6 @@ int VendorCreateVlan(uint16_t vlanid) {
     entry.vlanSai = vlanSai;
     vlanMap[vlanid] = entry;
 
-    serializeVlanMapConfig(vlanMap, BACKUP_FILE_VLAN);
-
     return rc;
 }
 
@@ -182,8 +180,6 @@ int VendorDeleteVlan(uint16_t vlanid) {
     // Remove from map.
     //
     vlanMap.erase(vlanFound);
-
-    serializeVlanMapConfig(vlanMap, BACKUP_FILE_VLAN);
 
     return rc;
 }
@@ -309,8 +305,6 @@ int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t port
 #endif
     }
 
-    serializeVlanMapConfig(vlanMap, BACKUP_FILE_VLAN);
-
     return rc;
 }
 
@@ -389,8 +383,6 @@ int VendorDeletePortsFromVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t
         }
 #endif
     }
-
-    serializeVlanMapConfig(vlanMap, BACKUP_FILE_VLAN);
 
     return rc;
 }
@@ -511,8 +503,6 @@ int VendorSetPortDefaultVlan(uint16_t lPort, uint16_t vlanid) {
 
 #endif
 
-    serializeVlanMapConfig(vlanMap, BACKUP_FILE_VLAN);
-
     return rc;
 }
 
@@ -581,8 +571,6 @@ int VendorDeletePortDefaultVlan(uint16_t port, uint16_t vlanid) {
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
-
-    serializeVlanMapConfig(vlanMap, BACKUP_FILE_VLAN);
 
     return VendorSetPortDefaultVlan(port, 1);
 
@@ -827,14 +815,16 @@ int esalVlanAddPortTagPushPop(uint16_t pPort, bool ingr, bool push) {
 }
 
 static bool restoreVlans(std::map<uint16_t, VlanEntry>& vlanMap) {
+    bool status = true;
     int ret = ESAL_RC_OK;
+
     for (auto& vlanPair : vlanMap) {
         uint16_t vlanId = vlanPair.first;
         VlanEntry vlanEntry = vlanPair.second;
 
         // Create vlan
-        ret = VendorCreateVlan(vlanId);
-        if (ret != ESAL_RC_OK) {
+        if ((ret = VendorCreateVlan(vlanId)) != ESAL_RC_OK) {
+            status &= false;
             std::cout << "Error creating VLAN " << vlanId << ": " << esalSaiError(ret) << std::endl;
             continue;
         }
@@ -844,23 +834,23 @@ static bool restoreVlans(std::map<uint16_t, VlanEntry>& vlanMap) {
         for (const VlanMember& vlanMember : vlanEntry.ports) {
             portIds.push_back(vlanMember.portId);
         }
-        ret = VendorAddPortsToVlan(vlanId, portIds.size(), portIds.data());
-        if (ret != ESAL_RC_OK) {
+        if ((ret = VendorAddPortsToVlan(vlanId, portIds.size(), portIds.data())) != ESAL_RC_OK) {
+            status &= false;
             std::cout << "Error adding ports to VLAN " << vlanId << ": " << esalSaiError(ret) << std::endl;
         }
 
         // Set default port
         if (vlanEntry.defaultPortId != 0xffff) {
-            ret = VendorSetPortDefaultVlan(vlanEntry.defaultPortId, vlanId);
-            if (ret != ESAL_RC_OK) {
+            if ((ret = VendorSetPortDefaultVlan(vlanEntry.defaultPortId, vlanId)) != ESAL_RC_OK) {
+                status &= false;
                 std::cout << "Error setting default port for VLAN " << vlanId << ": " << esalSaiError(ret) << std::endl;
             }
         }
     }
-    return (ret == ESAL_RC_OK);
+    return status;
 }
 
-bool serializeVlanMapConfig(const std::map<uint16_t, VlanEntry> &vlanMap, const std::string &fileName) {
+static bool serializeVlanMapConfig(const std::map<uint16_t, VlanEntry> &vlanMap, const std::string &fileName) {
     std::unique_lock<std::mutex> lock(vlanMutex);
 
     libconfig::Config cfg;
@@ -891,7 +881,7 @@ bool serializeVlanMapConfig(const std::map<uint16_t, VlanEntry> &vlanMap, const 
     }
 }
 
-bool deserializeVlanMapConfig(std::map<uint16_t, VlanEntry> &vlanMap, const std::string &fileName) {
+static bool deserializeVlanMapConfig(std::map<uint16_t, VlanEntry> &vlanMap, const std::string &fileName) {
     libconfig::Config cfg;
     try {
         cfg.readFile(fileName.c_str());
@@ -965,20 +955,25 @@ static void printVlanEntry(uint16_t num, const VlanEntry& vlan) {
     std::cout << "Default port ID: " << vlan.defaultPortId << std::endl;
 }
 
-bool vlanWarmBootHandler () {
+bool vlanWarmBootSaveHandler() {
+    return serializeVlanMapConfig(vlanMap, BACKUP_FILE_VLAN);
+}
+
+bool vlanWarmBootRestoreHandler() {
     std::map<uint16_t, VlanEntry> vlanMap;
 
     bool status = true;
 
-    status = deserializeVlanMapConfig(vlanMap, BACKUP_FILE_VLAN);
+    status &= deserializeVlanMapConfig(vlanMap, BACKUP_FILE_VLAN);
     if (!status) {
         std::cout << "Error deserializing vlan map" << std::endl;
-        return false;
+        status &= false;
+        goto restore_out;
     }
 
     if (!vlanMap.size()) {
         std::cout << "Vlan map is empty!" << std::endl;
-        return false;
+        goto restore_out;
     }
 
     std::cout << "Founded VLAN configurations:" << std::endl;
@@ -987,13 +982,16 @@ bool vlanWarmBootHandler () {
         std::cout << std::endl;
     }
 
+    std::cout << std::endl;
+    std::cout << "Restore process:" << std::endl;
     status = restoreVlans(vlanMap);
     if (!status) {
         std::cout << "Error restore vlans" << std::endl;
-        return false;
+        status &= false;
     }
 
-    return true;
+    restore_out:
+    return status;
 }
 
 }

@@ -5,28 +5,74 @@
 #include <string>
 #include <sys/stat.h>
 
-bool ESAL_WARM = true;
+bool ESAL_WARM = false;
 
-std::map<std::string, bool (*)()> warmBootHandlers = {
-    {"VLAN",    vlanWarmBootHandler},
-    {"PORT",    portWarmBootHandler},
-    {"BRIDGE",  bridgeWarmBootHandler},
+std::map<std::string, bool (*)()> warmBootRestoreHandlers = {
+    {"VLAN",    vlanWarmBootRestoreHandler},
+    {"PORT",    portWarmBootRestoreHandler},
+    {"BRIDGE",  bridgeWarmBootRestoreHandler},
 };
 
-bool esalWarmBootHandler() {
+std::map<std::string, bool (*)()> warmBootSaveHandlers = {
+    {"VLAN",    vlanWarmBootSaveHandler},
+    {"PORT",    portWarmBootSaveHandler},
+    {"BRIDGE",  bridgeWarmBootSaveHandler},
+};
+
+bool VendorWarmBootRestoreHandler() {
     bool status = true;
+    bool rc = true;
 
     std::cout << "================================================================================" << std::endl;
     std::cout << "================= WarmBoot is running to restore configuration =================" << std::endl;
     std::cout << "================================================================================" << std::endl;
+    std::cout << std::endl;
 
-    for (auto handler_name_fn : warmBootHandlers) {
+    for (auto handler_name_fn : warmBootRestoreHandlers) {
+        std::string name = handler_name_fn.first;
+        auto handler = handler_name_fn.second;
+
+
+        std::cout << "WarmBoot handler of " << name << " is running..." << std::endl;
+        rc = handler();
+
+        std::cout << "================================================================================" << std::endl;
+        if (rc) {
+            std::cout << "OK" << std::endl;
+        } else {
+            std::cout << "Failed" << std::endl;
+            status &= false;
+        }
+        std::cout << "================================================================================" << std::endl;
+        std::cout << std::endl;
+    }
+
+    return status;
+}
+
+bool VendorWarmBootSaveHandler() {
+    bool status = true;
+    bool rc = true;
+
+    std::cout << "================================================================================" << std::endl;
+    std::cout << "================= WarmBoot is running to save configuration =================" << std::endl;
+    std::cout << "================================================================================" << std::endl;
+    std::cout << std::endl;
+
+
+    for (auto handler_name_fn : warmBootSaveHandlers) {
         std::string name = handler_name_fn.first;
         auto handler = handler_name_fn.second;
 
         std::cout << "WarmBoot handler of " << name << " is running..." << std::endl;
-        status = handler();
-        std::cout << (status ? "OK" : "Failed") << std::endl;
+        rc = handler();
+
+        if (rc) {
+            std::cout << "OK" << std::endl;
+        } else {
+            std::cout << "Failed" << std::endl;
+            status &= false;
+        }
         std::cout << std::endl;
     }
     std::cout << "================================================================================" << std::endl;

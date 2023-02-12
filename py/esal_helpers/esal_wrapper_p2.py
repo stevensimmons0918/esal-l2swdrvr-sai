@@ -542,3 +542,18 @@ def VendorGetPortStpState (port, stpState):
     r_port = w_port.value
     r_stpState = w_stpState.value
     return {'rc': ret, 'port': r_port, 'stpState': r_stpState}
+
+
+# bool VendorWarmBootRestoreHandler();
+esai_vendor_api.VendorWarmBootRestoreHandler.restype = ctypes.c_bool
+esai_vendor_api.VendorWarmBootRestoreHandler.argtypes = None
+def VendorWarmBootRestoreHandler():
+    ret = esai_vendor_api.VendorWarmBootRestoreHandler()
+    return {'rc': ret}
+
+# bool VendorWarmBootSaveHandler();
+esai_vendor_api.VendorWarmBootSaveHandler.restype = ctypes.c_bool
+esai_vendor_api.VendorWarmBootRestoreHandler.argtypes = None
+def VendorWarmBootSaveHandler():
+    ret = esai_vendor_api.VendorWarmBootSaveHandler()
+    return {'rc': ret}
