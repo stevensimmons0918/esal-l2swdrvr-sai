@@ -139,6 +139,8 @@ class EsalSaiUtils: public EsalSaiUtilsBase {
     bool GetFlowCtrlAttr(
      uint32_t lPort, uint32_t &devId, uint32_t &pPort, flowCtrlAttrs &fc);
 
+    bool GetChangeable(uint32_t lPort);
+
  private:
     typedef struct {
         uint32_t devId;
@@ -146,6 +148,7 @@ class EsalSaiUtils: public EsalSaiUtilsBase {
         serdesTx_t serdesTx;
         serdesRx_t serdesRx;
         flowCtrlAttrs flowCtrl; 
+        bool changeable = false; 
     } PhyPortInfo;
 
     //! UnitCode

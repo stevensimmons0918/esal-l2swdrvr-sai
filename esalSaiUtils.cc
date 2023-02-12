@@ -211,6 +211,26 @@ bool EsalSaiUtils::GetSerdesInfo(const uint32_t lPort,
     return rc;
 }
 
+bool EsalSaiUtils::GetChangeable(const uint32_t lPort)
+{
+    bool rc = false;
+
+#ifndef LARCH_ENVIRON
+    if (phyPortInfoMap_.find(lPort) == phyPortInfoMap_.end()) {
+        rc = false;
+        std::string err = "lPort not in phyPortInfoMap_" +
+            std::string(" lPort=") +
+            std::to_string(lPort) + "\n";
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, err));
+    }
+    else {
+        rc = phyPortInfoMap_[lPort].changeable;
+    }
+#endif
+    return rc;
+}
+
 void EsalSaiUtils::ParseConfig(void) {
 #ifndef LARCH_ENVIRON
     std::string key = "ports";
@@ -274,7 +294,10 @@ void EsalSaiUtils::ParseConfig(void) {
 
             portInfo.flowCtrl = flowCtrl;
 
-            phyPortInfoMap_[lPort] = portInfo;
+            portInfo.changeable = false; 
+            if (portsSetting.exists("changeable")) {
+                portInfo.changeable = set[i]["changeable"];
+            }
 
             std::cout << __FUNCTION__ << ":" << __LINE__
                       << " lPort=" << lPort
@@ -283,6 +306,8 @@ void EsalSaiUtils::ParseConfig(void) {
                       << " serdesTx.vals=" << portInfo.serdesTx.has_vals
                       << " serdesRx.vals=" << portInfo.serdesRx.has_vals
                       << std::endl;
+
+            phyPortInfoMap_[lPort] = portInfo;
 
         } catch(libconfig::SettingTypeException &e) {
             done = true;

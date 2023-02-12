@@ -446,7 +446,7 @@ int DllInit(void) {
     attributes.push_back(attr);
 
     attr.id = SAI_SWITCH_ATTR_FDB_AGING_TIME;
-    attr.value.u32 = 0;
+    attr.value.u32 = 180;
     attributes.push_back(attr); 
 
 #if 0 // Currently FNC does not need this.
@@ -742,6 +742,25 @@ int VendorWarmRestartRequest(void) {
     } 
 #endif
 
+    return ESAL_RC_OK;
+}
+
+int VendorGetTemp(char *temp) {
+    uint8_t devNum = 0;
+    int32_t tmp;
+    GT_STATUS rc;
+    rc = cpssDxChDiagDeviceTemperatureGet(devNum, &tmp);
+
+    if (rc != GT_OK) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "cpssDxChDiagDeviceTemperatureGet failed\n"));
+        std::cout << "cpss cpssDxChDiagDeviceTemperatureGet fail: "
+                  << rc << std::endl;
+        return ESAL_RC_FAIL;
+    } else {
+        std::string tmp_str = std::to_string(tmp);
+        std::strcpy(temp, tmp_str.c_str());
+    }
     return ESAL_RC_OK;
 }
 
