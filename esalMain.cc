@@ -59,7 +59,7 @@ int main()
 
         if (ESAL_WARM) {
             createFolderIfNotExist(BACKUP_FOLDER);
-            esalWarmBootHandler();
+            VendorWarmBootRestoreHandler();
         }
 
         run_cli();
