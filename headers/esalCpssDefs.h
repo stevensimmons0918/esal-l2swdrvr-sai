@@ -403,7 +403,12 @@ extern GT_STATUS cpssDxChPortApPortConfigGet(GT_U8 devNum,
                     GT_PHYSICAL_PORT_NUM portNum, GT_BOOL *apEnablePtr,
                     CPSS_DXCH_PORT_AP_PARAMS_STC *apParamsPtr);
 
+<<<<<<< HEAD
 extern GT_STATUS prvCpssDrvHwPpWriteRegister (GT_U8 devNum, GT_U32 regAddr, GT_U32 value);
+=======
+extern GT_STATUS cpssDxChDiagDeviceTemperatureGet(GT_U8 devNum,
+                     GT_32 *temperaturePtr);
+>>>>>>> merge of gettemp, fdb aging, and changeable flag
 
 #endif
 }

@@ -64,6 +64,7 @@ struct SaiPortEntry{
     bool adminState = false;
     bool isCopper = false;
     bool isSGMII = false;
+    bool isChangeable = false;
     uint16_t lPort;
     bool autoneg;
     vendor_speed_t speed; 
@@ -115,14 +116,39 @@ void esalPortTableSetCopper(uint16_t portId, bool isCopper) {
     return;
 }
 
-void esalPortTableSetSGMII(uint16_t portId) {
+void esalPortTableSetChangeable(uint16_t portId, bool isChange) {
+    for(auto i = 0; i < portTableSize; i++) {
+        if (portTable[i].portId == portId) {
+            portTable[i].isChangeable = isChange;
+            return;
+        }
+    }
+    return;
+}
+
+void esalPortTableSetIfMode(uint16_t portId) {
     for(auto i = 0; i < portTableSize; i++) {
         if (portTable[i].portId == portId) {
             
             // No change if (isCopper and isSGMII) or (!isCopper and !SGMII)
             //  
-            if ((portTable[i].isCopper && portTable[i].isSGMII) ||
-                (!portTable[i].isCopper && !portTable[i].isSGMII)) {
+            bool autoneg = true;
+            vendor_speed_t speed = VENDOR_SPEED_GIGABIT;
+            vendor_duplex_t duplex = VENDOR_DUPLEX_FULL; 
+            CPSS_PORT_INTERFACE_MODE_ENT ifMode; 
+            CPSS_PORT_SPEED_ENT ifSpeed = CPSS_PORT_SPEED_1000_E;
+            if (!portTable[i].isChangeable) {
+                return; 
+            } else if (portTable[i].isCopper && !portTable[i].isSGMII) {
+                portTable[i].isSGMII = true;
+                autoneg = portTable[i].autoneg;
+                speed =  portTable[i].speed;
+                duplex = portTable[i].duplex;
+                ifMode = CPSS_PORT_INTERFACE_MODE_SGMII_E;
+            } else if (!portTable[i].isCopper && portTable[i].isSGMII) {
+                portTable[i].isSGMII = false;
+                ifMode = CPSS_PORT_INTERFACE_MODE_1000BASE_X_E; 
+            } else {
                 return;
             }
 
@@ -144,26 +170,10 @@ void esalPortTableSetSGMII(uint16_t portId) {
                 SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "cpssDxChPortManagerEventSet fail1\n"));
             }
-            bool autoneg = true;
-            vendor_speed_t speed = VENDOR_SPEED_GIGABIT;
-            vendor_duplex_t duplex = VENDOR_DUPLEX_FULL; 
-            if (portTable[i].isCopper && !portTable[i].isSGMII) {
-               if (cpssDxChSamplePortManagerMandatoryParamsSet(
-                      0, portId, CPSS_PORT_INTERFACE_MODE_SGMII_E, CPSS_PORT_SPEED_1000_E, CPSS_PORT_FEC_MODE_DISABLED_E)){
+            if (cpssDxChSamplePortManagerMandatoryParamsSet(
+                   0, portId, ifMode, ifSpeed, CPSS_PORT_FEC_MODE_DISABLED_E)){
                    SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                        SWERR_FILELINE, "cpssDxChSamplePortManagerMandatoryParamsSet fail2\n"));
-               }
-               portTable[i].isSGMII = true;
-            } else if (!portTable[i].isCopper && portTable[i].isSGMII) {
-               if (cpssDxChSamplePortManagerMandatoryParamsSet(
-                      0, portId, CPSS_PORT_INTERFACE_MODE_1000BASE_X_E, CPSS_PORT_SPEED_1000_E, CPSS_PORT_FEC_MODE_DISABLED_E)){
-                   SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                       SWERR_FILELINE, "cpssDxChSamplePortManagerMandatoryParamsSet fail3\n"));
-               }
-               portTable[i].isSGMII = false;
-               autoneg = portTable[i].autoneg;
-               speed =  portTable[i].speed;
-               duplex = portTable[i].duplex;
             }
             portEventStc.portEvent = CPSS_PORT_MANAGER_EVENT_CREATE_E;
             if (cpssDxChPortManagerEventSet(0, portId, &portEventStc)) {
@@ -521,12 +531,12 @@ void processSerdesInit(uint16_t lPort) {
             CPSS_PORT_SERDES_RX_CONFIG_STC rxConfig;
             memset(&rxConfig, 0, sizeof(rxConfig));
             rxConfig.type = CPSS_PORT_SERDES_AVAGO_E;
-
             rxConfig.rxTune.avago.DC = rx.DC;
             rxConfig.rxTune.avago.LF = rx.LF;
             rxConfig.rxTune.avago.sqlch = rx.sqlch;
             rxConfig.rxTune.avago.HF = rx.HF;
             rxConfig.rxTune.avago.BW = rx.BW;
+            
             GT_STATUS rc = cpssDxChPortSerdesManualRxConfigSet(dev,
                                                                pPort,
                                                                0,  // lane
@@ -561,6 +571,12 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         return ESAL_RC_FAIL;
     }
 #ifndef LARCH_ENVIRON
+#ifndef LARCH_ENVIRON
+    std::string hwid_value = esalProfileMap["hwId"];
+#else
+    std::string hwid_value = "ALDRIN2XLFL";;
+#endif
+    bool isSFP = false; 
     // First check to see if supported by SFP library.
     if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
         std::vector<SFPAttribute> values;
@@ -585,6 +601,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
 #ifndef UTS
         isCopper = values[0].SFPVal.Copper;
 #endif
+        isSFP = saiUtils.GetChangeable(lPort);
     }
 
     if (!useSaiFlag){
@@ -611,11 +628,6 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         return ESAL_RC_FAIL; 
     }
 
-#ifndef LARCH_ENVIRON
-    std::string hwid_value = esalProfileMap["hwId"];
-#else
-    std::string hwid_value = "ALDRIN2XLFL";;
-#endif
 
     // Add attributes. 
     std::vector<sai_attribute_t> attributes;
@@ -664,6 +676,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         attr.id = SAI_PORT_ATTR_FEC_MODE;
         attr.value.s32 = SAI_PORT_FEC_MODE_FC;
         attributes.push_back(attr);
+            esalPortTableSetChangeable(pPort, true);
 
     } else if (esalHostPortId == pPort && hwid_value.compare("ALDRIN2EVAL") == 0) {
         attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
@@ -691,6 +704,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
     uint16_t portNum = (uint16_t)GET_OID_VAL(portSai);
     esalPortSavePortAttr(portNum, lPort, autoneg, speed, duplex);
     esalPortTableSetCopper(portNum, isCopper);
+    esalPortTableSetChangeable(portNum, isSFP);
     int cpssDuplexMode;
     if (duplex == VENDOR_DUPLEX_HALF)
         cpssDuplexMode = CPSS_PORT_HALF_DUPLEX_E;
@@ -933,9 +947,11 @@ int VendorGetPortDuplex(uint16_t lPort, vendor_duplex_t *duplex) {
 }
 
 int VendorGetPortAutoNeg(uint16_t lPort, bool *aneg) {
+
 #ifdef DEBUG
     std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort  << std::endl;
 #endif
+
     int rc  = ESAL_RC_OK;
     uint32_t dev;
     uint32_t pPort;
@@ -1067,7 +1083,7 @@ int VendorGetPortLinkState(uint16_t lPort, bool *ls) {
         esalSFPGetPort(lPort, values.size(), values.data());
         *ls = values[0].SFPVal.LinkStatus;
         esalPortTableSetCopper(pPort, values[1].SFPVal.Copper);
-        esalPortTableSetSGMII(pPort);
+        esalPortTableSetIfMode(pPort);
         return rc; 
     }
 #endif    
@@ -1173,7 +1189,7 @@ int VendorEnablePort(uint16_t lPort) {
         return ESAL_RC_FAIL; 
     }
    
-    esalPortTableSetSGMII(pPort);
+    esalPortTableSetIfMode(pPort);
 
     if (!perPortCfgFlowControlInit(pPort)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
