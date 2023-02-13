@@ -1,3 +1,5 @@
+#include <cstdlib>
+#include <cstring>
 #include <esal_warmboot_api/esal_warmboot_api.h>
 
 #include <iostream>
@@ -5,7 +7,13 @@
 #include <string>
 #include <sys/stat.h>
 
-bool ESAL_WARM = false;
+bool ESAL_WARM = []() -> bool {
+    const char *esal_warm_env = std::getenv("ESAL_WARM");
+    if (esal_warm_env != NULL && !strcmp(esal_warm_env, "TRUE")) {
+        return true;
+    }
+    return false;
+}();
 
 std::map<std::string, bool (*)()> warmBootRestoreHandlers = {
     {"VLAN",    vlanWarmBootRestoreHandler},
