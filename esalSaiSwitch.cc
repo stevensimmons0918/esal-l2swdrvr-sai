@@ -759,7 +759,7 @@ int VendorGetTemp(char *temp) {
         return ESAL_RC_FAIL;
     } else {
         std::string tmp_str = std::to_string(tmp);
-        std::strcpy(temp, tmp_str.c_str());
+        strcpy(temp, tmp_str.c_str());
     }
     return ESAL_RC_OK;
 }

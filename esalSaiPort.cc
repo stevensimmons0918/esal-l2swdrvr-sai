@@ -571,11 +571,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         return ESAL_RC_FAIL;
     }
 #ifndef LARCH_ENVIRON
-#ifndef LARCH_ENVIRON
     std::string hwid_value = esalProfileMap["hwId"];
-#else
-    std::string hwid_value = "ALDRIN2XLFL";;
-#endif
     bool isSFP = false; 
     // First check to see if supported by SFP library.
     if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
@@ -607,6 +603,8 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
+#else
+    std::string hwid_value = "ALDRIN2XLFL";
 #endif
 #ifndef UTS
     // Get port table api
@@ -704,7 +702,9 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
     uint16_t portNum = (uint16_t)GET_OID_VAL(portSai);
     esalPortSavePortAttr(portNum, lPort, autoneg, speed, duplex);
     esalPortTableSetCopper(portNum, isCopper);
+#ifndef LARCH_ENVIRON
     esalPortTableSetChangeable(portNum, isSFP);
+#endif
     int cpssDuplexMode;
     if (duplex == VENDOR_DUPLEX_HALF)
         cpssDuplexMode = CPSS_PORT_HALF_DUPLEX_E;
