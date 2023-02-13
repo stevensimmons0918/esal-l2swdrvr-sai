@@ -1,4 +1,5 @@
 #include <Python.h>
+#include <cinttypes>
 #include <unistd.h>
 #include <stdio.h>
 
@@ -57,11 +58,8 @@ int main()
         restoreRegisters();
 #endif
 
-        if (ESAL_WARM) {
-            createFolderIfNotExist(BACKUP_FOLDER);
-            VendorWarmBootRestoreHandler();
-        }
-
+        createFolderIfNotExist(BACKUP_FOLDER);
+        std::cout << "ESAL_WARM = " << ESAL_WARM << std::endl;
         run_cli();
     }
 
