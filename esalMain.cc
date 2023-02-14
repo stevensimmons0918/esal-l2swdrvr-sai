@@ -52,7 +52,7 @@ int main()
         // trans.newVlan = 110;
         // trans.oldVlan = 100;
         // //VendorSetIngressVlanTranslation(28, trans);
-        VendorSetPortNniMode(28, VENDOR_NNI_MODE_UNI);
+        // VendorSetPortNniMode(28, VENDOR_NNI_MODE_UNI);
 
 #ifdef REG_RESTORE
         restoreRegisters();
@@ -60,6 +60,7 @@ int main()
 
         createFolderIfNotExist(BACKUP_FOLDER);
         std::cout << "ESAL_WARM = " << ESAL_WARM << std::endl;
+
         run_cli();
     }
 

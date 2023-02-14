@@ -98,6 +98,14 @@ void esalAlterForwardingTable(sai_fdb_event_notification_data_t *fdbNotify) {
                  newEntry.egressPort = portId; 
                  newEntry.vlanSai = fdbUpd.bv_id;
                  fdbTable[fdbTableSize++] = newEntry; 
+#ifdef LARCH_ENVIRON
+                 std::cout << "New Mac Learned: " << std::hex << newEntry.macAddr[0]
+                           << ":" << std::hex << newEntry.macAddr[1] << ":" << std::hex << newEntry.macAddr[2]
+                           << ":" << std::hex << newEntry.macAddr[3] << ":" << std::hex << newEntry.macAddr[4]
+                           << ":" << std::hex << newEntry.macAddr[5]
+                           << ", port = " << portId << ", vlan = " << fdbUpd.bv_id
+                           << "\n";
+#endif
              }
              break; 
 

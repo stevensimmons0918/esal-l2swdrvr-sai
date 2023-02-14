@@ -66,6 +66,7 @@ static uint16_t esalMaxPort = 0;
 uint16_t esalHostPortId;
 char esalHostIfName[SAI_HOSTIF_NAME_SIZE];
 std::map<std::string, std::string> esalProfileMap;
+bool WARM_RESTART = false;
 #ifndef LARCH_ENVIRON
 void loadSFPLibrary(void) {
 
@@ -390,6 +391,16 @@ int DllInit(void) {
     }
 
 #ifndef UTS
+
+    const char *esal_warm_env = std::getenv("PSI_resetReason");
+    if (esal_warm_env != NULL && !strcmp(esal_warm_env, "warm"))
+    {
+        WARM_RESTART = true;
+    }
+    else
+    {
+        WARM_RESTART = false;
+    }
     // Initialize the SAI.
     //
     sai_api_initialize(0, &testServices);
@@ -439,7 +450,7 @@ int DllInit(void) {
 #ifndef LARCH_ENVIRON
     std::string hwid_value = esalProfileMap["hwId"];
 #else
-    std::string hwid_value = "ALDRIN2XLFL";;
+    std::string hwid_value = "ALDRIN2EVAL";;
 #endif
     attr.value.s8list.list = (sai_int8_t*)calloc(hwid_value.length() + 1, sizeof(sai_int8_t));
     std::copy(hwid_value.begin(), hwid_value.end(), attr.value.s8list.list);
@@ -580,7 +591,7 @@ int DllInit(void) {
                 return ESAL_RC_FAIL;
         }
     }
-
+#if NOT_WARM
     if (!esalCreateBpduTrapAcl()) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "esalCreateBpduTrapAcl fail\n"));
@@ -602,7 +613,7 @@ int DllInit(void) {
         std::cout << "can't enable bpdu trap acl \n";
         return ESAL_RC_FAIL;
     }
-
+#endif
 #endif
 
     if (!portCfgFlowControlInit()) {
@@ -764,4 +775,29 @@ int VendorGetTemp(char *temp) {
     return ESAL_RC_OK;
 }
 
+int VendorConfigurationComplete()
+{
+    CPSS_SYSTEM_RECOVERY_INFO_STC recovery_info;
+    GT_STATUS rc;
+
+    if (WARM_RESTART)
+    {
+        memset(&recovery_info, 0, sizeof(CPSS_SYSTEM_RECOVERY_INFO_STC));
+        recovery_info.systemRecoveryProcess = CPSS_SYSTEM_RECOVERY_PROCESS_HA_E;
+        recovery_info.systemRecoveryState = CPSS_SYSTEM_RECOVERY_COMPLETION_STATE_E;
+        recovery_info.systemRecoveryMode.haCpuMemoryAccessBlocked = GT_TRUE;
+
+        rc = cpssSystemRecoveryStateSet(&recovery_info);
+
+        if (rc != GT_OK)
+        {
+             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                         SWERR_FILELINE, "cpssSystemRecoveryStateSet failed\n"));
+             std::cout << "cpss cpssSystemRecoveryStateSet fail: "
+                       << rc << std::endl;
+             return ESAL_RC_FAIL;
+        }
+    }
+    return ESAL_RC_OK;
+}
 }

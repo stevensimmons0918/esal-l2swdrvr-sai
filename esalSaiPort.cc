@@ -604,7 +604,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         return ESAL_RC_OK;
     }
 #else
-    std::string hwid_value = "ALDRIN2XLFL";
+    std::string hwid_value = "ALDRIN2EVAL";
 #endif
 #ifndef UTS
     // Get port table api
