@@ -11,6 +11,7 @@
 #define BACKUP_FILE_VLAN    BACKUP_FOLDER   "wb_vlan"
 #define BACKUP_FILE_PORT    BACKUP_FOLDER   "wb_port"
 #define BACKUP_FILE_BRIDGE  BACKUP_FOLDER   "wb_bridge"
+#define BACKUP_FILE_TAG     BACKUP_FOLDER   "wb_tag"
 
 // Warmboot flag
 //
@@ -25,6 +26,7 @@ bool createFolderIfNotExist(const char *path);
 extern "C" bool vlanWarmBootRestoreHandler();
 extern "C" bool portWarmBootRestoreHandler();
 extern "C" bool bridgeWarmBootRestoreHandler();
+extern "C" bool tagWarmBootRestoreHandler();
 
 // Warmboot restore handlers
 //
@@ -36,6 +38,7 @@ extern std::map<std::string, bool (*)()> warmBootRestoreHandlers;
 extern "C" bool vlanWarmBootSaveHandler();
 extern "C" bool portWarmBootSaveHandler();
 extern "C" bool bridgeWarmBootSaveHandler();
+extern "C" bool tagWarmBootSaveHandler();
 
 // Warmboot save handlers
 //

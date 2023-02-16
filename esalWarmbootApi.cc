@@ -19,12 +19,14 @@ std::map<std::string, bool (*)()> warmBootRestoreHandlers = {
     {"VLAN",    vlanWarmBootRestoreHandler},
     {"PORT",    portWarmBootRestoreHandler},
     {"BRIDGE",  bridgeWarmBootRestoreHandler},
+    {"TAG",     tagWarmBootRestoreHandler},
 };
 
 std::map<std::string, bool (*)()> warmBootSaveHandlers = {
     {"VLAN",    vlanWarmBootSaveHandler},
     {"PORT",    portWarmBootSaveHandler},
     {"BRIDGE",  bridgeWarmBootSaveHandler},
+    {"TAG",     tagWarmBootSaveHandler},
 };
 
 bool VendorWarmBootRestoreHandler() {
