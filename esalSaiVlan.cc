@@ -910,34 +910,34 @@ static bool deserializeVlanMapConfig(std::map<uint16_t, VlanEntry> &vlanMap, con
         if (!(vlanEntry.lookupValue("vlanNum", vlanNum) &&
             vlanEntry.lookupValue("vlanSai", vlanSai) &&
             vlanEntry.lookupValue("defaultPortId", defaultPortId))) {
-        return false;
-    }
-
-    VlanEntry vlEn;
-    vlEn.vlanSai = vlanSai;
-    vlEn.defaultPortId = defaultPortId;
-
-    libconfig::Setting &ports = vlanEntry.lookup("ports");
-    if (!vlanMapSetting.isList()) {
-        std::cout << "ports is not a list" << std::endl;
-        return false;
-    }
-    for (int j = 0; j < ports.getLength(); ++j) {
-        libconfig::Setting &port = ports[j];
-
-        int portId;
-        long long memberSai;
-
-        if (!(port.lookupValue("portId", portId) &&
-            port.lookupValue("memberSai", memberSai))) {
             return false;
         }
 
-        vlEn.ports.push_back({static_cast<uint16_t>(portId),static_cast<sai_object_id_t>(memberSai)});
-    }
+        VlanEntry vlEn;
+        vlEn.vlanSai = vlanSai;
+        vlEn.defaultPortId = defaultPortId;
 
-    vlanMap[vlanNum] = vlEn;
-  }
+        libconfig::Setting &ports = vlanEntry.lookup("ports");
+        if (!vlanMapSetting.isList()) {
+            std::cout << "ports is not a list" << std::endl;
+            return false;
+        }
+        for (int j = 0; j < ports.getLength(); ++j) {
+            libconfig::Setting &port = ports[j];
+
+            int portId;
+            long long memberSai;
+
+            if (!(port.lookupValue("portId", portId) &&
+                port.lookupValue("memberSai", memberSai))) {
+                return false;
+            }
+
+            vlEn.ports.push_back({static_cast<uint16_t>(portId),static_cast<sai_object_id_t>(memberSai)});
+        }
+
+        vlanMap[vlanNum] = vlEn;
+    }
 
   return true;
 }
