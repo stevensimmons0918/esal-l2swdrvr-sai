@@ -577,3 +577,10 @@ def VendorSetPortNniMode(lPort, mode):
     r_lPort = w_lPort.value
     r_mode = w_mode.value
     return {'rc': ret, 'lPort': r_lPort, 'mode': r_mode}
+
+# int VendorConfigurationComplete();
+esai_vendor_api.VendorConfigurationComplete.restype = ctypes.c_int
+esai_vendor_api.VendorConfigurationComplete.argtypes = None
+def VendorConfigurationComplete ():
+    ret = esai_vendor_api.VendorConfigurationComplete()
+    return {'rc': ret}
