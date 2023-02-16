@@ -591,7 +591,7 @@ int DllInit(void) {
                 return ESAL_RC_FAIL;
         }
     }
-#if NOT_WARM
+
     if (!esalCreateBpduTrapAcl()) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "esalCreateBpduTrapAcl fail\n"));
@@ -613,7 +613,7 @@ int DllInit(void) {
         std::cout << "can't enable bpdu trap acl \n";
         return ESAL_RC_FAIL;
     }
-#endif
+
 #endif
 
     if (!portCfgFlowControlInit()) {
