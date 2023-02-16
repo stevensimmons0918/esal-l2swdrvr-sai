@@ -29,7 +29,7 @@ int main()
         // trans.newVlan = 110;
         // trans.oldVlan = 100;
         // //VendorSetIngressVlanTranslation(28, trans);
-        VendorSetPortNniMode(28, VENDOR_NNI_MODE_UNI);
+        //VendorSetPortNniMode(28, VENDOR_NNI_MODE_UNI);
         run_cli();
     }
 #endif

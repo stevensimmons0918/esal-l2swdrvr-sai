@@ -348,6 +348,190 @@ typedef struct{
 } CPSS_PORT_MANAGER_STC;
 
 
+ /**
+ * Typedef enum CPSS_SYSTEM_RECOVERY_STATE_ENT
+ *
+ * @brief : Indicates in which state system recovery process is.
+ *
+ */
+typedef enum
+{
+    /** system is preparing to recovery process*/
+    CPSS_SYSTEM_RECOVERY_PREPARATION_STATE_E,
+    /** system is going through recovery init */
+    CPSS_SYSTEM_RECOVERY_INIT_STATE_E,
+    /** system recovery is completed */
+    CPSS_SYSTEM_RECOVERY_COMPLETION_STATE_E,
+    /** system is going to make hw catch up */
+    CPSS_SYSTEM_RECOVERY_HW_CATCH_UP_STATE_E
+} CPSS_SYSTEM_RECOVERY_STATE_ENT;
+
+ /**
+ * Typedef enum CPSS_SYSTEM_RECOVERY_PROCESS_ENT
+ *
+ * @brief : Indicates which system recovery process is running.
+ *
+ */
+typedef enum
+{
+    /** HSU process */
+    CPSS_SYSTEM_RECOVERY_PROCESS_HSU_E,
+    /** Fast Boot process */
+    CPSS_SYSTEM_RECOVERY_PROCESS_FAST_BOOT_E,
+    /** recovery process after High Availability event */
+    CPSS_SYSTEM_RECOVERY_PROCESS_HA_E,
+    /** no active system recovery process */
+    CPSS_SYSTEM_RECOVERY_PROCESS_NOT_ACTIVE_E,
+    /** recovery process after High Availability event with multi processes */
+    CPSS_SYSTEM_RECOVERY_PROCESS_PARALLEL_HA_E,
+    /** hitless startup process */
+    CPSS_SYSTEM_RECOVERY_PROCESS_HITLESS_STARTUP_E
+
+} CPSS_SYSTEM_RECOVERY_PROCESS_ENT;
+
+ /**
+ * Typedef enum CPSS_SYSTEM_RECOVERY_MANAGER_ENT
+ *
+ * @brief : Indicates which system recovery manager is handle ,used for parallel High Availability.
+ *
+ */
+typedef enum
+{
+    /** indicate in completion state to sync only non managers units */
+    CPSS_SYSTEM_RECOVERY_NO_MANAGERS_E,
+    /** action take place only for port manager*/
+    CPSS_SYSTEM_RECOVERY_PORT_MANAGER_E,
+    /** action take place only for fdb manager*/
+    CPSS_SYSTEM_RECOVERY_FDB_MANAGER_E,
+    /** action take place only for lpm manager*/
+    CPSS_SYSTEM_RECOVERY_LPM_MANAGER_E,
+    /** action take place only for tcam manager*/
+    CPSS_SYSTEM_RECOVERY_TCAM_MANAGER_E,
+    /** action take place only for exact match manager*/
+    CPSS_SYSTEM_RECOVERY_EXACT_MATCH_MANAGER_E,
+    /** action take place only for trunk manager*/
+    CPSS_SYSTEM_RECOVERY_TRUNK_MANAGER_E,
+    CPSS_SYSTEM_RECOVERY_LAST_MANAGER_E
+} CPSS_SYSTEM_RECOVERY_MANAGER_ENT;
+
+
+/**
+ * Typedef enum CPSS_SYSTEM_RECOVERY_HA_2_PHASES_INIT_ENT
+ *
+ * @brief : Describes in which phase of HA_2_PHASES_INIT procedure system
+ * recovery process is.
+ *
+ */
+typedef enum
+{
+    /** HA_2_PHASES_INIT is not running */
+    CPSS_SYSTEM_RECOVERY_HA_2_PHASES_INIT_NONE_E,
+    /** phase1 of HA_2_PHASES_INIT is running */
+    CPSS_SYSTEM_RECOVERY_HA_2_PHASES_INIT_PHASE1_E,
+    /** phase2 of HA_2_PHASES_INIT is running */
+    CPSS_SYSTEM_RECOVERY_HA_2_PHASES_INIT_PHASE2_E
+} CPSS_SYSTEM_RECOVERY_HA_2_PHASES_INIT_ENT;
+
+
+
+/**
+ * Typedef enum CPSS_SYSTEM_RECOVERY_HA_STATE_ENT
+ *
+ * @brief : Describes in which state PEX during HA recovery process is.
+ *
+ */
+typedef enum
+{
+    /** all operations via PEX are enabled */
+    CPSS_SYSTEM_RECOVERY_HA_STATE_READ_ENABLE_WRITE_ENABLE_E,
+    /** only read operations via PEX are enabled */
+    CPSS_SYSTEM_RECOVERY_HA_STATE_READ_ENABLE_WRITE_DISABLE_E,
+    /** only write operations via PEX are enabled */
+    CPSS_SYSTEM_RECOVERY_HA_STATE_READ_DISABLE_WRITE_ENABLE_E,
+    /** all operations via PEX are disabled */
+    CPSS_SYSTEM_RECOVERY_HA_STATE_READ_DISABLE_WRITE_DISABLE_E
+
+} CPSS_SYSTEM_RECOVERY_HA_STATE_ENT;
+
+
+/**
+* @struct CPSS_SYSTEM_RECOVERY_MODE_STC
+ *
+ * @brief This struct containes description of system recovery modes.
+*/
+typedef struct{
+
+    /** @brief This mode describes what memory allocation is for Rx descriptors and Rx buffers:
+     *  GT_TRUE: Rx descriptors and Rx buffers are allocated in the same memory
+     *  before and after system recovery process.
+     *  GT_FALSE: Rx descriptors and Rx buffers are allocated in different memory
+     *  before and after system recovery process.
+     */
+    GT_BOOL continuousRx;
+
+    /** @brief This mode describes what memory allocation is for Tx descriptors:
+     *  GT_TRUE: Tx descriptors are allocated in the same memory
+     *  before and after system recovery process.
+     *  GT_FALSE: Tx descriptors are allocated in different memories
+     *  before and after system recovery process.
+     */
+    GT_BOOL continuousTx;
+
+    /** @brief This mode describes what memory allocation is for AUQ descriptors:
+     *  GT_TRUE: AUQ descriptors are allocated in the same memory
+     *  before and after system recovery process.
+     *  GT_FALSE: AUQ descriptors are allocated in different memories
+     *  before and after system recovery process.
+     */
+    GT_BOOL continuousAuMessages;
+
+    /** @brief This mode describes what memory allocation is for FUQ descriptors:
+     *  GT_TRUE: FUQ descriptors are allocated in the same memory
+     *  before and after system recovery process.
+     *  GT_FALSE: FUQ descriptors are allocated in different memories
+     *  before and after system recovery process.
+     */
+    GT_BOOL continuousFuMessages;
+
+    /** @brief GT_TRUE: special mode after HA event when PP can't access CPU memory but CPU can access PP.
+     *  - GT_FALSE: regular mode; both CPU and PP can access each other memories.
+     *  It is actually when not the same memory address spaces are used for AUQ/FUQ/RX messages
+     *  before and after HA event.
+     *  This mode should be set by Application after HA event before any usage of
+     *  AUQ/FUQ/RX memories allocated before HA event, in order to prevent sending by PP
+     *  messages to these memories already not related to PP.
+     *  It is obligement of Application to revert memory access to normal mode after cpssInit.
+     *  (During cpssInit PP is initialized with new AUQ/FUQ/RX pointers )
+     */
+    GT_BOOL haCpuMemoryAccessBlocked;
+
+    /** @brief  Describes  HA cpss init mode */
+    CPSS_SYSTEM_RECOVERY_HA_2_PHASES_INIT_ENT ha2phasesInitPhase;
+
+    /** @brief Describes HA PEX state */
+    CPSS_SYSTEM_RECOVERY_HA_STATE_ENT haReadWriteState;
+
+} CPSS_SYSTEM_RECOVERY_MODE_STC;
+
+/**
+* @struct CPSS_SYSTEM_RECOVERY_INFO_STC
+ *
+ * @brief This struct containes information about system recovery process.
+*/
+typedef struct{
+
+    /** Indicates in which state system recovery process is */
+    CPSS_SYSTEM_RECOVERY_STATE_ENT systemRecoveryState;
+
+    /** Indicates in which working mode recovery process is. */
+    CPSS_SYSTEM_RECOVERY_MODE_STC systemRecoveryMode;
+
+    /** Indicates which recovery process is taking place. */
+    CPSS_SYSTEM_RECOVERY_PROCESS_ENT systemRecoveryProcess;
+
+} CPSS_SYSTEM_RECOVERY_INFO_STC;
+
+
 extern GT_STATUS cpssDxChPhyPortSmiRegisterWrite(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum,
                     GT_U8 phyReg, uint16_t data);
 extern GT_STATUS cpssDxChPhyPortSmiRegisterRead(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum,
@@ -405,6 +589,7 @@ extern GT_STATUS cpssDxChPortApPortConfigGet(GT_U8 devNum,
 
 extern GT_STATUS cpssDxChDiagDeviceTemperatureGet(GT_U8 devNum,
                      GT_32 *temperaturePtr);
+extern GT_STATUS cpssSystemRecoveryStateSet(CPSS_SYSTEM_RECOVERY_INFO_STC *recovery_info);
 
 #endif
 }
