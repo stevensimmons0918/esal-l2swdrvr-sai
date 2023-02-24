@@ -57,6 +57,10 @@ extern bool esalPortTableAddEntry(uint16_t portId, sai_object_id_t *portSai);
 extern void esalPortTableState(sai_object_id_t portId, bool portState);
 bool esalAddAclToPort(
     sai_object_id_t portSai, sai_object_id_t aclSai, bool ingr);
+bool esalAddBroadcastPolicer(sai_object_id_t portSai,
+                      sai_object_id_t policerSai);
+bool esalAddMulticastPolicer(sai_object_id_t portSai,
+                      sai_object_id_t policerSai);
 bool esalHandleSaiHostRxPacket(
     const void *buffer, sai_size_t bufferSz,
     uint32_t attrCnt, const sai_attribute_t *attrList);

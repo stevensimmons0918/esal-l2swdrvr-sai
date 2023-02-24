@@ -72,6 +72,7 @@ int portTableSize = 0;
 std::mutex portTableMutex; 
 
 void processSerdesInit(uint16_t lPort);
+void processRateLimitsInit(uint32_t lPort);
  
 bool esalPortTableFindId(sai_object_id_t portSai, uint16_t* portId) {
     // Search array for match.
@@ -536,6 +537,70 @@ void processSerdesInit(uint16_t lPort) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "processSerdesInit lPort lookup fail\n"));
     }
+}
+
+bool esalAddBroadcastPolicer(sai_object_id_t portSai,
+                      sai_object_id_t policerSai) {
+#ifndef UTS
+    // Get port table api
+    sai_status_t retcode;
+    sai_port_api_t *saiPortApi;
+    retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "API Query Fail in esalAddBroadcastPolicer\n"));
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
+        return false;
+    }
+
+    sai_attribute_t attr;
+    attr.id = SAI_PORT_ATTR_BROADCAST_STORM_CONTROL_POLICER_ID;
+    attr.value.oid = policerSai;
+
+    retcode = saiPortApi->set_port_attribute(portSai, &attr);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "create_port Fail in esalAddBroadcastPolicer\n"));
+        std::cout << "set port fail: " << esalSaiError(retcode)
+                  << std::endl;
+        return false;
+    }
+
+#endif
+    return true;
+}
+
+bool esalAddMulticastPolicer(sai_object_id_t portSai,
+                      sai_object_id_t policerSai) {
+#ifndef UTS
+    // Get port table api
+    sai_status_t retcode;
+    sai_port_api_t *saiPortApi;
+    retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "API Query Fail in esalAddMulticastPolicer\n"));
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
+        return false;
+    }
+
+    sai_attribute_t attr;
+    attr.id = SAI_PORT_ATTR_FLOOD_STORM_CONTROL_POLICER_ID;
+    attr.value.oid = policerSai;
+
+    retcode = saiPortApi->set_port_attribute(portSai, &attr);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "create_port Fail in esalAddMulticastPolicer\n"));
+        std::cout << "set port fail: " << esalSaiError(retcode)
+                  << std::endl;
+        return false;
+    }
+
+#endif
+    return true;
 }
 
 int VendorSetPortRate(uint16_t lPort, bool autoneg,
@@ -1183,7 +1248,7 @@ int VendorEnablePort(uint16_t lPort) {
 #ifdef HAVE_MRVL
 #ifndef LARCH_ENVIRON
     processSerdesInit(lPort);
-
+    processRateLimitsInit(lPort);
 #endif
 #endif
 

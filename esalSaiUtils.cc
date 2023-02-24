@@ -231,6 +231,29 @@ bool EsalSaiUtils::GetChangeable(const uint32_t lPort)
     return rc;
 }
 
+bool EsalSaiUtils::GetRateLimitInfo(const uint32_t lPort,
+                                    uint32_t &devId, uint32_t &pPort,
+                                    rateLimit_t &rLimit) {
+    bool rc = true;
+
+#ifndef LARCH_ENVIRON
+    if (phyPortInfoMap_.find(lPort) == phyPortInfoMap_.end()) {
+        rLimit.has_vals = false;
+        rc = false;
+        std::string err = "lPort not in phyPortInfoMap_" +
+            std::string(" lPort=") +
+            std::to_string(lPort) + "\n";
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, err));
+    }
+    else {
+        devId = phyPortInfoMap_[lPort].devId;
+        pPort = phyPortInfoMap_[lPort].pPort;
+        rLimit = phyPortInfoMap_[lPort].rateLimits;
+    }
+#endif
+    return rc;
+}
 void EsalSaiUtils::ParseConfig(void) {
 #ifndef LARCH_ENVIRON
     std::string key = "ports";
@@ -245,6 +268,20 @@ void EsalSaiUtils::ParseConfig(void) {
             portInfo.devId = set[i]["devId"];
 
             const libconfig::Setting &portsSetting = set[i];
+
+            // Check and populate rate limits if present
+            rateLimit_t rLimit;
+            memset(&rLimit, 0, sizeof(rLimit));
+            rLimit.has_vals = false;
+            if (portsSetting.exists("rateLimits")) {
+              const libconfig::Setting &r = set[i]["rateLimits"];
+              rLimit.bcastRateLimit  = set[i]["rateLimits"]["bcastRateLimit"];
+              rLimit.bcastBurstLimit = r["bcastBurstLimit"];
+              rLimit.mcastRateLimit  = r["mcastRateLimit"];
+              rLimit.mcastBurstLimit = r["mcastBurstLimit"];
+              rLimit.has_vals = true;
+            }
+            portInfo.rateLimits = rLimit;
 
             // Check for and populate serdes TX values if present
             serdesTx_t sTxVal;
