@@ -119,12 +119,22 @@ void esalPortTableSetChangeable(uint16_t portId, bool isChange) {
     return;
 }
 
+bool esalPortTableIsChangeable(uint16_t portId) {
+    for(auto i = 0; i < portTableSize; i++) {
+        if (portTable[i].portId == portId) {
+            return portTable[i].isChangeable;
+        }
+    }
+    return false;
+}
+
 void esalPortTableSetIfMode(uint16_t portId) {
     for(auto i = 0; i < portTableSize; i++) {
         if (portTable[i].portId == portId) {
             
             // No change if (isCopper and isSGMII) or (!isCopper and !SGMII)
             //  
+#ifndef UTS
             bool autoneg = true;
             vendor_speed_t speed = VENDOR_SPEED_GIGABIT;
             vendor_duplex_t duplex = VENDOR_DUPLEX_FULL; 
@@ -156,7 +166,6 @@ void esalPortTableSetIfMode(uint16_t portId) {
             //  5. Set Flow Control Attributes.
             //  6. Set SerDes Attributes. 
             //
-#ifndef UTS
             CPSS_PORT_MANAGER_STC portEventStc;
             portEventStc.portEvent = CPSS_PORT_MANAGER_EVENT_DELETE_E;
             if (cpssDxChPortManagerEventSet(0, portId, &portEventStc)) {
@@ -619,8 +628,10 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         return ESAL_RC_FAIL;
     }
 #ifndef LARCH_ENVIRON
+#ifndef UTS
     std::string hwid_value = esalProfileMap["hwId"];
     bool isSFP = false; 
+#endif
     // First check to see if supported by SFP library.
     if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
         std::vector<SFPAttribute> values;
@@ -644,8 +655,8 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         esalSFPGetPort(lPort, values.size(), values.data());
 #ifndef UTS
         isCopper = values[0].SFPVal.Copper;
-#endif
         isSFP = saiUtils.GetChangeable(lPort);
+#endif
     }
 
     if (!useSaiFlag){
@@ -714,7 +725,9 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         attributes.push_back(attr); 
     }
 #else // NOT_SUPPORTED_BY_SAI
-    if (esalHostPortId == pPort && hwid_value.compare("ALDRIN2XLFL") == 0) {
+    if (esalHostPortId == pPort && 
+        ((hwid_value.compare("ALDRIN2XLFL") == 0) || 
+         (hwid_value.compare("ALDRIN2EB3") == 0))) {
         attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
         attr.value.booldata = true;
         attributes.push_back(attr);
@@ -1118,20 +1131,32 @@ int VendorGetPortLinkState(uint16_t lPort, bool *ls) {
     }
 
 #ifndef LARCH_ENVIRON
-    // First check to see if supported by SFP library.
-    if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
+    if (esalPortTableIsChangeable(pPort)) {
+static int cnt = 100;
+        // Changeable need to check first to see if hardware has changed.
+        // then get link state from L2SW. 
+        std::vector<SFPAttribute> values;
+        SFPAttribute val;
+        val.SFPAttr = SFPCopper;
+        values.push_back(val); 
+        if (!esalSFPGetPort) return ESAL_RC_FAIL; 
+        esalSFPGetPort(lPort, values.size(), values.data());
+        esalPortTableSetCopper(pPort, values[0].SFPVal.Copper);
+        esalPortTableSetIfMode(pPort);
+        if (cnt) {
+           cnt--;
+           std::cout << "esalPortTableIsChangeablei chk: " << pPort << " : " << values[0].SFPVal.Copper << "\n";
+        } 
+    } else if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
+        // Check to see if supported by SFP library.
         std::vector<SFPAttribute> values;
         SFPAttribute val;
         val.SFPAttr = SFPLinkStatus;
         val.SFPVal.LinkStatus = *ls;
         values.push_back(val); 
-        val.SFPAttr = SFPCopper;
-        values.push_back(val); 
         if (!esalSFPGetPort) return ESAL_RC_FAIL; 
         esalSFPGetPort(lPort, values.size(), values.data());
         *ls = values[0].SFPVal.LinkStatus;
-        esalPortTableSetCopper(pPort, values[1].SFPVal.Copper);
-        esalPortTableSetIfMode(pPort);
         return rc; 
     }
 #endif    
@@ -1193,6 +1218,7 @@ int VendorEnablePort(uint16_t lPort) {
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
+
 
     if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
@@ -1788,6 +1814,31 @@ int VendorGetPortAdvertAbility(uint16_t lPort, uint16_t *advert) {
 VendorL2ParamChangeCb_fp_t portStateChangeCb = 0;
 void *portStateCbData = 0; 
 
+// All SFPs will go through this callback. 
+//
+bool esalSfpCallback(
+     void *cbId, uint16_t lPort, bool ls, bool aneg, vendor_speed_t spd, vendor_duplex_t dup)
+{
+    std::cout << "esalSfpCallback\n" << std::flush;
+    uint32_t pPort;
+    uint32_t dev;
+
+    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "esalSfpCallback failed to get pPort\n"));
+        return false;
+    }
+
+    if (esalPortTableIsChangeable(pPort)) {
+        std::cout << "esalSfpCallback changeable\n";
+        return true; 
+    }
+
+    if (!portStateChangeCb) return false;  
+    return portStateChangeCb(cbId, lPort, ls, aneg, spd, dup);
+}
+
+
 int VendorRegisterL2ParamChangeCb(VendorL2ParamChangeCb_fp_t cb, void *cbId) {
     // Register global callback used for autoneg and link status. 
     std::unique_lock<std::mutex> lock(portTableMutex);
@@ -1821,7 +1872,7 @@ int VendorRegisterL2ParamChangeCb(VendorL2ParamChangeCb_fp_t cb, void *cbId) {
     }
 
     if (!esalSFPRegisterL2ParamChangeCb ||
-         esalSFPRegisterL2ParamChangeCb(cb, cbId)) {
+         esalSFPRegisterL2ParamChangeCb(esalSfpCallback, cbId)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "SFPRegisterL2ParamChangeCb fail " \
                             "in VendorRegisterL2ParamChangeCb\n"));
@@ -1854,10 +1905,15 @@ void esalPortTableState(sai_object_id_t portSai, bool portState){
         return;
     }
 
+    std::cout << "esalPortTableState : " << pPort << ":" << portState << "\n" << std::flush;
+
+
 #ifndef LARCH_ENVIRON
     // Check to see if the SFP supported by SFP Library. If so, just call
     // set link state, and let SFP library handle callback. 
-    if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
+    if (esalSFPLibrarySupport && 
+        esalSFPLibrarySupport(lPort) && 
+        !esalPortTableIsChangeable(pPort)) {
         std::vector<SFPAttribute> values;
         SFPAttribute val;
         val.SFPAttr = SFPLinkStatus;
