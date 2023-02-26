@@ -42,7 +42,7 @@ FILES := \
   esalSaiTag.cc \
   esalSaiUtils.cc \
   esalSaiVlan.cc \
-  esalSaiPolicer.cc
+  esalSaiPolicer.cc \
   esalWarmbootApi.cc
 
 
