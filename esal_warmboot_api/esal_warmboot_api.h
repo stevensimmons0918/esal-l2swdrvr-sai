@@ -15,7 +15,7 @@
 
 // Warmboot flag
 //
-extern bool ESAL_WARM;
+extern bool WARM_RESTART;
 
 // Warmboot helpers
 //

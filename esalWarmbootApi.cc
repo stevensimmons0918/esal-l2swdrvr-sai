@@ -7,9 +7,9 @@
 #include <string>
 #include <sys/stat.h>
 
-bool ESAL_WARM = []() -> bool {
-    const char *esal_warm_env = std::getenv("ESAL_WARM");
-    if (esal_warm_env != NULL && !strcmp(esal_warm_env, "TRUE")) {
+bool WARM_RESTART = []() -> bool {
+    const char *esal_warm_env = std::getenv("PSI_resetReason");
+    if (esal_warm_env != NULL && !strcmp(esal_warm_env, "warm")) {
         return true;
     }
     return false;
@@ -69,6 +69,10 @@ bool VendorWarmBootSaveHandler() {
     std::cout << "================================================================================" << std::endl;
     std::cout << std::endl;
 
+    if (!createFolderIfNotExist(BACKUP_FOLDER)) {
+        std::cout << "Backup folder creation error" << std::endl;
+        return false;
+    }
 
     for (auto handler_name_fn : warmBootSaveHandlers) {
         std::string name = handler_name_fn.first;

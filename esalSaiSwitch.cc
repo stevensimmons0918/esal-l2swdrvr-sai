@@ -29,6 +29,7 @@
 #include <net/if.h>
 
 #include "esal_vendor_api/esal_vendor_api.h"
+#include "esal_warmboot_api/esal_warmboot_api.h"
 #ifndef LARCH_ENVIRON
 #include "sfp_vendor_api/sfp_vendor_api.h"
 #include "threadutils/dll_util.h"
@@ -66,7 +67,6 @@ static uint16_t esalMaxPort = 0;
 uint16_t esalHostPortId;
 char esalHostIfName[SAI_HOSTIF_NAME_SIZE];
 std::map<std::string, std::string> esalProfileMap;
-bool WARM_RESTART = false;
 #ifndef LARCH_ENVIRON
 void loadSFPLibrary(void) {
 
@@ -392,15 +392,6 @@ int DllInit(void) {
 
 #ifndef UTS
 
-    const char *esal_warm_env = std::getenv("PSI_resetReason");
-    if (esal_warm_env != NULL && !strcmp(esal_warm_env, "warm"))
-    {
-        WARM_RESTART = true;
-    }
-    else
-    {
-        WARM_RESTART = false;
-    }
     // Initialize the SAI.
     //
     sai_api_initialize(0, &testServices);
@@ -621,6 +612,15 @@ int DllInit(void) {
                     SWERR_FILELINE, "portCfgFlowControlInit fail\n"));
         std::cout << "portCfgFlowControlInit fail \n";
         return ESAL_RC_FAIL;
+    }
+
+    if (WARM_RESTART) {
+        if (!VendorWarmBootRestoreHandler()) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "VendorWarmBootRestoreHandler fail\n"));
+            std::cout << "VendorWarmBootRestoreHandler fail \n";
+            return ESAL_RC_FAIL;
+        }
     }
 
     return ESAL_RC_OK;
