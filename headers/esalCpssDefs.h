@@ -85,11 +85,23 @@ typedef unsigned int GT_STATUS;
 
 typedef int8_t      GT_8,   *GT_8_PTR;
 typedef uint8_t     GT_U8,  *GT_U8_PTR;
+typedef short               GT_16,  *GT_16_PTR;
+typedef unsigned short      GT_U16, *GT_U16_PTR;
 typedef int32_t     GT_32,  *GT_32_PTR;
 typedef uint32_t    GT_U32,  *GT_U32_PTR;
 
 typedef GT_U32 GT_PHYSICAL_PORT_NUM;
 
+/**
+* @struct GT_ETHERADDR
+ *
+ * @brief Defines the mac address
+*/
+typedef struct{
+
+    GT_U8 arEther[6];
+
+} GT_ETHERADDR;
 
 #include "esalCpssPortCtrl.h"
 
@@ -531,6 +543,430 @@ typedef struct{
 
 } CPSS_SYSTEM_RECOVERY_INFO_STC;
 
+/*
+ * Typedef: GT_TRUNK_ID
+ *
+ * Description: Defines trunk id
+ *
+ *  used as the type for the trunk Id's
+ *
+ */
+typedef GT_U16  GT_TRUNK_ID;
+
+
+/*
+ * Typedef: GT_HW_DEV_NUM
+ *
+ * Description: Defines HW dev num
+ *
+ *  used as the type for the hw dev num
+ *
+ */
+typedef GT_U32 GT_HW_DEV_NUM;
+
+/*
+ * Typedef: GT_PORT_NUM
+ *
+ * Description: Defines port num
+ *
+ *  used as the type for the port num
+ *
+ */
+typedef GT_U32 GT_PORT_NUM;
+
+/**
+* @enum CPSS_INTERFACE_TYPE_ENT
+ *
+ * @brief enumerator for interface
+ * To be used for:
+ * 1. set mac entry info
+ * 2. set next hop info
+ * 3. redirect pcl info
+ * 4. get new Address info
+*/
+typedef enum{
+
+    /** the interface is of port type (dev,port) */
+    CPSS_INTERFACE_PORT_E = 0,
+
+    /** the interface is of trunk type (trunkId) */
+    CPSS_INTERFACE_TRUNK_E,
+
+    /** the interface is of Vidx type (vidx) */
+    CPSS_INTERFACE_VIDX_E,
+
+    /** the interface is of Vid type (vlan-id) */
+    CPSS_INTERFACE_VID_E,
+
+    /** the interface is device */
+    CPSS_INTERFACE_DEVICE_E,
+
+    /** the interface is of Vidx type (fabricVidx) */
+    CPSS_INTERFACE_FABRIC_VIDX_E,
+
+    /** the interface index type */
+    CPSS_INTERFACE_INDEX_E
+
+} CPSS_INTERFACE_TYPE_ENT;
+
+/**
+* @struct CPSS_INTERFACE_INFO_STC
+ *
+ * @brief Defines the interface info
+ * To be used for:
+ * 1. set mac entry info
+ * 2. set next hop info
+ * 3. redirect pcl info
+ * 4. get new Address info
+*/
+typedef struct{
+    /** the interface type */
+    CPSS_INTERFACE_TYPE_ENT     type;
+
+    /* !!!! NOTE : next fields treated as UNION !!!! */
+
+    /** info about the {dev,port} - relevant to CPSS_INTERFACE_PORT_E */
+    struct{
+        /** @brief - the HW device number */
+        GT_HW_DEV_NUM   hwDevNum;
+        /** @brief - port number (physical port / eport) */
+        GT_PORT_NUM     portNum;
+    }devPort;
+
+    /** info about the {trunkId}  - relevant to CPSS_INTERFACE_TRUNK_E */
+    GT_TRUNK_ID     trunkId;
+
+    /** info about the {vidx}     - relevant to CPSS_INTERFACE_VIDX_E */
+    GT_U16          vidx;
+
+    /** info about the {vid}      - relevant to CPSS_INTERFACE_VID_E */
+    GT_U16          vlanId;
+
+    /** info about the {HW device number} - relevant to CPSS_INTERFACE_DEVICE_E */
+    GT_HW_DEV_NUM   hwDevNum;
+
+    /** info about the {fabricVidx} - relevant to CPSS_INTERFACE_FABRIC_VIDX_E */
+    GT_U16          fabricVidx;
+
+    /** info about the {index}  - relevant to CPSS_INTERFACE_INDEX_E */
+    GT_U32          index;
+}CPSS_INTERFACE_INFO_STC;
+
+/**
+* @enum CPSS_PACKET_CMD_ENT
+ *
+ * @brief This enum defines the packet command.
+*/
+typedef enum{
+
+    /** forward packet */
+    CPSS_PACKET_CMD_FORWARD_E              ,
+
+    /** mirror packet to CPU */
+    CPSS_PACKET_CMD_MIRROR_TO_CPU_E        ,
+
+    /** trap packet to CPU */
+    CPSS_PACKET_CMD_TRAP_TO_CPU_E          ,
+
+    /** hard drop packet */
+    CPSS_PACKET_CMD_DROP_HARD_E            ,
+
+    /** soft drop packet */
+    CPSS_PACKET_CMD_DROP_SOFT_E            ,
+
+    /** IP Forward the packets */
+    CPSS_PACKET_CMD_ROUTE_E                ,
+
+    /** @brief Packet is routed and mirrored to
+     *  the CPU.
+     */
+    CPSS_PACKET_CMD_ROUTE_AND_MIRROR_E     ,
+
+    /** Bridge and Mirror to CPU. */
+    CPSS_PACKET_CMD_BRIDGE_AND_MIRROR_E    ,
+
+    /** Bridge only */
+    CPSS_PACKET_CMD_BRIDGE_E               ,
+
+    /** Do nothing. (disable) */
+    CPSS_PACKET_CMD_NONE_E                 ,
+
+    /** loopback packet is send back to originator */
+    CPSS_PACKET_CMD_LOOPBACK_E             ,
+
+    /** same as CPSS_PACKET_CMD_ROUTE_E but packet can be failed by loose uRPF. */
+    CPSS_PACKET_CMD_DEFAULT_ROUTE_ENTRY_E
+
+} CPSS_PACKET_CMD_ENT;
+
+
+
+/**
+* @enum CPSS_DROP_MODE_TYPE_ENT
+ *
+ * @brief Enumeration for drop mode for red packets
+*/
+typedef enum{
+
+    /** drop mode is Soft drop */
+    CPSS_DROP_MODE_SOFT_E = 0,
+
+    /** drop mode is hard drop */
+    CPSS_DROP_MODE_HARD_E
+
+} CPSS_DROP_MODE_TYPE_ENT;
+
+/**
+* @enum CPSS_PACKET_ATTRIBUTE_MODIFY_TYPE_ENT
+ *
+ * @brief Enumerator for modification of packet's attribute
+ * like User Priority and DSCP.
+*/
+typedef enum{
+
+    /** @brief Keep
+     *  previous packet's attribute modification command.
+     *  CPSS_PACKET_ATTRIBUTE_MODIFY_DISABLE_E,    - disable
+     *  modification of the packet's attribute.
+     */
+    CPSS_PACKET_ATTRIBUTE_MODIFY_KEEP_PREVIOUS_E = 0,
+
+    CPSS_PACKET_ATTRIBUTE_MODIFY_DISABLE_E,
+
+    /** @brief enable
+     *  modification of the packet's attribute.
+     */
+    CPSS_PACKET_ATTRIBUTE_MODIFY_ENABLE_E
+
+} CPSS_PACKET_ATTRIBUTE_MODIFY_TYPE_ENT;
+
+/**
+* @enum CPSS_PACKET_ATTRIBUTE_ASSIGN_PRECEDENCE_ENT
+ *
+ * @brief Enumerator for the packet's attribute assignment precedence
+ * for the subsequent assignment mechanism.
+*/
+typedef enum{
+
+    /** @brief Soft precedence:
+     *  The packet's attribute assignment can be overridden
+     *  by the subsequent assignment mechanism
+     */
+    CPSS_PACKET_ATTRIBUTE_ASSIGN_PRECEDENCE_SOFT_E = 0,
+
+    /** @brief Hard precedence:
+     *  The packet's attribute assignment is locked
+     *  to the last value of attribute assigned to the packet
+     *  and cannot be overridden.
+     */
+    CPSS_PACKET_ATTRIBUTE_ASSIGN_PRECEDENCE_HARD_E
+
+} CPSS_PACKET_ATTRIBUTE_ASSIGN_PRECEDENCE_ENT;
+
+/**
+* @enum CPSS_PACKET_ATTRIBUTE_ASSIGN_CMD_ENT
+ *
+ * @brief Enumerator for the packet's attribute assignment command.
+*/
+typedef enum{
+
+    /** @brief packet's attribute assignment
+     *  disabled
+     */
+    CPSS_PACKET_ATTRIBUTE_ASSIGN_DISABLED_E,
+
+    /** @brief packet's attribute assignment
+     *  only if the packet is VLAN tagged.
+     */
+    CPSS_PACKET_ATTRIBUTE_ASSIGN_FOR_TAGGED_E,
+
+    /** @brief packet's attribute assignment
+     *  only if the packet is untagged or Prioritytagged.
+     */
+    CPSS_PACKET_ATTRIBUTE_ASSIGN_FOR_UNTAGGED_E,
+
+    /** @brief packet's attribute assignment
+     *  regardless of packet tagging state.
+     */
+    CPSS_PACKET_ATTRIBUTE_ASSIGN_FOR_ALL_E
+
+} CPSS_PACKET_ATTRIBUTE_ASSIGN_CMD_ENT;
+
+/**
+* @enum CPSS_IP_SITE_ID_ENT
+ *
+ * @brief This enum defines IPv6 Site ID (Used by Router for Ipv6 scope checking)
+*/
+typedef enum{
+
+    /** Internal */
+    CPSS_IP_SITE_ID_INTERNAL_E,
+
+    /** External */
+    CPSS_IP_SITE_ID_EXTERNAL_E
+
+} CPSS_IP_SITE_ID_ENT;
+
+/**
+* @enum CPSS_IP_CNT_SET_ENT
+ *
+ * @brief Each UC/MC Route Entry result can be linked with one the
+ * below IP counter sets.
+*/
+typedef enum{
+
+    /** counter set 0 */
+    CPSS_IP_CNT_SET0_E   = 0,
+
+    /** counter set 1 */
+    CPSS_IP_CNT_SET1_E   = 1,
+
+    /** counter set 2 */
+    CPSS_IP_CNT_SET2_E   = 2,
+
+    /** counter set 3 */
+    CPSS_IP_CNT_SET3_E   = 3,
+
+    /** do not link route entry with a counter set */
+    CPSS_IP_CNT_NO_SET_E = 4
+
+} CPSS_IP_CNT_SET_ENT;
+
+#include "esalCpssFdb.h"
+
+/**
+* @enum CPSS_DXCH_CFG_TABLES_ENT
+ *
+ * @brief the type of tables that the DXCH devices hold.
+ * NOTE: some tables may shared on same memory space (like router and IPCL)
+*/
+typedef enum{
+
+    /** table type represent the VLAN table */
+    CPSS_DXCH_CFG_TABLE_VLAN_E,
+
+    /** @brief  table type represent the FDB table
+     *
+     *   NOTE: 1. For next APPLICABLE DEVICES : Ironman.
+     *          This refer to the FDB partition of the table that not include
+     *          the DDE part. To have the FDB with the DDE part , use
+     *          CPSS_DXCH_CFG_TABLE_FDB_WITH_DDE_PARTITION_E.
+    */
+    CPSS_DXCH_CFG_TABLE_FDB_E,
+
+    /** table type represent the PCL action table */
+    CPSS_DXCH_CFG_TABLE_PCL_ACTION_E,
+
+    /** table type represent the PCL Tcam table */
+    CPSS_DXCH_CFG_TABLE_PCL_TCAM_E,
+
+    /** table type represent the router next hop table */
+    CPSS_DXCH_CFG_TABLE_ROUTER_NEXT_HOP_E,
+
+    /** table type represent the router lookup translation table (LTT) */
+    CPSS_DXCH_CFG_TABLE_ROUTER_LTT_E,
+
+    /** @brief table type represent the Router Tcam table
+     *  Note: take in account that cpssDxChCfgTableNumEntriesGet
+     *  function will return number of entries for IPv6,
+     *  while actual number of IPv4 entries is 4 times bigger.
+     */
+    CPSS_DXCH_CFG_TABLE_ROUTER_TCAM_E,
+
+    /** table type represent the L3 ECMP/QoS table */
+    CPSS_DXCH_CFG_TABLE_ROUTER_ECMP_QOS_E,
+
+    /** table type represent the TTI table */
+    CPSS_DXCH_CFG_TABLE_TTI_TCAM_E,
+
+    /** @brief table type represent the MLL pair table
+     *  (the MLLs reside as pair in each entry)
+     */
+    CPSS_DXCH_CFG_TABLE_MLL_PAIR_E,
+
+    /** table type represent the policer metering table */
+    CPSS_DXCH_CFG_TABLE_POLICER_METERS_E,
+
+    /** table type represent the policer billing counters table */
+    CPSS_DXCH_CFG_TABLE_POLICER_BILLING_COUNTERS_E,
+
+    /** table type represent the VIDX (multicast groups) table */
+    CPSS_DXCH_CFG_TABLE_VIDX_E,
+
+    /** table type represent the ARP entries in ARP/Tunnel Start table */
+    CPSS_DXCH_CFG_TABLE_ARP_E,
+
+    /** table type represent Tunnel Start entries in the ARP/Tunnel Start table */
+    CPSS_DXCH_CFG_TABLE_TUNNEL_START_E,
+
+    /** table type represent the STG (spanning tree groups) table */
+    CPSS_DXCH_CFG_TABLE_STG_E,
+
+    /** table type represent the QOS profile table */
+    CPSS_DXCH_CFG_TABLE_QOS_PROFILE_E,
+
+    /** table type represent the Mac to me table */
+    CPSS_DXCH_CFG_TABLE_MAC_TO_ME_E,
+
+    /** @brief table type represent the centralized counters (CNC) table
+     *  (the number of counters (X per block) , so 8 blocks means 8X counters).
+     *  Refer to device datasheet to see number of CNC blocks and the number of
+     *  counters per CNC block.
+     */
+    CPSS_DXCH_CFG_TABLE_CNC_E,
+
+    /** @brief table type represent CNC block (the number of conters per CNC block).
+     *  Refer to device datasheet to see number of counters per CNC block.
+     */
+    CPSS_DXCH_CFG_TABLE_CNC_BLOCK_E,
+
+    /** table type represent trunk table. */
+    CPSS_DXCH_CFG_TABLE_TRUNK_E,
+
+    /** table type represent LPM RAM */
+    CPSS_DXCH_CFG_TABLE_LPM_RAM_E,
+
+    /** table type represent router ECMP table */
+    CPSS_DXCH_CFG_TABLE_ROUTER_ECMP_E,
+
+    /** table type represent L2 MLL LTT */
+    CPSS_DXCH_CFG_TABLE_L2_MLL_LTT_E,
+
+    /** table type represent ePorts table */
+    CPSS_DXCH_CFG_TABLE_EPORT_E,
+
+    /** table type represent default ePorts table */
+    CPSS_DXCH_CFG_TABLE_DEFAULT_EPORT_E,
+
+    /** table type represent physical Ports table */
+    CPSS_DXCH_CFG_TABLE_PHYSICAL_PORT_E,
+
+    /** table type represent the Exact Match table
+     *  (APPLICABLE DEVICES : FALCON.) */
+    CPSS_DXCH_CFG_TABLE_EXACT_MATCH_E,
+
+    /** table type represent the Source ID table*/
+    CPSS_DXCH_CFG_TABLE_SOURCE_ID_E,
+
+    /** table type represent OAM table. */
+    CPSS_DXCH_CFG_TABLE_OAM_E,
+
+    /** @brief : table type represent the DDE partition (in FDB table)
+     *  (APPLICABLE DEVICES : Ironman.)
+    */
+    CPSS_DXCH_CFG_TABLE_DDE_PARTITION_E,
+
+    /** @brief : table type represent the FDB table with the DDE partition
+     *   this table is the summary of 'FDB' and 'DDE_PARTITION'
+     *  (APPLICABLE DEVICES : Ironman.)
+    */
+    CPSS_DXCH_CFG_TABLE_FDB_WITH_DDE_PARTITION_E,
+
+
+    /** indication of the last table (not represents a table) */
+    CPSS_DXCH_CFG_TABLE_LAST_E
+
+} CPSS_DXCH_CFG_TABLES_ENT;
 
 extern GT_STATUS cpssDxChPhyPortSmiRegisterWrite(GT_U8 devNum, GT_PHYSICAL_PORT_NUM portNum,
                     GT_U8 phyReg, uint16_t data);
@@ -592,7 +1028,13 @@ extern GT_STATUS cpssDxChDiagDeviceTemperatureGet(GT_U8 devNum,
 extern GT_STATUS cpssSystemRecoveryStateSet(CPSS_SYSTEM_RECOVERY_INFO_STC *recovery_info);
 
 extern GT_STATUS prvCpssDrvHwPpWriteRegister (GT_U8 devNum, GT_U32 regAddr, GT_U32 value);
-
+extern GT_STATUS cpssDxChCfgTableNumEntriesGet(GT_U8 devNum, CPSS_DXCH_CFG_TABLES_ENT table, 
+                                               GT_U32 *numEntriesPtr);
+extern GT_STATUS cpssDxChBrgFdbMacEntryRead(GT_U8 devNum, GT_U32 index, GT_BOOL *validPtr,
+                                            GT_BOOL                 *skipPtr,
+                                            GT_BOOL                 *agedPtr,
+                                            GT_HW_DEV_NUM           *associatedHwDevNumPtr,
+                                            CPSS_MAC_ENTRY_EXT_STC  *entryPtr);
 #endif
 }
 

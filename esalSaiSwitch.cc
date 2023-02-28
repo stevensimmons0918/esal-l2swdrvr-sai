@@ -325,6 +325,114 @@ static int get_mac_addr(const char* interfaceName, sai_mac_t* mac) {
 }
 #endif
 
+static int esalWarmRestartReNotifyFdb()
+{
+    CPSS_MAC_ENTRY_EXT_STC entry;
+    GT_U8 cpssDevNum = 0;
+    GT_HW_DEV_NUM associatedHwDevNum = 0;
+    GT_BOOL valid;
+    GT_BOOL skip = GT_FALSE;
+    GT_BOOL aged[2] = {GT_FALSE, GT_FALSE};
+    GT_STATUS rc;
+    GT_U32 tblSize;
+    sai_fdb_event_notification_data_t data;
+    sai_attribute_t fdb_attribute[3];
+    sai_packet_action_t saiAction = SAI_PACKET_ACTION_FORWARD;;
+
+    rc = cpssDxChCfgTableNumEntriesGet(cpssDevNum, CPSS_DXCH_CFG_TABLE_FDB_E,
+                                       &tblSize);
+    if (rc != GT_OK)
+    {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "cpssDxChCfgTableNumEntriesGet failed\n"));
+        std::cout << "cpssDxChCfgTableNumEntriesGet fail: "
+                  << rc << std::endl;
+        return ESAL_RC_FAIL;
+    }
+
+    for (GT_U32 entryIndex = 0; entryIndex < tblSize; entryIndex++)
+    {
+        rc = cpssDxChBrgFdbMacEntryRead(cpssDevNum, entryIndex, &valid, &skip,
+                                        &aged[cpssDevNum], &associatedHwDevNum, &entry);
+        if (rc != GT_OK)
+        {
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                            SWERR_FILELINE, "cpssDxChBrgFdbMacEntryRead failed\n"));
+                std::cout << "cpssDxChBrgFdbMacEntryRead fail: "
+                          << rc << std::endl;
+                return ESAL_RC_FAIL;
+        }
+
+        if (!valid)
+        {
+            continue;
+        }
+        
+        memset(&data, 0x0, sizeof(sai_fdb_event_notification_data_t));
+
+        data.fdb_entry.switch_id = esalSwitchId;
+        data.event_type = SAI_FDB_EVENT_LEARNED;
+
+        data.fdb_entry.bv_id = ((uint64_t)SAI_OBJECT_TYPE_VLAN << 48) | entry.key.key.macVlan.vlanId;
+        memcpy(data.fdb_entry.mac_address, entry.key.key.macVlan.macAddr.arEther, sizeof(sai_mac_t));
+
+        data.attr_count = 3;
+
+        //Fdb entry type
+        fdb_attribute[0].id = SAI_FDB_ENTRY_ATTR_TYPE;
+        fdb_attribute[0].value.s32 = (entry.isStatic == true) ?
+                                     SAI_FDB_ENTRY_TYPE_STATIC : SAI_FDB_ENTRY_TYPE_DYNAMIC;
+
+        fdb_attribute[1].id = SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID;
+        esalFindBridgePortSaiFromPortSai(((uint64_t)SAI_OBJECT_TYPE_PORT << 48) | entry.dstInterface.devPort.portNum, 
+                                                    &fdb_attribute[1].value.oid);
+
+
+        //Packet action
+        fdb_attribute[2].id = SAI_FDB_ENTRY_ATTR_PACKET_ACTION;
+        switch (entry.daCommand)
+        {
+        case CPSS_MAC_TABLE_FRWRD_E:
+                saiAction = SAI_PACKET_ACTION_FORWARD;
+                break;
+
+        case CPSS_MAC_TABLE_DROP_E:
+                saiAction = SAI_PACKET_ACTION_DROP;
+                break;
+
+        case CPSS_MAC_TABLE_INTERV_E:
+                saiAction = SAI_PACKET_ACTION_DROP;
+                break;
+
+        case CPSS_MAC_TABLE_CNTL_E:
+                saiAction = SAI_PACKET_ACTION_TRAP;
+                break;
+
+        case CPSS_MAC_TABLE_MIRROR_TO_CPU_E:
+                saiAction = SAI_PACKET_ACTION_COPY;
+                break;
+
+        case CPSS_MAC_TABLE_SOFT_DROP_E:
+                break;
+
+        default:
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                            SWERR_FILELINE, "fdb entry DA command is unknown\n"));
+                std::cout << "fdb entry DA command is unknown"
+                          << rc << std::endl;
+                return ESAL_RC_FAIL;
+        }
+
+        fdb_attribute[2].value.s32 = saiAction;
+
+        data.attr = fdb_attribute;
+ 
+        onFdbEvent(1, &data);
+    }
+
+    return ESAL_RC_OK;
+}
+
 void onPacketEvent(sai_object_id_t sid,
                    sai_size_t bufferSize,
                    const void *buffer,
@@ -779,6 +887,7 @@ int VendorConfigurationComplete()
 {
     CPSS_SYSTEM_RECOVERY_INFO_STC recovery_info;
     GT_STATUS rc;
+    int status;
 
     if (WARM_RESTART)
     {
@@ -795,6 +904,16 @@ int VendorConfigurationComplete()
                          SWERR_FILELINE, "cpssSystemRecoveryStateSet failed\n"));
              std::cout << "cpss cpssSystemRecoveryStateSet fail: "
                        << rc << std::endl;
+             return ESAL_RC_FAIL;
+        }
+
+        status = esalWarmRestartReNotifyFdb();
+        if (status != ESAL_RC_OK)
+        {
+             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                         SWERR_FILELINE, "esalWarmRestartReNotifyFdb failed\n"));
+             std::cout << "esalWarmRestartReNotifyFdb fail: "
+                       << status << std::endl;
              return ESAL_RC_FAIL;
         }
     }
