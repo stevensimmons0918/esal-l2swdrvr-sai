@@ -20,6 +20,7 @@ std::map<std::string, bool (*)()> warmBootRestoreHandlers = {
     {"PORT",    portWarmBootRestoreHandler},
     {"BRIDGE",  bridgeWarmBootRestoreHandler},
     {"TAG",     tagWarmBootRestoreHandler},
+    {"STP",     stpWarmBootRestoreHandler},
 };
 
 std::map<std::string, bool (*)()> warmBootSaveHandlers = {
@@ -27,6 +28,7 @@ std::map<std::string, bool (*)()> warmBootSaveHandlers = {
     {"PORT",    portWarmBootSaveHandler},
     {"BRIDGE",  bridgeWarmBootSaveHandler},
     {"TAG",     tagWarmBootSaveHandler},
+    {"STP",     stpWarmBootSaveHandler},
 };
 
 bool VendorWarmBootRestoreHandler() {

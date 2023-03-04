@@ -2105,8 +2105,7 @@ static bool serializePortTableConfig(SaiPortEntry *portTable, const int portTabl
         libconfig::Setting &portEntry =
                 portTableSetting.add(libconfig::Setting::TypeGroup);
         portEntry.add("portId", libconfig::Setting::TypeInt) = portTable[i].portId;
-        portEntry.add("portSai", libconfig::Setting::TypeInt64) =
-                static_cast<int64_t>(portTable[i].portSai);
+        portEntry.add("portSai", libconfig::Setting::TypeInt64) = static_cast<int64_t>(portTable[i].portSai);
         portEntry.add("adminState", libconfig::Setting::TypeBoolean) = portTable[i].adminState;
     }
 
@@ -2129,7 +2128,7 @@ static bool deserializePortTableConfig(SaiPortEntry *portTable, int *portTableSi
         return false;
     } catch (const libconfig::ParseException &ex) {
         std::cout << "Error parsing file: " << ex.what() << " at line "
-                            << ex.getLine() << std::endl;
+                  << ex.getLine() << std::endl;
         return false;
     }
 
