@@ -53,6 +53,14 @@ class EsalSaiUtils: public EsalSaiUtilsBase {
     } serdesRx_t;
 
     typedef struct {
+        bool     has_vals;
+        uint32_t bcastRateLimit;
+        uint32_t bcastBurstLimit;
+        uint32_t mcastRateLimit;
+        uint32_t mcastBurstLimit;
+    } rateLimit_t;
+
+    typedef struct {
         bool has_vals = false;
         bool inbandEnable = false;
         bool duplexEnable = false;
@@ -127,6 +135,10 @@ class EsalSaiUtils: public EsalSaiUtilsBase {
                        uint32_t &devId, uint32_t &pPort,
                        serdesTx_t &tx, serdesRx_t &rx);
 
+    bool GetRateLimitInfo(const uint32_t lPort,
+                          uint32_t &devId, uint32_t &pPort,
+                          rateLimit_t &rLimit);
+
     /*!
      * @brief           Get list of all supported logical ports
      * @param devId     chip number
@@ -149,6 +161,7 @@ class EsalSaiUtils: public EsalSaiUtilsBase {
         serdesRx_t serdesRx;
         flowCtrlAttrs flowCtrl; 
         bool changeable = false; 
+        rateLimit_t rateLimits;
     } PhyPortInfo;
 
     //! UnitCode

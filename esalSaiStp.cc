@@ -346,9 +346,8 @@ static bool deserializeStpTableConfig(std::vector<StpGroupMember>& stpPortTable,
     for (int i = 0; i < portTableSetting.getLength(); ++i) {
         libconfig::Setting& portEntry = portTableSetting[i];
 
-        int portId;
+        int portId, stpState;
         long long stpSai, bridgePortSai, stpPortSai;
-        bool stpState;
 
         if (!(portEntry.lookupValue("portId", portId)               &&
               portEntry.lookupValue("stpSai", stpSai)               &&
