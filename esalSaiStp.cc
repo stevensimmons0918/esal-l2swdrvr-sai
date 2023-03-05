@@ -382,7 +382,7 @@ bool stpWarmBootSaveHandler() {
     return serializeStpTableConfig(stpPortTable, BACKUP_FILE_STP);
 }
 
-bool stpWarmBootRestoreHandler () {
+bool stpWarmBootRestoreHandler() {
     bool status = true;
 
     std::vector<StpGroupMember> stpTable;
@@ -394,7 +394,7 @@ bool stpWarmBootRestoreHandler () {
 
     if (stpTable.empty()) {
         std::cout << "STP table is empty!" << std::endl;
-        return false;
+        return true;
     }
 
     std::cout << "Found STP configurations:" << std::endl;
@@ -413,6 +413,11 @@ bool stpWarmBootRestoreHandler () {
     }
 
     return true;
+}
+
+void stpWarmBootCleanHandler() {
+    std::unique_lock<std::mutex> lock(stpTableMutex);
+    stpPortTable.clear();
 }
 
 }

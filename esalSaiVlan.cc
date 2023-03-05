@@ -964,16 +964,15 @@ bool vlanWarmBootRestoreHandler() {
 
     bool status = true;
 
-    status &= deserializeVlanMapConfig(vlanMap, BACKUP_FILE_VLAN);
+    status = deserializeVlanMapConfig(vlanMap, BACKUP_FILE_VLAN);
     if (!status) {
         std::cout << "Error deserializing vlan map" << std::endl;
-        status &= false;
-        goto restore_out;
+        return false;
     }
 
     if (!vlanMap.size()) {
         std::cout << "Vlan map is empty!" << std::endl;
-        goto restore_out;
+        return true;
     }
 
     std::cout << "Founded VLAN configurations:" << std::endl;
@@ -987,11 +986,15 @@ bool vlanWarmBootRestoreHandler() {
     status = restoreVlans(vlanMap);
     if (!status) {
         std::cout << "Error restore vlans" << std::endl;
-        status &= false;
+        return false;
     }
 
-    restore_out:
-    return status;
+    return true;
+}
+
+void vlanWarmBootCleanHandler() {
+    std::unique_lock<std::mutex> lock(vlanMutex);
+    vlanMap.clear();
 }
 
 }

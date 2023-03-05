@@ -8,17 +8,22 @@
  *
  * Document Reference :
  */
-
 #include "headers/esalSaiDef.h"
 #include "headers/esalSaiUtils.h"
 
+#include <bits/stdint-uintn.h>
 #include <iostream>
+#include <iomanip>
 
 #include <string>
 #include <cinttypes>
 #include <map>
 
+#include <libconfig.h++>
+
 #include "esal_vendor_api/esal_vendor_api.h"
+#include "saitypes.h"
+#include <esal_warmboot_api/esal_warmboot_api.h>
 
 struct portVlanTransMap {
     uint16_t portid;
@@ -1779,6 +1784,253 @@ bool run_acl_samples() {
     if (!status) return false;
 
     return true;
+}
+
+static bool serializePortTransMapConfig(const std::vector<portVlanTransMap> &portTransMap, const std::string &fileName) {
+    std::unique_lock<std::mutex> lock(aclMutex);
+
+    libconfig::Config cfg;
+    libconfig::Setting &root = cfg.getRoot();
+
+    libconfig::Setting &portTransMapSetting = root.add("portTransMap", libconfig::Setting::TypeList);
+
+    for (const auto &portTrans : portTransMap) {
+        libconfig::Setting &portEntry = portTransMapSetting.add(libconfig::Setting::TypeGroup);
+        portEntry.add("portId", libconfig::Setting::TypeInt) = portTrans.portid;
+        portEntry.add("attrSai", libconfig::Setting::TypeInt64) = static_cast<int64_t>(portTrans.attrSai);
+        libconfig::Setting &transSetting = portEntry.add("trans", libconfig::Setting::TypeGroup);
+        transSetting.add("oldVlan", libconfig::Setting::TypeInt) = portTrans.trans.oldVlan;
+        transSetting.add("newVlan", libconfig::Setting::TypeInt) = portTrans.trans.newVlan;
+    }
+
+    try {
+        cfg.writeFile(fileName.c_str());
+        return true;
+    } catch (const libconfig::FileIOException &ex) {
+        std::cout << "Error writing to file: " << ex.what() << std::endl;
+        return false;
+    }
+}
+
+static bool deserializePortTransMapConfig(std::vector<portVlanTransMap> &portTransMap, const std::string &fileName) {
+    libconfig::Config cfg;
+    try {
+        cfg.readFile(fileName.c_str());
+    } catch (const libconfig::FileIOException &ex) {
+        std::cout << "Error reading file: " << ex.what() << std::endl;
+        return false;
+    } catch (const libconfig::ParseException &ex) {
+        std::cout << "Error parsing file: " << ex.what() << " at line " << ex.getLine() << std::endl;
+        return false;
+    }
+
+    libconfig::Setting &portTransMapSetting = cfg.lookup("portTransMap");
+    if (!portTransMapSetting.isList()) {
+        std::cout << "portTransMap is not a list" << std::endl;
+        return false;
+    }
+
+    portTransMap.clear();
+    for (int i = 0; i < portTransMapSetting.getLength(); ++i) {
+        libconfig::Setting &portTrans = portTransMapSetting[i];
+
+        int portId, oldVlan, newVlan;
+        long long attrSai;
+
+        if (!(portTrans.lookupValue("portId", portId) &&
+              portTrans.lookupValue("attrSai", attrSai) &&
+              portTrans.lookupValue("trans.oldVlan", oldVlan) &&
+              portTrans.lookupValue("trans.newVlan", newVlan))) {
+            return false;
+        }
+
+        portVlanTransMap portTransEntry;
+        portTransEntry.portid = static_cast<uint16_t>(portId);
+        portTransEntry.attrSai = static_cast<sai_object_id_t>(attrSai);
+        portTransEntry.trans.oldVlan = static_cast<uint16_t>(oldVlan);
+        portTransEntry.trans.newVlan = static_cast<uint16_t>(newVlan);
+        portTransMap.push_back(portTransEntry);
+    }
+
+    return true;
+}
+
+static void printVlanTranslation(const portVlanTransMap& trans) {
+    std::cout << "pPortid: " << std::dec << trans.portid <<
+                 ", attrSai: 0x" << std::setw(16) << std::setfill('0') << std::hex << trans.attrSai <<
+                 ", oldVlan: " << std::dec << trans.trans.oldVlan <<
+                 ", newVlan: " << std::dec << trans.trans.newVlan <<
+                 std::endl;
+}
+
+static bool serializePortAclMap(const std::map<uint16_t, sai_object_id_t>& aclMap, const std::string& fileName) {
+    std::unique_lock<std::mutex> lock(aclMutex);
+
+    libconfig::Config cfg;
+    libconfig::Setting& root = cfg.getRoot();
+
+    libconfig::Setting& aclMapSetting = root.add("aclMap", libconfig::Setting::TypeList);
+
+    for (const auto& acl : aclMap) {
+        libconfig::Setting& aclEntry = aclMapSetting.add(libconfig::Setting::TypeGroup);
+        aclEntry.add("portId", libconfig::Setting::TypeInt) = acl.first;
+        aclEntry.add("aclId", libconfig::Setting::TypeInt64) = static_cast<int64_t>(acl.second);
+    }
+
+    try {
+        cfg.writeFile(fileName.c_str());
+        return true;
+    } catch (const libconfig::FileIOException& ex) {
+        std::cout << "Error writing to file: " << ex.what() << std::endl;
+        return false;
+    }
+}
+
+static bool deserializePortAclMap(std::map<uint16_t, sai_object_id_t>& aclMap, const std::string& fileName) {
+    libconfig::Config cfg;
+    try {
+        cfg.readFile(fileName.c_str());
+    } catch (const libconfig::FileIOException& ex) {
+        std::cout << "Error reading file: " << ex.what() << std::endl;
+        return false;
+    } catch (const libconfig::ParseException& ex) {
+        std::cout << "Error parsing file: " << ex.what() << " at line " << ex.getLine() << std::endl;
+        return false;
+    }
+
+    libconfig::Setting& aclMapSetting = cfg.lookup("aclMap");
+    if (!aclMapSetting.isList()) {
+        std::cout << "aclMap is not a list" << std::endl;
+        return false;
+    }
+
+    aclMap.clear();
+    for (int i = 0; i < aclMapSetting.getLength(); ++i) {
+        libconfig::Setting& acl = aclMapSetting[i];
+
+        int portId;
+        long long aclId;
+
+        if (!(acl.lookupValue("portId", portId) && 
+              acl.lookupValue("aclId", aclId))) {
+            return false;
+        }
+
+        aclMap[portId] = static_cast<sai_object_id_t>(aclId);
+    }
+
+    return true;
+}
+
+static void printAcl(const uint16_t pPortNum,  const sai_object_id_t aclTableOid) {
+    std::cout << "portid: " << std::dec << pPortNum <<
+                 ", aclTableOid: 0x" << std::setw(16) << std::setfill('0') << std::hex << aclTableOid <<
+                 std::endl;
+}
+
+bool aclWarmBootSaveHandler() {
+    return (serializePortTransMapConfig(ingressPortTransMap, BACKUP_FILE_PORT_TRANS_MAP_ING) &&
+            serializePortTransMapConfig(egressPortTransMap, BACKUP_FILE_PORT_TRANS_MAP_EGR) &&
+            serializePortAclMap(portIngressAcl, BACKUP_FILE_PORT_ACL_ING) &&
+            serializePortAclMap(portEgressAcl, BACKUP_FILE_PORT_ACL_EGR));
+}
+
+bool aclWarmBootRestoreHandler() {
+    bool status = true;
+    
+    static std::vector<portVlanTransMap> ingressPortTransMap;
+    static std::vector<portVlanTransMap> egressPortTransMap;
+    static std::map<uint16_t, sai_object_id_t> portIngressAcl;
+    static std::map<uint16_t, sai_object_id_t> portEgressAcl;
+
+    status = deserializePortTransMapConfig(ingressPortTransMap, BACKUP_FILE_PORT_TRANS_MAP_ING);
+    if (!status) {
+        std::cout << "Error deserializing ingressPortTransMap" << std::endl;
+        return false;
+    }
+
+    std::cout << "Founded ingressPortTransMap:" << std::endl;
+    for (const auto& ptm_ing : ingressPortTransMap) {
+        printVlanTranslation(ptm_ing);
+    }
+
+    status = deserializePortTransMapConfig(egressPortTransMap, BACKUP_FILE_PORT_TRANS_MAP_EGR);
+    if (!status) {
+        std::cout << "Error deserializing egressPortTransMap" << std::endl;
+        return false;
+    }
+
+    std::cout << "Founded egressPortTransMap:" << std::endl;
+    for (const auto& ptm_egr : egressPortTransMap) {
+        printVlanTranslation(ptm_egr);
+    }
+
+    status = deserializePortAclMap(portIngressAcl, BACKUP_FILE_PORT_ACL_ING);
+    if (!status) {
+        std::cout << "Error deserializing portIngressAcl" << std::endl;
+        return false;
+    }
+    
+    std::cout << "Founded portIngressAcl:" << std::endl;
+    for (const auto& pa_ing : portIngressAcl) {
+        printAcl(pa_ing.first, pa_ing.second);
+    }
+
+    status = deserializePortAclMap(portEgressAcl, BACKUP_FILE_PORT_ACL_EGR);
+    if (!status) {
+        std::cout << "Error deserializing portEgressAcl" << std::endl;
+        return false;
+    }
+
+    std::cout << "Founded portEgressAcl:" << std::endl;
+    for (const auto& pa_egr : portEgressAcl) {
+        printAcl(pa_egr.first, pa_egr.second);
+    }
+
+    ::portIngressAcl = portIngressAcl;
+    ::portEgressAcl = portEgressAcl;
+
+    std::cout << std::endl;
+    std::cout << "Restore process:" << std::endl;
+    if (!ingressPortTransMap.empty()) {
+        for (const auto& ptm_ing : ingressPortTransMap) {
+            uint32_t lport;
+            if (!saiUtils.GetLogicalPort(0, ptm_ing.portid, &lport)) {
+                std::cout << "aclWarmBootRestoreHandler failed to get lPort"
+                          << " pPort=" << ptm_ing.portid << std::endl;
+                return false;
+            }
+            if (VendorSetIngressVlanTranslation(lport, ptm_ing.trans) != ESAL_RC_OK) {
+                std::cout << "Error creating ingress vlan translation" << std::endl;
+                return false;
+            }        
+        }
+    }
+
+    if (!egressPortTransMap.empty()) {
+        for (const auto& ptm_egr : egressPortTransMap) {
+            uint32_t lport;
+            if (!saiUtils.GetLogicalPort(0, ptm_egr.portid, &lport)) {
+                std::cout << "aclWarmBootRestoreHandler failed to get lPort"
+                          << " pPort=" << ptm_egr.portid << std::endl;
+                return false;
+            }
+            if (VendorSetEgressVlanTranslation(lport, ptm_egr.trans) != ESAL_RC_OK) {
+                std::cout << "Error creating ingress vlan translation" << std::endl;
+                return false;
+            }        
+        }
+    }
+
+    return true;
+}
+
+void aclWarmBootCleanHandler() {
+    std::unique_lock<std::mutex> lock(aclMutex);
+    ingressPortTransMap.clear();
+    egressPortTransMap.clear();
+    portIngressAcl.clear();
+    portEgressAcl.clear();
 }
 
 }

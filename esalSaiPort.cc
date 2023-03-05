@@ -2335,4 +2335,9 @@ bool portWarmBootRestoreHandler () {
     return true;
 }
 
+void portWarmBootCleanHandler() {
+    std::unique_lock<std::mutex> lock(portTableMutex);
+    portTableSize = 0;
+}
+
 }

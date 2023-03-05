@@ -21,6 +21,7 @@ std::map<std::string, bool (*)()> warmBootRestoreHandlers = {
     {"BRIDGE",  bridgeWarmBootRestoreHandler},
     {"TAG",     tagWarmBootRestoreHandler},
     {"STP",     stpWarmBootRestoreHandler},
+    {"ACL",     aclWarmBootRestoreHandler},
 };
 
 std::map<std::string, bool (*)()> warmBootSaveHandlers = {
@@ -29,6 +30,16 @@ std::map<std::string, bool (*)()> warmBootSaveHandlers = {
     {"BRIDGE",  bridgeWarmBootSaveHandler},
     {"TAG",     tagWarmBootSaveHandler},
     {"STP",     stpWarmBootSaveHandler},
+    {"ACL",     aclWarmBootSaveHandler},
+};
+
+std::map<std::string, void (*)()> warmBootCleanHandlers = {
+    {"VLAN",    vlanWarmBootCleanHandler},
+    {"PORT",    portWarmBootCleanHandler},
+    {"BRIDGE",  bridgeWarmBootCleanHandler},
+    {"TAG",     tagWarmBootCleanHandler},
+    {"STP",     stpWarmBootCleanHandler},
+    {"ACL",     aclWarmBootCleanHandler},
 };
 
 bool VendorWarmBootRestoreHandler() {
@@ -94,6 +105,17 @@ bool VendorWarmBootSaveHandler() {
     std::cout << "================================================================================" << std::endl;
 
     return status;
+}
+
+void VendorWarmBootCleanHanlder() {
+    std::cout << "Clean modules state..." << std::endl;
+    for (auto handler_name_fn : warmBootCleanHandlers) {
+        std::string name = handler_name_fn.first;
+        auto handler = handler_name_fn.second;
+
+        std::cout << "Cleaning " << name << "state" << std::endl;
+        handler();
+    }
 }
 
 bool createFolderIfNotExist(const char *path) {

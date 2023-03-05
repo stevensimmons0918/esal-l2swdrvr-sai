@@ -249,16 +249,15 @@ bool tagWarmBootRestoreHandler() {
 
     bool status = true;
 
-    status &= deserializeTagMapConfig(portsTagMap, BACKUP_FILE_TAG);
+    status = deserializeTagMapConfig(portsTagMap, BACKUP_FILE_TAG);
     if (!status) {
         std::cout << "Error deserializing tag map" << std::endl;
-        status &= false;
-        goto restore_out;
+        return false;
     }
 
     if (!portsTagMap.size()) {
         std::cout << "Tag map is empty!" << std::endl;
-        goto restore_out;
+        return true;
     }
 
     std::cout << "Founded tag configurations:" << std::endl;
@@ -271,11 +270,15 @@ bool tagWarmBootRestoreHandler() {
     status = restorePortsTag(portsTagMap);
     if (!status) {
         std::cout << "Error restore tags" << std::endl;
-        status &= false;
+        return false;
     }
 
-    restore_out:
-    return status;
+    return true;
+}
+
+void tagWarmBootCleanHandler() {
+    std::unique_lock<std::mutex> lock(tagMutex);
+    portsTagMap.clear();
 }
 
 }
