@@ -384,9 +384,12 @@ static int esalWarmRestartReNotifyFdb()
                                      SAI_FDB_ENTRY_TYPE_STATIC : SAI_FDB_ENTRY_TYPE_DYNAMIC;
 
         fdb_attribute[1].id = SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID;
-        esalFindBridgePortSaiFromPortSai(((uint64_t)SAI_OBJECT_TYPE_PORT << 48) | entry.dstInterface.devPort.portNum, 
-                                                    &fdb_attribute[1].value.oid);
-
+        if (!esalFindBridgePortSaiFromPortId(entry.dstInterface.devPort.portNum,
+                                             &fdb_attribute[1].value.oid))
+        {
+            std::cout << "port_table_find_sai fail pPort:" << entry.dstInterface.devPort.portNum << std::endl;
+            return ESAL_RC_FAIL;
+        }
 
         //Packet action
         fdb_attribute[2].id = SAI_FDB_ENTRY_ATTR_PACKET_ACTION;
