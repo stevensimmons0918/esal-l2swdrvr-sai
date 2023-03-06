@@ -27,7 +27,7 @@
 #include <libconfig.h++>
 
 #include "esal_vendor_api/esal_vendor_api.h"
-#include <esal_warmboot_api/esal_warmboot_api.h>
+#include "esal_warmboot_api/esal_warmboot_api.h"
 
 #include "sai/sai.h"
 #include "sai/saiport.h"
@@ -1156,7 +1156,6 @@ int VendorGetPortLinkState(uint16_t lPort, bool *ls) {
 
 #ifndef LARCH_ENVIRON
     if (esalPortTableIsChangeable(pPort)) {
-static int cnt = 100;
         // Changeable need to check first to see if hardware has changed.
         // then get link state from L2SW. 
         std::vector<SFPAttribute> values;
@@ -1167,10 +1166,6 @@ static int cnt = 100;
         esalSFPGetPort(lPort, values.size(), values.data());
         esalPortTableSetCopper(pPort, values[0].SFPVal.Copper);
         esalPortTableSetIfMode(pPort);
-        if (cnt) {
-           cnt--;
-           std::cout << "esalPortTableIsChangeablei chk: " << pPort << " : " << values[0].SFPVal.Copper << "\n";
-        } 
     } else if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
         // Check to see if supported by SFP library.
         std::vector<SFPAttribute> values;
