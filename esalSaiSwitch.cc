@@ -67,6 +67,7 @@ static uint16_t esalMaxPort = 0;
 uint16_t esalHostPortId;
 char esalHostIfName[SAI_HOSTIF_NAME_SIZE];
 std::map<std::string, std::string> esalProfileMap;
+extern macData *macAddressData;
 #ifndef LARCH_ENVIRON
 void loadSFPLibrary(void) {
 
@@ -367,7 +368,15 @@ static int esalWarmRestartReNotifyFdb()
         {
             continue;
         }
-        
+
+        // We should notify XPS layer also
+        // Needs for address aging
+        if (!entry.isStatic)
+        {
+            macAddressData[entryIndex].valid = true;
+            macAddressData[entryIndex].macAge = 0;
+        }
+
         memset(&data, 0x0, sizeof(sai_fdb_event_notification_data_t));
 
         data.fdb_entry.switch_id = esalSwitchId;
