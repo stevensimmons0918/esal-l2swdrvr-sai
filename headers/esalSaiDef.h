@@ -121,6 +121,7 @@ const int ESAL_SFP_FAIL = -2;
 const int ESAL_RESOURCE_EXH = -3;
 const int ESAL_INVALID_PORT = -4;
 const int ESAL_INVALID_VLAN = -5;
+const int ESAL_WARMBOOT_FAIL = -6;
 
 const int ESAL_UNITTEST_MAGIC_NUM = 155;
 

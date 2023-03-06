@@ -10,6 +10,7 @@
  */
 
 #include "headers/esalSaiDef.h"
+#include <bits/stdint-uintn.h>
 #include <cstddef>
 #include <cstdint>
 #ifdef HAVE_MRVL
@@ -69,6 +70,7 @@ struct SaiPortEntry{
     vendor_speed_t speed; 
     vendor_duplex_t duplex;
     bool adminState = false;
+    bool operationState = false;
 };
 
 const int MAX_PORT_TABLE_SIZE = 512;
@@ -2199,6 +2201,12 @@ static bool restorePorts(SaiPortEntry* portTable, int portTableSize) {
                 continue;
         }
 
+        if (VendorSetPortRate(lPort, portTable[i].autoneg, portTable[i].speed, portTable[i].duplex) != ESAL_RC_OK) {
+            std::cout << "Error VendorSetPortRate " << lPort << std::endl;
+            status &= false;
+            continue;
+        }
+
         if (portTable[i].adminState) {
             if (VendorEnablePort(lPort) != ESAL_RC_OK) {
                 std::cout << "Error VendorEnablePort " << lPort << std::endl;
@@ -2212,6 +2220,20 @@ static bool restorePorts(SaiPortEntry* portTable, int portTableSize) {
                 continue;
             }
         }
+
+        bool ls;
+        if (VendorGetPortLinkState(lPort, &ls) != ESAL_RC_OK) {
+            std::cout << "Error VendorGetPortLinkState: " << lPort << std::endl;
+            status &= false;
+            continue;
+        }
+
+        // Check if state 
+        if (ls != portTable[i].operationState) {
+            std::cout << "Operation state isn't same on port: " << lPort << std::endl;
+            status &= false;
+            continue;
+        }
     }
 
     return status;
@@ -2219,8 +2241,6 @@ static bool restorePorts(SaiPortEntry* portTable, int portTableSize) {
 
 static bool serializePortTableConfig(SaiPortEntry *portTable, const int portTableSize,
                                                             const std::string &fileName) {
-    std::unique_lock<std::mutex> lock(portTableMutex);
-
     libconfig::Config cfg;
     libconfig::Setting &root = cfg.getRoot();
 
@@ -2232,6 +2252,9 @@ static bool serializePortTableConfig(SaiPortEntry *portTable, const int portTabl
                 portTableSetting.add(libconfig::Setting::TypeGroup);
         portEntry.add("portId", libconfig::Setting::TypeInt) = portTable[i].portId;
         portEntry.add("portSai", libconfig::Setting::TypeInt64) = static_cast<int64_t>(portTable[i].portSai);
+        portEntry.add("autoneg", libconfig::Setting::TypeBoolean) = portTable[i].autoneg;
+        portEntry.add("speed", libconfig::Setting::TypeInt) = portTable[i].speed;
+        portEntry.add("duplex", libconfig::Setting::TypeInt) = portTable[i].duplex;
         portEntry.add("adminState", libconfig::Setting::TypeBoolean) = portTable[i].adminState;
     }
 
@@ -2268,12 +2291,15 @@ static bool deserializePortTableConfig(SaiPortEntry *portTable, int *portTableSi
     for (int i = 0; i < portTableSetting.getLength(); ++i) {
         libconfig::Setting &portEntry = portTableSetting[i];
 
-        int portId;
+        int portId, speed, duplex;
         long long portSai;
-        bool adminState;
+        bool autoneg, adminState;
 
         if (!(portEntry.lookupValue("portId", portId)   &&
               portEntry.lookupValue("portSai", portSai) &&
+              portEntry.lookupValue("autoneg", autoneg) &&
+              portEntry.lookupValue("speed", speed) &&
+              portEntry.lookupValue("duplex", duplex) &&
               portEntry.lookupValue("adminState", adminState))) {
             return false;
         }
@@ -2285,6 +2311,9 @@ static bool deserializePortTableConfig(SaiPortEntry *portTable, int *portTableSi
 
         portTable[*portTableSize].portId = static_cast<uint16_t>(portId);
         portTable[*portTableSize].portSai = static_cast<sai_object_id_t>(portSai);
+        portTable[*portTableSize].autoneg = autoneg;
+        portTable[*portTableSize].speed = static_cast<vendor_speed_t>(speed);
+        portTable[*portTableSize].duplex = static_cast<vendor_duplex_t>(duplex);
         portTable[*portTableSize].adminState = adminState;
         (*portTableSize)++;
     }
@@ -2295,11 +2324,47 @@ static bool deserializePortTableConfig(SaiPortEntry *portTable, int *portTableSi
 static void printPortEntry(const SaiPortEntry& portEntry) {
     std::cout << "Port ID: " << std::dec << portEntry.portId
         << ", OID: 0x" << std::setw(16) << std::setfill('0') << std::hex << portEntry.portSai
-        << (portEntry.adminState ? "\tUP" : "\tDOWN") << std::endl;
+        << (portEntry.adminState ? "\tUP" : "\tDOWN")
+        << std::endl
+        << "autoneg: " << std::dec << portEntry.autoneg
+        << ", speed: " << std::dec << portEntry.speed
+        << ", duplex: " << std::dec << portEntry.duplex << std::endl;
 }
 
 bool portWarmBootSaveHandler() {
-    return serializePortTableConfig(portTable, portTableSize, BACKUP_FILE_PORT);
+    bool status = true;
+
+    std::unique_lock<std::mutex> lock(portTableMutex);
+ 
+    // Saving a current operation state for ports
+    //
+    for (int i = 0; i < portTableSize; i++) {
+        bool ls;
+        uint16_t pPort;
+        uint32_t lPort;
+
+        pPort = portTable[i].portId;
+
+        if (!saiUtils.GetLogicalPort(0, pPort, &lPort)) {
+            std::cout << "Error GetLogicalPort: " << pPort << std::endl;
+            status &= false;
+            continue;
+        }
+        if (VendorGetPortLinkState(lPort, &ls) != ESAL_RC_OK) {
+            std::cout << "Error VendorGetPortLinkState: " << lPort << std::endl;
+            status &= false;
+            continue;
+        }
+
+        portTable[i].operationState = ls;
+    }
+
+    if (!serializePortTableConfig(portTable, portTableSize, BACKUP_FILE_PORT)) {
+        std::cout << "Error serializePortTableConfig" << std::endl;
+        status &= false;
+    }
+
+    return status;
 }
 
 bool portWarmBootRestoreHandler () {

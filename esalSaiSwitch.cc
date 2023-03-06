@@ -448,6 +448,8 @@ sai_object_id_t esalSwitchId = SAI_NULL_OBJECT_ID;
 int DllInit(void) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
 
+    bool warmBootFailed = false;
+
     // load the sfp library.
     //
 #if !defined(UTS) && !defined(LARCH_ENVIRON)
@@ -574,6 +576,11 @@ int DllInit(void) {
         attributes.push_back(attr);
     }
 #endif
+
+    // The point we need to jump to to re-initialize (make a hard reset) if "hot boot restore" fails.
+    //
+    hard_reset:
+
     retcode =  saiSwitchApi->create_switch(
         &esalSwitchId, attributes.size(), attributes.data());
     if (retcode) {
@@ -727,8 +734,15 @@ int DllInit(void) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "VendorWarmBootRestoreHandler fail\n"));
             std::cout << "VendorWarmBootRestoreHandler fail \n";
-            return ESAL_RC_FAIL;
+            warmBootFailed = true;
+            WARM_RESTART = false;
+            VendorWarmBootCleanHanlder();
+            goto hard_reset;
         }
+    }
+
+    if (warmBootFailed) {
+        return ESAL_WARMBOOT_FAIL;
     }
 
     return ESAL_RC_OK;

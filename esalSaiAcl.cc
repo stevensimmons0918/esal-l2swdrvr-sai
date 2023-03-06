@@ -1798,9 +1798,8 @@ static bool serializePortTransMapConfig(const std::vector<portVlanTransMap> &por
         libconfig::Setting &portEntry = portTransMapSetting.add(libconfig::Setting::TypeGroup);
         portEntry.add("portId", libconfig::Setting::TypeInt) = portTrans.portid;
         portEntry.add("attrSai", libconfig::Setting::TypeInt64) = static_cast<int64_t>(portTrans.attrSai);
-        libconfig::Setting &transSetting = portEntry.add("trans", libconfig::Setting::TypeGroup);
-        transSetting.add("oldVlan", libconfig::Setting::TypeInt) = portTrans.trans.oldVlan;
-        transSetting.add("newVlan", libconfig::Setting::TypeInt) = portTrans.trans.newVlan;
+        portEntry.add("oldVlan", libconfig::Setting::TypeInt) = portTrans.trans.oldVlan;
+        portEntry.add("newVlan", libconfig::Setting::TypeInt) = portTrans.trans.newVlan;
     }
 
     try {
@@ -1839,8 +1838,8 @@ static bool deserializePortTransMapConfig(std::vector<portVlanTransMap> &portTra
 
         if (!(portTrans.lookupValue("portId", portId) &&
               portTrans.lookupValue("attrSai", attrSai) &&
-              portTrans.lookupValue("trans.oldVlan", oldVlan) &&
-              portTrans.lookupValue("trans.newVlan", newVlan))) {
+              portTrans.lookupValue("oldVlan", oldVlan) &&
+              portTrans.lookupValue("newVlan", newVlan))) {
             return false;
         }
 
