@@ -26,7 +26,7 @@
 #include <libconfig.h++>
 
 #include <esal_vendor_api/esal_vendor_api.h>
-#include <esal_warmboot_api/esal_warmboot_api.h>
+#include "esal_warmboot_api/esal_warmboot_api.h"
 
 extern "C" {
 #include "sai/sai.h"
@@ -893,7 +893,8 @@ static bool deserializeVlanMapConfig(std::map<uint16_t, VlanEntry> &vlanMap, con
         return false;
     }
 
-    libconfig::Setting &vlanMapSetting = cfg.lookup("vlanMap");
+    std::string vmap("vlanMap"); 
+    libconfig::Setting &vlanMapSetting = cfg.lookup(vmap);
     if (!vlanMapSetting.isList()) {
         std::cout << "vlanMap is not a list" << std::endl;
         return false;
@@ -917,7 +918,8 @@ static bool deserializeVlanMapConfig(std::map<uint16_t, VlanEntry> &vlanMap, con
         vlEn.vlanSai = vlanSai;
         vlEn.defaultPortId = defaultPortId;
 
-        libconfig::Setting &ports = vlanEntry.lookup("ports");
+        std::string portKey("ports"); 
+        libconfig::Setting &ports = vlanEntry[portKey];
         if (!vlanMapSetting.isList()) {
             std::cout << "ports is not a list" << std::endl;
             return false;
