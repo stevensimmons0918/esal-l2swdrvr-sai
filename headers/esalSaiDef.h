@@ -109,6 +109,14 @@ extern SFPGetPort_fp_t esalSFPGetPort;
 
 bool portCfgFlowControlInit();
 bool perPortCfgFlowControlInit(uint16_t portNum);
+
+typedef struct
+{
+    uint32_t index;
+    uint32_t macAge;
+    bool valid;
+} macData;
+
 }
 
 #define OID_VALUE_MASK 0x000000FFFFFFFFFFULL
