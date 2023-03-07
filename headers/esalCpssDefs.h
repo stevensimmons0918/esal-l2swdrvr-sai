@@ -347,6 +347,17 @@ typedef struct{
 
 } CPSS_PORT_MANAGER_STC;
 
+typedef enum {
+    CPSS_HW_PP_RESET_SKIP_TYPE_REGISTER_E = 0,
+    CPSS_HW_PP_RESET_SKIP_TYPE_TABLE_E,
+    CPSS_HW_PP_RESET_SKIP_TYPE_EEPROM_E,
+    CPSS_HW_PP_RESET_SKIP_TYPE_PEX_E,
+    CPSS_HW_PP_RESET_SKIP_TYPE_LINK_LOSS_E,
+    CPSS_HW_PP_RESET_SKIP_TYPE_CHIPLETS_E,
+    CPSS_HW_PP_RESET_SKIP_TYPE_POE_E,
+    CPSS_HW_PP_RESET_SKIP_TYPE_ALL_E,
+    CPSS_HW_PP_RESET_SKIP_TYPE_ALL_EXCLUDE_PEX_E
+} CPSS_HW_PP_RESET_SKIP_TYPE_ENT;
 
  /**
  * Typedef enum CPSS_SYSTEM_RECOVERY_STATE_ENT
@@ -591,6 +602,11 @@ extern GT_STATUS cpssDxChDiagDeviceTemperatureGet(GT_U8 devNum,
                      GT_32 *temperaturePtr);
 extern GT_STATUS cpssSystemRecoveryStateSet(CPSS_SYSTEM_RECOVERY_INFO_STC *recovery_info);
 
+extern GT_STATUS cpssDxChHwPpSoftResetSkipParamSet(GT_U8 devNum,
+                    CPSS_HW_PP_RESET_SKIP_TYPE_ENT skipType,
+                    GT_BOOL skipEnable);
+
+extern GT_STATUS cpssDxChHwPpSoftResetTrigger(GT_U8 devNum);
 #endif
 }
 

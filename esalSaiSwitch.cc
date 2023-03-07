@@ -725,7 +725,21 @@ int VendorWarmRestartRequest(void) {
          std::cout << "esalSFPLibraryRestart uninitialized\n";
      }
 #endif
-    
+
+     // Soft reset the switch
+     // To be removed when warm restart support is added
+     GT_STATUS rc = cpssDxChHwPpSoftResetSkipParamSet(0,
+                        CPSS_HW_PP_RESET_SKIP_TYPE_ALL_E, GT_FALSE);
+     if (rc == GT_OK) {
+         rc = cpssDxChHwPpSoftResetTrigger(0);
+
+         if (rc != GT_OK) {
+             std::cout << "Failed to trigger soft reset" << std::endl;
+         }
+     } else {
+         std::cout << "cpssDxChHwPpSoftResetSkipParamSet failed" << std::endl;
+     }
+
     // Query to get switch_api
     //  
 
