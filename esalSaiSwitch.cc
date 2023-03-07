@@ -589,9 +589,18 @@ int DllInit(void) {
     }
 #endif
 
+    const char *esal_warm_env = std::getenv("PSI_resetReason");
+    if (esal_warm_env != NULL && !strcmp(esal_warm_env, "warm")) {
+        WARM_RESTART = true;
+    }
+    else
+    {
+        WARM_RESTART = false;
+    }
+
     // The point we need to jump to to re-initialize (make a hard reset) if "hot boot restore" fails.
     //
-    hard_reset:
+hard_reset:
 
     retcode =  saiSwitchApi->create_switch(
         &esalSwitchId, attributes.size(), attributes.data());

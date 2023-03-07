@@ -7,13 +7,7 @@
 #include <string>
 #include <sys/stat.h>
 
-bool WARM_RESTART = []() -> bool {
-    const char *esal_warm_env = std::getenv("PSI_resetReason");
-    if (esal_warm_env != NULL && !strcmp(esal_warm_env, "warm")) {
-        return true;
-    }
-    return false;
-}();
+extern bool WARM_RESTART;
 
 std::map<std::string, bool (*)()> warmBootRestoreHandlers = {
     {"VLAN",    vlanWarmBootRestoreHandler},
