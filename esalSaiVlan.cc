@@ -919,7 +919,7 @@ static bool deserializeVlanMapConfig(std::map<uint16_t, VlanEntry> &vlanMap, con
         vlEn.defaultPortId = defaultPortId;
 
         std::string portKey("ports"); 
-        libconfig::Setting &ports = vlanEntry[portKey];
+        libconfig::Setting &ports = vlanEntry[portKey.c_str()];
         if (!vlanMapSetting.isList()) {
             std::cout << "ports is not a list" << std::endl;
             return false;
