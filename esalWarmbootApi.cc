@@ -118,6 +118,17 @@ bool createFolderIfNotExist(const char *path) {
         return true;
     }
 
+    char *path_copy = strdup(path);
+    char *last_slash = strrchr(path_copy, '/');
+    if (last_slash != NULL) {
+        *last_slash = '\0';
+        bool parent_created = createFolderIfNotExist(path_copy);
+        free(path_copy);
+        if (!parent_created) {
+            return false;
+        }
+    }
+
     int status = mkdir(path, 0775);
     if (status != 0) {
         std::cout << "Error creating folder " << path << std::endl;
