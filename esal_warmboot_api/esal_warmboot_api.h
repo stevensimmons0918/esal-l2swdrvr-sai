@@ -6,7 +6,7 @@
 #include <map>
 #include <string>
 
-#define BACKUP_FOLDER "/var/shared/esal/esalbase-warm-restart/"
+#define BACKUP_FOLDER "/var/shared/esal/esalbase-warm-restart"
 
 #define BACKUP_FILE_VLAN                    BACKUP_FOLDER   "wb_vlan"
 #define BACKUP_FILE_PORT                    BACKUP_FOLDER   "wb_port"
