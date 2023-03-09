@@ -7,8 +7,6 @@
 #include <string>
 #include <sys/stat.h>
 
-extern bool WARM_RESTART;
-
 std::map<std::string, bool (*)()> warmBootRestoreHandlers = {
     {"VLAN",    vlanWarmBootRestoreHandler},
     {"PORT",    portWarmBootRestoreHandler},

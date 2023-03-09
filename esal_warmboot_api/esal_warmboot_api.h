@@ -8,15 +8,15 @@
 
 #define BACKUP_FOLDER "/var/shared/esal/esalbase-warm-restart"
 
-#define BACKUP_FILE_VLAN                    BACKUP_FOLDER   "wb_vlan"
-#define BACKUP_FILE_PORT                    BACKUP_FOLDER   "wb_port"
-#define BACKUP_FILE_BRIDGE                  BACKUP_FOLDER   "wb_bridge"
-#define BACKUP_FILE_TAG                     BACKUP_FOLDER   "wb_tag"
-#define BACKUP_FILE_STP                     BACKUP_FOLDER   "wb_stp"
-#define BACKUP_FILE_PORT_TRANS_MAP_ING      BACKUP_FOLDER   "wb_port_trans_map_ing"
-#define BACKUP_FILE_PORT_TRANS_MAP_EGR      BACKUP_FOLDER   "wb_port_trans_map_egr"
-#define BACKUP_FILE_PORT_ACL_ING            BACKUP_FOLDER   "wb_port_acl_ing"
-#define BACKUP_FILE_PORT_ACL_EGR            BACKUP_FOLDER   "wb_port_acl_egr"
+#define BACKUP_FILE_VLAN                    BACKUP_FOLDER   "/wb_vlan"
+#define BACKUP_FILE_PORT                    BACKUP_FOLDER   "/wb_port"
+#define BACKUP_FILE_BRIDGE                  BACKUP_FOLDER   "/wb_bridge"
+#define BACKUP_FILE_TAG                     BACKUP_FOLDER   "/wb_tag"
+#define BACKUP_FILE_STP                     BACKUP_FOLDER   "/wb_stp"
+#define BACKUP_FILE_PORT_TRANS_MAP_ING      BACKUP_FOLDER   "/wb_port_trans_map_ing"
+#define BACKUP_FILE_PORT_TRANS_MAP_EGR      BACKUP_FOLDER   "/wb_port_trans_map_egr"
+#define BACKUP_FILE_PORT_ACL_ING            BACKUP_FOLDER   "/wb_port_acl_ing"
+#define BACKUP_FILE_PORT_ACL_EGR            BACKUP_FOLDER   "/wb_port_acl_egr"
 
 // Warmboot flag
 //
