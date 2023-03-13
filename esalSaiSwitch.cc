@@ -934,6 +934,16 @@ void VendorConfigEnd()
                        << status << std::endl;
              return;
         }
+
+        status = esalWarmRestartReNotifyFdb();
+        if (status != ESAL_RC_OK)
+        {
+             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                         SWERR_FILELINE, "esalWarmRestartReNotifyFdb failed\n"));
+             std::cout << "esalWarmRestartReNotifyFdb fail: "
+                       << status << std::endl;
+             return ESAL_RC_FAIL;
+        }
     }
     std::cout << "VendorConfigEnd end\n";
     esalDumpPortTable(); 

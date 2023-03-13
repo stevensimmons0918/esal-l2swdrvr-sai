@@ -1040,7 +1040,6 @@ extern GT_STATUS cpssSystemRecoveryStateSet(CPSS_SYSTEM_RECOVERY_INFO_STC *recov
 
 
 extern GT_STATUS prvCpssDrvHwPpWriteRegister (GT_U8 devNum, GT_U32 regAddr, GT_U32 value);
-
 extern GT_STATUS cpssDxChCfgTableNumEntriesGet(GT_U8 devNum, CPSS_DXCH_CFG_TABLES_ENT table, 
                                                GT_U32 *numEntriesPtr);
 extern GT_STATUS cpssDxChBrgFdbMacEntryRead(GT_U8 devNum, GT_U32 index, GT_BOOL *validPtr,
