@@ -81,6 +81,24 @@ CPSS_PORT_MANAGER_SGMII_AUTO_NEGOTIATION_STC autoNegFlowControlCfg[MAX_PORT_TABL
 int portTableSize = 0;
 std::mutex portTableMutex; 
 
+void esalDumpPortTable(void) {
+
+static int cnt = 0; 
+if (cnt++ > 20) return;
+
+std::cout << "ESAL Port Table Size: " << portTableSize << "\n" << std::flush;
+for (auto i = 0; i < portTableSize; i++) {
+   std::cout << "PortId: " << portTable[i].portId 
+       << " PortSai: " << portTable[i].portSai 
+       << " CU: " << portTable[i].isCopper 
+       << " SGMII: " << portTable[i].isSGMII 
+       << " CHNG: " << portTable[i].isChangeable 
+       << " lPort: " << portTable[i].lPort 
+       << " adm: " << portTable[i].adminState 
+       << " op: " << portTable[i].operationState << "\n" << std::flush; 
+}
+}
+
 void processSerdesInit(uint16_t lPort);
 void processRateLimitsInit(uint32_t lPort);
  
@@ -640,6 +658,8 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
 #ifndef UTS
     bool isCopper = false; 
 #endif
+esalDumpPortTable();
+
 
     if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
