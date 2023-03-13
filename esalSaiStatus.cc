@@ -24,6 +24,7 @@
 
 extern "C" {
 
+void esalDumpPortTable(void);
 int VendorRcToString(int rc, char *strErr) {
     std::cout << __PRETTY_FUNCTION__ << " " << rc  << std::endl;
     if (!useSaiFlag){
@@ -126,6 +127,7 @@ int VendorGetL2Pm(uint16_t *usedLen, uint16_t maxLen, char* gpbBuf) {
 #ifndef LARCH_ENVIRON
     VendorEsalPmBuf msg;
 
+
     // Unpack the message to determine for PMs.
     std::string buffer;
     buffer.assign(gpbBuf, *usedLen);
@@ -171,6 +173,7 @@ int VendorGetL2Pm(uint16_t *usedLen, uint16_t maxLen, char* gpbBuf) {
             // Check to see port exists.
             sai_object_id_t portSai;
             if (!esalPortTableFindSai(pPort, &portSai)) {
+std::cout << "SIMMONS did not find sai " << pPort << "\n" << std::flush; 
                 continue;
             }
             // Get the stats

@@ -29,6 +29,7 @@
 #include <net/if.h>
 
 #include "esal_vendor_api/esal_vendor_api.h"
+#include "esal_warmboot_api/esal_warmboot_api.h"
 #ifndef LARCH_ENVIRON
 #include "sfp_vendor_api/sfp_vendor_api.h"
 #include "threadutils/dll_util.h"
@@ -44,8 +45,11 @@ sai_object_id_t defStpId = 0;
 EsalSaiUtils saiUtils;
 
 std::vector<sai_object_id_t> bpdu_port_list;
+bool WARM_RESTART;
+
 
 extern "C" {
+void esalDumpPortTable(void); 
 
 #ifndef LARCH_ENVIRON
 SFPLibInitialize_fp_t esalSFPLibInitialize;
@@ -66,7 +70,7 @@ static uint16_t esalMaxPort = 0;
 uint16_t esalHostPortId;
 char esalHostIfName[SAI_HOSTIF_NAME_SIZE];
 std::map<std::string, std::string> esalProfileMap;
-bool WARM_RESTART = false;
+extern macData *macAddressData;
 #ifndef LARCH_ENVIRON
 void loadSFPLibrary(void) {
 
@@ -274,9 +278,6 @@ static void onSwitchStateChange(sai_object_id_t sid, sai_switch_oper_status_t sw
     std::cout << "onSwitchStateChange: " << switchOp << " " << sid << "\n";
     if ((switchOp == SAI_SWITCH_OPER_STATUS_DOWN) && switchStateUp) {
         switchStateUp = false; 
-#if 0
-        VendorWarmRestartRequest();
-#endif
     } else {
         switchStateUp = true;
     }
@@ -367,7 +368,15 @@ static int esalWarmRestartReNotifyFdb()
         {
             continue;
         }
-        
+
+        // We should notify XPS layer also
+        // Needs for address aging
+        if (!entry.isStatic)
+        {
+            macAddressData[entryIndex].valid = true;
+            macAddressData[entryIndex].macAge = 0;
+        }
+
         memset(&data, 0x0, sizeof(sai_fdb_event_notification_data_t));
 
         data.fdb_entry.switch_id = esalSwitchId;
@@ -390,7 +399,6 @@ static int esalWarmRestartReNotifyFdb()
             std::cout << "port_table_find_sai fail pPort:" << entry.dstInterface.devPort.portNum << std::endl;
             return ESAL_RC_FAIL;
         }
-
 
         //Packet action
         fdb_attribute[2].id = SAI_FDB_ENTRY_ATTR_PACKET_ACTION;
@@ -452,6 +460,8 @@ sai_object_id_t esalSwitchId = SAI_NULL_OBJECT_ID;
 int DllInit(void) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
 
+    bool warmBootFailed = false;
+
     // load the sfp library.
     //
 #if !defined(UTS) && !defined(LARCH_ENVIRON)
@@ -504,15 +514,6 @@ int DllInit(void) {
 
 #ifndef UTS
 
-    const char *esal_warm_env = std::getenv("PSI_resetReason");
-    if (esal_warm_env != NULL && !strcmp(esal_warm_env, "warm"))
-    {
-        WARM_RESTART = true;
-    }
-    else
-    {
-        WARM_RESTART = false;
-    }
     // Initialize the SAI.
     //
     sai_api_initialize(0, &testServices);
@@ -587,6 +588,24 @@ int DllInit(void) {
         attributes.push_back(attr);
     }
 #endif
+
+    const char *esal_warm_env = std::getenv("PSI_resetReason");
+    if (esal_warm_env) {
+        std::string resetReason(esal_warm_env);
+        std::transform(resetReason.begin(), resetReason.end(),
+                       resetReason.begin(),
+                       std::ptr_fun <int, int>(std::toupper));
+        if (resetReason.compare("WARM") == 0) {
+            WARM_RESTART = true;
+        } else {
+            WARM_RESTART = false;
+        }
+    }
+
+    // The point we need to jump to to re-initialize (make a hard reset) if "hot boot restore" fails.
+    //
+//hard_reset:
+
     retcode =  saiSwitchApi->create_switch(
         &esalSwitchId, attributes.size(), attributes.data());
     if (retcode) {
@@ -677,6 +696,7 @@ int DllInit(void) {
     sai_object_id_t stpPortSai;
     sai_object_id_t bridgePortSai;
 
+    esalDumpPortTable(); 
     
     for (uint32_t i = 0; i < port_number; i++) {
         
@@ -733,6 +753,26 @@ int DllInit(void) {
                     SWERR_FILELINE, "portCfgFlowControlInit fail\n"));
         std::cout << "portCfgFlowControlInit fail \n";
         return ESAL_RC_FAIL;
+    }
+
+    if (WARM_RESTART) {
+        if (!VendorWarmBootRestoreHandler()) {
+#ifdef FJKFJLKJDFJ
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "VendorWarmBootRestoreHandler fail\n"));
+            std::cout << "VendorWarmBootRestoreHandler fail \n";
+            warmBootFailed = true;
+            WARM_RESTART = false;
+            VendorWarmBootCleanHanlder();
+            goto hard_reset;
+#endif
+        }
+    }
+
+    std::cout << "Dll Init after restore handler\n";
+    esalDumpPortTable(); 
+    if (warmBootFailed) {
+        return ESAL_WARMBOOT_FAIL;
     }
 
     return ESAL_RC_OK;
@@ -806,6 +846,7 @@ int VendorBoardInit(void) {
         return ESAL_RC_OK;
     }
 
+    esalDumpPortTable(); 
     // WARNING: VendorBoardInit is different than DLL calls. 
     //    In this case, the returned value of "0" is SUCCESS, and all other
     //    returned values are FAILURE.
@@ -824,46 +865,12 @@ int VendorWarmRestartRequest(void) {
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
-    switchStateUp = false; 
 
-#ifndef LARCH_ENVIRON
-     // Inform SFP about cold restart. 
-     //
-     if (esalSFPLibraryRestart) {
-         if (!esalSFPLibraryRestart(false)) {
-             std::cout << "esalSFPLibraryRestart failed\n";
-         }
-     } else {
-         std::cout << "esalSFPLibraryRestart uninitialized\n";
-     }
-#endif
-    
-    // Query to get switch_api
-    //  
-
-#ifndef UTS
-    sai_switch_api_t *saiSwitchApi; 
-    sai_status_t retcode = sai_api_query(SAI_API_SWITCH, (void**)&saiSwitchApi);
-    if (retcode) {
+    if (!VendorWarmBootSaveHandler()) {
+        std::cout << "VendorWarmRestartRequest failed\n" << std::endl;
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "sai_api_query Fail in VendorWarmRestartRequest\n"));
-        std::cout << "sai_api_query failed: " << esalSaiError(retcode) << "\n"; 
-        return ESAL_RC_FAIL;
-    } 
-   
-    // Set switch attribute
-    // 
-    sai_attribute_t attr;
-    attr.id = SAI_SWITCH_ATTR_RESTART_WARM;
-    attr.value.booldata = true;
-    retcode =  saiSwitchApi->set_switch_attribute(esalSwitchId, &attr);
-    if (retcode) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "set_switch_attribute Fail in VendorWarmRestartRequest\n"));
-        std::cout << "set_switch_attribute failed: " << retcode << "\n"; 
-        return ESAL_RC_FAIL;
-    } 
-#endif
+                    SWERR_FILELINE, "VendorWarmBootSaveHandler failed\n"));
+    }
 
     return ESAL_RC_OK;
 }
@@ -887,11 +894,18 @@ int VendorGetTemp(char *temp) {
     return ESAL_RC_OK;
 }
 
-int VendorConfigurationComplete()
+void VendorConfigBegin() {
+    std::cout << "VendorConfigBegin begin\n";
+    esalDumpPortTable(); 
+}
+
+void VendorConfigEnd()
 {
     CPSS_SYSTEM_RECOVERY_INFO_STC recovery_info;
     GT_STATUS rc;
     int status;
+    std::cout << "VendorConfigEnd begin\n";
+    esalDumpPortTable(); 
 
     if (WARM_RESTART)
     {
@@ -908,7 +922,17 @@ int VendorConfigurationComplete()
                          SWERR_FILELINE, "cpssSystemRecoveryStateSet failed\n"));
              std::cout << "cpss cpssSystemRecoveryStateSet fail: "
                        << rc << std::endl;
-             return ESAL_RC_FAIL;
+             return;
+        }
+
+        status = esalWarmRestartReNotifyFdb();
+        if (status != ESAL_RC_OK)
+        {
+             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                         SWERR_FILELINE, "esalWarmRestartReNotifyFdb failed\n"));
+             std::cout << "esalWarmRestartReNotifyFdb fail: "
+                       << status << std::endl;
+             return;
         }
 
         status = esalWarmRestartReNotifyFdb();
@@ -921,6 +945,8 @@ int VendorConfigurationComplete()
              return ESAL_RC_FAIL;
         }
     }
-    return ESAL_RC_OK;
+    std::cout << "VendorConfigEnd end\n";
+    esalDumpPortTable(); 
+    return;
 }
 }

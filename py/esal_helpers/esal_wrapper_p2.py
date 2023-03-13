@@ -3,16 +3,14 @@
 import ctypes
 
 ################################################################################
-#                            Not wrapped yet(12)
+#                            Not wrapped yet(10)
 ################################################################################
 
 # esal_vendor_api_version_t VendorApiGetVersion (void);
 # int VendorGetPortDuplex (uint16_t port, vendor_duplex_t *duplex);
 # int VendorGetPortDoubleTagMode (uint16_t port, vendor_dtag_mode *mode);
-# int VendorSetIngressVlanTranslation (uint16_t port, vendor_vlan_translation_t trans);
 # int VendorGetIngressVlanTranslation (uint16_t port, int *size, vendor_vlan_translation_t trans[]);
 # int VendorDeleteIngressVlanTranslation (uint16_t port, vendor_vlan_translation_t trans);
-# int VendorSetEgressVlanTranslation (uint16_t port, vendor_vlan_translation_t trans);
 # int VendorGetEgressVlanTranslation (uint16_t port, int *size, vendor_vlan_translation_t trans[]);
 # int VendorDeleteEgressVlanTranslation (uint16_t port, vendor_vlan_translation_t trans);
 # int VendorRegisterRxCb (VendorRxCallback_fp_t cb, void *cbId);
@@ -584,3 +582,33 @@ esai_vendor_api.VendorConfigurationComplete.argtypes = None
 def VendorConfigurationComplete ():
     ret = esai_vendor_api.VendorConfigurationComplete()
     return {'rc': ret}
+
+class vendor_vlan_translation_t(ctypes.Structure):
+    _fields_ = [
+        ('oldVlan', ctypes.c_uint16),
+        ('newVlan', ctypes.c_uint16),
+    ]
+
+# int VendorSetIngressVlanTranslation (uint16_t port, vendor_vlan_translation_t trans);
+esai_vendor_api.VendorSetIngressVlanTranslation.restype = ctypes.c_int
+esai_vendor_api.VendorSetIngressVlanTranslation.argtypes = [ctypes.c_uint16, vendor_vlan_translation_t]
+def VendorSetIngressVlanTranslation(port, oldVlan, newVlan):
+    w_port = ctypes.c_uint16(port)
+    w_trans = vendor_vlan_translation_t(oldVlan, newVlan)
+    ret = esai_vendor_api.VendorSetIngressVlanTranslation(w_port, w_trans)
+    r_port = w_port.value
+    r_oldVlan = w_trans.oldVlan
+    r_newVlan = w_trans.newVlan
+    return {'rc': ret, 'port': r_port, 'oldVlan': r_oldVlan, 'newVlan': r_newVlan}
+
+# int VendorSetEgressVlanTranslation (uint16_t port, vendor_vlan_translation_t trans);
+esai_vendor_api.VendorSetEgressVlanTranslation.restype = ctypes.c_int
+esai_vendor_api.VendorSetEgressVlanTranslation.argtypes = [ctypes.c_uint16, vendor_vlan_translation_t]
+def VendorSetEgressVlanTranslation(port, oldVlan, newVlan):
+    w_port = ctypes.c_uint16(port)
+    w_trans = vendor_vlan_translation_t(oldVlan, newVlan)
+    ret = esai_vendor_api.VendorSetEgressVlanTranslation(w_port, w_trans)
+    r_port = w_port.value
+    r_oldVlan = w_trans.oldVlan
+    r_newVlan = w_trans.newVlan
+    return {'rc': ret, 'port': r_port, 'oldVlan': r_oldVlan, 'newVlan': r_newVlan}

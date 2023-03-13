@@ -651,5 +651,10 @@ bool bridgeWarmBootRestoreHandler() {
     return true;
 }
 
+void bridgeWarmBootCleanHandler() {
+    std::unique_lock<std::mutex> lock(bridgeMutex);
+    bridgePortTableSize = 0;
+}
+
 
 }

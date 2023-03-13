@@ -59,8 +59,7 @@ int main()
         restoreRegisters();
 #endif
 
-        createFolderIfNotExist(BACKUP_FOLDER);
-        std::cout << "ESAL_WARM = " << ESAL_WARM << std::endl;
+        std::cout << "WARM_RESTART = " << WARM_RESTART << std::endl;
         run_cli();
     }
 

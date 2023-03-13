@@ -26,7 +26,7 @@
 #include <libconfig.h++>
 
 #include <esal_vendor_api/esal_vendor_api.h>
-#include <esal_warmboot_api/esal_warmboot_api.h>
+#include "esal_warmboot_api/esal_warmboot_api.h"
 
 extern "C" {
 #include "sai/sai.h"
@@ -893,7 +893,8 @@ static bool deserializeVlanMapConfig(std::map<uint16_t, VlanEntry> &vlanMap, con
         return false;
     }
 
-    libconfig::Setting &vlanMapSetting = cfg.lookup("vlanMap");
+    std::string vmap("vlanMap"); 
+    libconfig::Setting &vlanMapSetting = cfg.lookup(vmap);
     if (!vlanMapSetting.isList()) {
         std::cout << "vlanMap is not a list" << std::endl;
         return false;
@@ -917,7 +918,8 @@ static bool deserializeVlanMapConfig(std::map<uint16_t, VlanEntry> &vlanMap, con
         vlEn.vlanSai = vlanSai;
         vlEn.defaultPortId = defaultPortId;
 
-        libconfig::Setting &ports = vlanEntry.lookup("ports");
+        std::string portKey("ports"); 
+        libconfig::Setting &ports = vlanEntry[portKey.c_str()];
         if (!vlanMapSetting.isList()) {
             std::cout << "ports is not a list" << std::endl;
             return false;
@@ -964,16 +966,15 @@ bool vlanWarmBootRestoreHandler() {
 
     bool status = true;
 
-    status &= deserializeVlanMapConfig(vlanMap, BACKUP_FILE_VLAN);
+    status = deserializeVlanMapConfig(vlanMap, BACKUP_FILE_VLAN);
     if (!status) {
         std::cout << "Error deserializing vlan map" << std::endl;
-        status &= false;
-        goto restore_out;
+        return false;
     }
 
     if (!vlanMap.size()) {
         std::cout << "Vlan map is empty!" << std::endl;
-        goto restore_out;
+        return true;
     }
 
     std::cout << "Founded VLAN configurations:" << std::endl;
@@ -987,11 +988,15 @@ bool vlanWarmBootRestoreHandler() {
     status = restoreVlans(vlanMap);
     if (!status) {
         std::cout << "Error restore vlans" << std::endl;
-        status &= false;
+        return false;
     }
 
-    restore_out:
-    return status;
+    return true;
+}
+
+void vlanWarmBootCleanHandler() {
+    std::unique_lock<std::mutex> lock(vlanMutex);
+    vlanMap.clear();
 }
 
 }

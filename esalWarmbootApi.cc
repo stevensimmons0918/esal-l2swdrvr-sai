@@ -1,25 +1,19 @@
 #include <cstdlib>
 #include <cstring>
-#include <esal_warmboot_api/esal_warmboot_api.h>
+#include "esal_warmboot_api/esal_warmboot_api.h"
 
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <sys/stat.h>
 
-bool ESAL_WARM = []() -> bool {
-    const char *esal_warm_env = std::getenv("ESAL_WARM");
-    if (esal_warm_env != NULL && !strcmp(esal_warm_env, "TRUE")) {
-        return true;
-    }
-    return false;
-}();
-
 std::map<std::string, bool (*)()> warmBootRestoreHandlers = {
     {"VLAN",    vlanWarmBootRestoreHandler},
     {"PORT",    portWarmBootRestoreHandler},
     {"BRIDGE",  bridgeWarmBootRestoreHandler},
     {"TAG",     tagWarmBootRestoreHandler},
+    {"STP",     stpWarmBootRestoreHandler},
+    {"ACL",     aclWarmBootRestoreHandler},
 };
 
 std::map<std::string, bool (*)()> warmBootSaveHandlers = {
@@ -27,6 +21,17 @@ std::map<std::string, bool (*)()> warmBootSaveHandlers = {
     {"PORT",    portWarmBootSaveHandler},
     {"BRIDGE",  bridgeWarmBootSaveHandler},
     {"TAG",     tagWarmBootSaveHandler},
+    {"STP",     stpWarmBootSaveHandler},
+    {"ACL",     aclWarmBootSaveHandler},
+};
+
+std::map<std::string, void (*)()> warmBootCleanHandlers = {
+    {"VLAN",    vlanWarmBootCleanHandler},
+    {"PORT",    portWarmBootCleanHandler},
+    {"BRIDGE",  bridgeWarmBootCleanHandler},
+    {"TAG",     tagWarmBootCleanHandler},
+    {"STP",     stpWarmBootCleanHandler},
+    {"ACL",     aclWarmBootCleanHandler},
 };
 
 bool VendorWarmBootRestoreHandler() {
@@ -69,6 +74,10 @@ bool VendorWarmBootSaveHandler() {
     std::cout << "================================================================================" << std::endl;
     std::cout << std::endl;
 
+    if (!createFolderIfNotExist(BACKUP_FOLDER)) {
+        std::cout << "Backup folder creation error" << std::endl;
+        return false;
+    }
 
     for (auto handler_name_fn : warmBootSaveHandlers) {
         std::string name = handler_name_fn.first;
@@ -90,10 +99,32 @@ bool VendorWarmBootSaveHandler() {
     return status;
 }
 
+void VendorWarmBootCleanHanlder() {
+    std::cout << "Clean modules state..." << std::endl;
+    for (auto handler_name_fn : warmBootCleanHandlers) {
+        std::string name = handler_name_fn.first;
+        auto handler = handler_name_fn.second;
+
+        std::cout << "Cleaning " << name << "state" << std::endl;
+        handler();
+    }
+}
+
 bool createFolderIfNotExist(const char *path) {
     struct stat st{};
     if (stat(path, &st) == 0) {
         return true;
+    }
+
+    char *path_copy = strdup(path);
+    char *last_slash = strrchr(path_copy, '/');
+    if (last_slash != NULL) {
+        *last_slash = '\0';
+        bool parent_created = createFolderIfNotExist(path_copy);
+        free(path_copy);
+        if (!parent_created) {
+            return false;
+        }
     }
 
     int status = mkdir(path, 0775);
