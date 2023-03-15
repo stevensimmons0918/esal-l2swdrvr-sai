@@ -11,15 +11,22 @@
 
 #include "headers/esalSaiDef.h"
 #include "headers/esalSaiUtils.h"
+#include <cstdint>
 #include <iostream>
+#include <iomanip>
 
 #include <cinttypes>
 #include <mutex>
+#include <sys/types.h>
 #include <vector>
 #include <map>
 #include <string>
+#include <fstream>
+
+#include <libconfig.h++>
 
 #include <esal_vendor_api/esal_vendor_api.h>
+#include "esal_warmboot_api/esal_warmboot_api.h"
 
 extern "C" {
 #include "sai/sai.h"
@@ -44,10 +51,16 @@ struct VlanEntry {
     uint16_t defaultPortId = 0xffff;
 };
 
+static std::map<uint16_t, VlanEntry> vlanMap;
 std::vector<uint16_t> tagPorts;
+
 static std::mutex vlanMutex;
 
-static std::map<uint16_t, VlanEntry> vlanMap; 
+
+static bool serializeVlanMapConfig(const std::map<uint16_t, VlanEntry>& vlanMap, const std::string& fileName);
+static bool deserializeVlanMapConfig(std::map<uint16_t, VlanEntry>& vlanMap, const std::string& fileName);
+static bool restoreVlans(std::map<uint16_t, VlanEntry>& vlanMap);
+static void printVlanEntry(uint16_t num, const VlanEntry& vlan);
 
 
 int VendorCreateVlan(uint16_t vlanid) {
@@ -62,11 +75,11 @@ int VendorCreateVlan(uint16_t vlanid) {
     std::unique_lock<std::mutex> lock(vlanMutex);
 
     // Check to see if VLAN already exists. It is OK condition. Otherwise,
-    // it will break Esal Base if fail. 
+    // it will break Esal Base if fail.
     //
     auto vlanFound = vlanMap.find(vlanid);
     if (vlanFound != vlanMap.end()) {
-        return ESAL_RC_OK; 
+        return ESAL_RC_OK;
     }
 
     // Query for VLAN API
@@ -90,32 +103,32 @@ int VendorCreateVlan(uint16_t vlanid) {
 
     attr.id = SAI_VLAN_ATTR_VLAN_ID;
     attr.value.u16 = vlanid;
-    attributes.push_back(attr); 
+    attributes.push_back(attr);
 
     attr.id = SAI_VLAN_ATTR_LEARN_DISABLE;
     attr.value.booldata = false;
-    attributes.push_back(attr); 
+    attributes.push_back(attr);
 
-    // Create VLAN first. 
-    //   
-    retcode = 
+    // Create VLAN first.
+    //
+    retcode =
         saiVlanApi->create_vlan(
-            &vlanSai, esalSwitchId, attributes.size(), attributes.data()); 
+            &vlanSai, esalSwitchId, attributes.size(), attributes.data());
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "create_vlan fail in VendorCreateVlan\n"));
-        std::cout << "create_vlan fail:" << vlanid << " " 
+        std::cout << "create_vlan fail:" << vlanid << " "
                   << esalSaiError(retcode) <<  "\n";
         return ESAL_RC_FAIL;
     }
-#endif 
+#endif
 
-    // Insert into map. There are not member ports at this point. 
-    //  
+    // Insert into map. There are not member ports at this point.
+    //
     VlanEntry entry;
     entry.vlanSai = vlanSai;
     vlanMap[vlanid] = entry;
-    
+
     return rc;
 }
 
@@ -134,13 +147,13 @@ int VendorDeleteVlan(uint16_t vlanid) {
     //
     auto vlanFound = vlanMap.find(vlanid);
     if (vlanFound == vlanMap.end()) {
-        std::cout << "vlan_map.find vlan does not exist: " << vlanid; 
-        return rc; 
+        std::cout << "vlan_map.find vlan does not exist: " << vlanid;
+        return rc;
     }
 
     // Query for VLAN API
     //
-#ifndef UTS 
+#ifndef UTS
     sai_status_t retcode;
     sai_vlan_api_t *saiVlanApi;
     retcode = sai_api_query(SAI_API_VLAN, (void**) &saiVlanApi);
@@ -158,14 +171,14 @@ int VendorDeleteVlan(uint16_t vlanid) {
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
             SWERR_FILELINE, "remove_vlan fail in VendorDeleteVlan\n"));
-        std::cout << "remove_vlan fail:" << vlanid 
+        std::cout << "remove_vlan fail:" << vlanid
                   << " " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
     }
 #endif
 
-    // Remove from map. 
-    //  
+    // Remove from map.
+    //
     vlanMap.erase(vlanFound);
 
     return rc;
@@ -187,8 +200,8 @@ int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t port
     //
     auto vlanFound = vlanMap.find(vlanid);
     if (vlanFound == vlanMap.end()) {
-        std::cout << "vlan_map.find vlan does not exist: " << vlanid; 
-        return rc; 
+        std::cout << "vlan_map.find vlan does not exist: " << vlanid;
+        return rc;
     }
 
 #ifndef UTS
@@ -205,7 +218,7 @@ int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t port
     }
 #endif
 
-    // Add member vlan. 
+    // Add member vlan.
     //
     for(uint16_t i = 0; i < numPorts; i++) {
         VlanEntry &entry = vlanMap[vlanid];
@@ -219,15 +232,15 @@ int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t port
             continue;
         }
 
-        // Check first to see if it is already stored as port. 
+        // Check first to see if it is already stored as port.
         //
-        bool fnd = false; 
+        bool fnd = false;
         for(auto prt : entry.ports){
             if (pPort == prt.portId) {
                 std::cout << "Member exists already: " << vlanid
                     << " " << pPort << "\n";
                 fnd = true;
-                break; 
+                break;
             }
         }
 
@@ -241,7 +254,7 @@ int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t port
 
         attr.id = SAI_VLAN_MEMBER_ATTR_VLAN_ID;
         attr.value.oid = entry.vlanSai;
-        attributes.push_back(attr); 
+        attributes.push_back(attr);
 
         sai_object_id_t bridgePortSai;
 
@@ -254,36 +267,36 @@ int VendorAddPortsToVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t port
 
         attr.id = SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID;
         attr.value.oid = bridgePortSai;
-        attributes.push_back(attr); 
+        attributes.push_back(attr);
 
         attr.id = SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE;
 
-        // Check to see if traffic is UNTAGGED, and then mark it 
+        // Check to see if traffic is UNTAGGED, and then mark it
         // that it needs a tag added.
         //
         bool mustAddTag = false;
-        for(auto tagPort : tagPorts){ 
+        for(auto tagPort : tagPorts){
             if (tagPort == pPort){
-                mustAddTag = true; 
+                mustAddTag = true;
                 break;
             }
         }
 
         attr.value.s32 = mustAddTag ?
-            SAI_VLAN_TAGGING_MODE_UNTAGGED : SAI_VLAN_TAGGING_MODE_TAGGED; 
-        attributes.push_back(attr); 
+            SAI_VLAN_TAGGING_MODE_UNTAGGED : SAI_VLAN_TAGGING_MODE_TAGGED;
+        attributes.push_back(attr);
 
         sai_object_id_t memberSai;
-        retcode = 
+        retcode =
             saiVlanApi->create_vlan_member(
-                    &memberSai, esalSwitchId, attributes.size(), attributes.data()); 
+                    &memberSai, esalSwitchId, attributes.size(), attributes.data());
         if (retcode) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                         SWERR_FILELINE, "create_vlan_member fail VendorAddPortsToVlan\n"));
             std::cout << "sai_object_id_t &vlanMbrObjId fail: " << pPort << "\n";
         } else {
             // Add first to vlan map.
-            //  
+            //
             VlanMember mbr;
             mbr.portId = pPort;
             mbr.memberSai = memberSai;
@@ -310,13 +323,13 @@ int VendorDeletePortsFromVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t
     //
     auto vlanFound = vlanMap.find(vlanid);
     if (vlanFound == vlanMap.end()) {
-        std::cout << "vlan_map.find vlan does not exist: " << vlanid << "\n"; 
-        return rc; 
+        std::cout << "vlan_map.find vlan does not exist: " << vlanid << "\n";
+        return rc;
     }
 
     // Query for VLAN API
     //
-#ifndef UTS 
+#ifndef UTS
     sai_status_t retcode;
     sai_vlan_api_t *saiVlanApi;
     retcode = sai_api_query(SAI_API_VLAN, (void**) &saiVlanApi);
@@ -326,13 +339,13 @@ int VendorDeletePortsFromVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t
         std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
         return ESAL_RC_FAIL;
     }
-#endif 
+#endif
 
-    // Remove member vlan. 
+    // Remove member vlan.
     //
     for(uint16_t i = 0; i < numPorts; i++) {
         VlanEntry &entry = vlanMap[vlanid];
-        bool fnd = false; 
+        bool fnd = false;
         sai_object_id_t memberSai = 0;
         int portTabIdx = 0;
         uint32_t dev;
@@ -347,17 +360,17 @@ int VendorDeletePortsFromVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t
             if (pPort == prt.portId) {
                 std::cout << "Member exists already: " << vlanid << " " << pPort << "\n";
                 fnd = true;
-                memberSai = prt.memberSai; 
-                break; 
+                memberSai = prt.memberSai;
+                break;
             }
             portTabIdx++;
         }
 
-        if (!fnd) continue; 
+        if (!fnd) continue;
 
         // Now,, remove objects.
         //
-#ifdef UTS 
+#ifdef UTS
         (void) memberSai;
 #else
         retcode = saiVlanApi->remove_vlan_member(memberSai);
@@ -366,7 +379,7 @@ int VendorDeletePortsFromVlan(uint16_t vlanid, uint16_t numPorts, const uint16_t
                         SWERR_FILELINE, "remove_vlan_member fail VendorDeletePortsFromVlan\n"));
             std::cout << "remove_vlan_member fail\n";
         } else {
-            entry.ports.erase(entry.ports.begin()+portTabIdx); 
+            entry.ports.erase(entry.ports.begin()+portTabIdx);
         }
 #endif
     }
@@ -388,15 +401,15 @@ int VendorGetPortsInVlan(uint16_t vlanid,
 
     // Check to see if VLAN already exists.
     //
-    *numPorts = 0; 
+    *numPorts = 0;
     auto vlanFound = vlanMap.find(vlanid);
     if (vlanFound == vlanMap.end()) {
-        std::cout << "vlan_map.find vlan does not exist: " << vlanid; 
-        return ESAL_RC_FAIL; 
+        std::cout << "vlan_map.find vlan does not exist: " << vlanid;
+        return ESAL_RC_FAIL;
     }
 
-    // Copy ports 
-    // 
+    // Copy ports
+    //
     VlanEntry &entry = vlanMap[vlanid];
     for(auto &prt : entry.ports){
         uint32_t lPort;
@@ -438,10 +451,10 @@ int VendorSetPortDefaultVlan(uint16_t lPort, uint16_t vlanid) {
     //
     auto vlanFound = vlanMap.find(vlanid);
     if (vlanid && (vlanFound == vlanMap.end())) {
-        std::cout << "vlan_map.find vlan does not exist: " << vlanid; 
+        std::cout << "vlan_map.find vlan does not exist: " << vlanid;
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "invalid vlan fail in VendorSetPortDefaultVlan\n"));
-        return ESAL_RC_FAIL; 
+        return ESAL_RC_FAIL;
     }
 
     // Query for VLAN API
@@ -463,7 +476,7 @@ int VendorSetPortDefaultVlan(uint16_t lPort, uint16_t vlanid) {
     attr.id = SAI_PORT_ATTR_PORT_VLAN_ID;
     attr.value.u16 = vlanid;
 
-    // Look up port sai.  
+    // Look up port sai.
     //
     sai_object_id_t portSai;
     if (!esalPortTableFindSai(pPort, &portSai)) {
@@ -483,12 +496,13 @@ int VendorSetPortDefaultVlan(uint16_t lPort, uint16_t vlanid) {
     }
 
 
-    // Check first to see if it is already stored as port. 
+    // Check first to see if it is already stored as port.
     //
     VlanEntry &entry = vlanMap[vlanid];
-    entry.defaultPortId = pPort; 
+    entry.defaultPortId = pPort;
 
 #endif
+
     return rc;
 }
 
@@ -530,22 +544,22 @@ int VendorGetPortDefaultVlan(uint16_t lPort, uint16_t *vlanid) {
     sai_attribute_t attr;
     attr.id = SAI_PORT_ATTR_PORT_VLAN_ID;
     std::vector<sai_attribute_t> attributes;
-    attributes.push_back(attr); 
+    attributes.push_back(attr);
 
     // Look up port sai
     //
     sai_object_id_t portSai;
     if (esalPortTableFindSai(pPort, &portSai)) {
         retcode = saiPortApi->get_port_attribute(
-                portSai, attributes.size(), attributes.data()); 
+                portSai, attributes.size(), attributes.data());
         if (retcode) {
             std::cout << "get_port_attributes fail:" << esalSaiError(retcode) << "\n";
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                         SWERR_FILELINE, "get_port_attribute fail in VendorGetPortDefaultVlan\n"));
-            return ESAL_RC_FAIL; 
+            return ESAL_RC_FAIL;
         }
         *vlanid = attributes[0].value.u16;
-    }; 
+    };
 
 #endif
 
@@ -564,8 +578,8 @@ int VendorDeletePortDefaultVlan(uint16_t port, uint16_t vlanid) {
 
 
 // In this implementation, VendorTagPacketsOnIngress and VendorStripTagsOnEgress
-// are semantically the same.  This makes sense with the expectation of the 
-// following: 
+// are semantically the same.  This makes sense with the expectation of the
+// following:
 //      CPU Host will not be marked as tagging.
 //      LCNx and OSCx will be marked as tagging.
 //
@@ -603,7 +617,7 @@ int VendorTagPacketsOnIngress(uint16_t lPort) {
 
     sai_attribute_t attr;
     attr.id = SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE;
-    attr.value.s32 = SAI_VLAN_TAGGING_MODE_TAGGED; 
+    attr.value.s32 = SAI_VLAN_TAGGING_MODE_TAGGED;
 #endif
 
     // Iterate over the VLAN Map.
@@ -612,15 +626,15 @@ int VendorTagPacketsOnIngress(uint16_t lPort) {
         auto &entry = it->second;
         for (auto portEntry : entry.ports){
             if (portEntry.portId == pPort) {
-#ifndef UTS 
+#ifndef UTS
                 retcode = saiVlanApi->set_vlan_member_attribute(
                         portEntry.memberSai, &attr);
                 if (retcode) {
                     SWERR(
                             Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                                SWERR_FILELINE, 
+                                SWERR_FILELINE,
                                 "set_vlan_member_attribute fail in VendorTagPacketsOnIngress\n"));
-                    std::cout << 
+                    std::cout <<
                         "get_port_attributes fail: " << esalSaiError(retcode) << "\n";
                 }
 #endif
@@ -629,8 +643,8 @@ int VendorTagPacketsOnIngress(uint16_t lPort) {
         }
     }
 
-    bool addTag = true; 
-    for(auto tagPort : tagPorts){ 
+    bool addTag = true;
+    for(auto tagPort : tagPorts){
         if (tagPort == pPort){
             addTag = false;
             break;
@@ -683,12 +697,12 @@ static int setVLANLearning(uint16_t vlanId, bool enabled) {
     if (vlanFound == vlanMap.end()) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "vlan find fail in setVLANLearning\n"));
-        std::cout << "vlan_map.find vlan does not exist: " << vlanId << "\n"; 
-        return ESAL_RC_FAIL; 
+        std::cout << "vlan_map.find vlan does not exist: " << vlanId << "\n";
+        return ESAL_RC_FAIL;
     }
 
 
-#ifndef UTS 
+#ifndef UTS
     // Query for VLAN API
     //
     sai_status_t retcode;
@@ -705,7 +719,7 @@ static int setVLANLearning(uint16_t vlanId, bool enabled) {
     //
     sai_attribute_t attr;
     attr.id = SAI_VLAN_ATTR_LEARN_DISABLE;
-    attr.value.booldata = (enabled ? false : true); 
+    attr.value.booldata = (enabled ? false : true);
 
     VlanEntry &entry = vlanMap[vlanId];
     retcode = saiVlanApi->set_vlan_attribute(entry.vlanSai, &attr);
@@ -723,7 +737,7 @@ static int setVLANLearning(uint16_t vlanId, bool enabled) {
 
 int VendorDisableMacLearningPerVlan(uint16_t vlanId) {
     std::cout << __PRETTY_FUNCTION__ << vlanId << std::endl;
-    if (!useSaiFlag){
+    if (!useSaiFlag) {
         return ESAL_RC_OK;
     }
     return setVLANLearning(vlanId, false);
@@ -731,7 +745,7 @@ int VendorDisableMacLearningPerVlan(uint16_t vlanId) {
 
 int VendorEnableMacLearningPerVlan(uint16_t vlanId) {
     std::cout << __PRETTY_FUNCTION__ << vlanId << std::endl;
-    if (!useSaiFlag){
+    if (!useSaiFlag) {
         return ESAL_RC_OK;
     }
     return setVLANLearning(vlanId, true);
@@ -760,7 +774,7 @@ int esalVlanAddPortTagPushPop(uint16_t pPort, bool ingr, bool push) {
     sai_object_id_t portSai;
     if (!esalPortTableFindSai(pPort, &portSai)) {
         std::cout << "esalPortTableFindSai fail pPort: " << pPort << std::endl;
-        return ESAL_RC_FAIL; 
+        return ESAL_RC_FAIL;
     }
 
     sai_object_id_t vlan_stacking_oid;
@@ -770,11 +784,11 @@ int esalVlanAddPortTagPushPop(uint16_t pPort, bool ingr, bool push) {
     attr.id = SAI_VLAN_STACK_ATTR_STAGE;
     if (ingr == true)
         attr.value.s32 = SAI_VLAN_STACK_STAGE_INGRESS;
-    else    
+    else
         attr.value.s32 = SAI_VLAN_STACK_STAGE_EGRESS;
     attributes.push_back(attr);
 
-    attr.id = SAI_VLAN_STACK_ATTR_ACTION; 
+    attr.id = SAI_VLAN_STACK_ATTR_ACTION;
     if (push)
         attr.value.s32 = SAI_VLAN_STACK_ACTION_PUSH;
     else
@@ -784,7 +798,7 @@ int esalVlanAddPortTagPushPop(uint16_t pPort, bool ingr, bool push) {
     attr.id = SAI_VLAN_STACK_ATTR_PORT;
     attr.value.oid = portSai;
     attributes.push_back(attr);
-    
+
     // Create vlan stack.
     retcode = saiVlanApi->create_vlan_stack(
         &vlan_stacking_oid, esalSwitchId, (uint32_t)attributes.size(), attributes.data());
@@ -798,6 +812,191 @@ int esalVlanAddPortTagPushPop(uint16_t pPort, bool ingr, bool push) {
     }
 #endif
    return ESAL_RC_OK;
+}
+
+static bool restoreVlans(std::map<uint16_t, VlanEntry>& vlanMap) {
+    bool status = true;
+    int ret = ESAL_RC_OK;
+
+    for (auto& vlanPair : vlanMap) {
+        uint16_t vlanId = vlanPair.first;
+        VlanEntry vlanEntry = vlanPair.second;
+
+        // Create vlan
+        if ((ret = VendorCreateVlan(vlanId)) != ESAL_RC_OK) {
+            status &= false;
+            std::cout << "Error creating VLAN " << vlanId << ": " << esalSaiError(ret) << std::endl;
+            continue;
+        }
+
+        // Add ports to vlan
+        std::vector<uint16_t> portIds;
+        for (const VlanMember& vlanMember : vlanEntry.ports) {
+            portIds.push_back(vlanMember.portId);
+        }
+        if ((ret = VendorAddPortsToVlan(vlanId, portIds.size(), portIds.data())) != ESAL_RC_OK) {
+            status &= false;
+            std::cout << "Error adding ports to VLAN " << vlanId << ": " << esalSaiError(ret) << std::endl;
+        }
+
+        // Set default port
+        if (vlanEntry.defaultPortId != 0xffff) {
+            if ((ret = VendorSetPortDefaultVlan(vlanEntry.defaultPortId, vlanId)) != ESAL_RC_OK) {
+                status &= false;
+                std::cout << "Error setting default port for VLAN " << vlanId << ": " << esalSaiError(ret) << std::endl;
+            }
+        }
+    }
+    return status;
+}
+
+static bool serializeVlanMapConfig(const std::map<uint16_t, VlanEntry> &vlanMap, const std::string &fileName) {
+    std::unique_lock<std::mutex> lock(vlanMutex);
+
+    libconfig::Config cfg;
+    libconfig::Setting &root = cfg.getRoot();
+
+    libconfig::Setting &vlanMapSetting = root.add("vlanMap", libconfig::Setting::TypeList);
+
+    for (const auto &vlan : vlanMap) {
+        libconfig::Setting &vlanEntry = vlanMapSetting.add(libconfig::Setting::TypeGroup);
+        vlanEntry.add("vlanNum", libconfig::Setting::TypeInt) = vlan.first;
+        vlanEntry.add("vlanSai", libconfig::Setting::TypeInt64) = static_cast<int64_t>(vlan.second.vlanSai);
+        vlanEntry.add("defaultPortId", libconfig::Setting::TypeInt) = vlan.second.defaultPortId;
+
+        libconfig::Setting &ports = vlanEntry.add("ports", libconfig::Setting::TypeList);
+        for (const auto &port : vlan.second.ports) {
+            libconfig::Setting &portSetting = ports.add(libconfig::Setting::TypeGroup);
+            portSetting.add("portId", libconfig::Setting::TypeInt) = port.portId;
+            portSetting.add("memberSai", libconfig::Setting::TypeInt64) = static_cast<int64_t>(port.memberSai);
+        }
+    }
+
+    try {
+        cfg.writeFile(fileName.c_str());
+        return true;
+    } catch (const libconfig::FileIOException &ex) {
+        std::cout << "Error writing to file: " << ex.what() << std::endl;
+        return false;
+    }
+}
+
+static bool deserializeVlanMapConfig(std::map<uint16_t, VlanEntry> &vlanMap, const std::string &fileName) {
+    libconfig::Config cfg;
+    try {
+        cfg.readFile(fileName.c_str());
+    } catch (const libconfig::FileIOException &ex) {
+        std::cout << "Error reading file: " << ex.what() << std::endl;
+        return false;
+    } catch (const libconfig::ParseException &ex) {
+        std::cout << "Error parsing file: " << ex.what() << " at line " << ex.getLine() << std::endl;
+        return false;
+    }
+
+    std::string vmap("vlanMap"); 
+    libconfig::Setting &vlanMapSetting = cfg.lookup(vmap);
+    if (!vlanMapSetting.isList()) {
+        std::cout << "vlanMap is not a list" << std::endl;
+        return false;
+    }
+
+    vlanMap.clear();
+    for (int i = 0; i < vlanMapSetting.getLength(); ++i) {
+        libconfig::Setting &vlanEntry = vlanMapSetting[i];
+
+        int vlanNum;
+        long long vlanSai;
+        int defaultPortId;
+
+        if (!(vlanEntry.lookupValue("vlanNum", vlanNum) &&
+            vlanEntry.lookupValue("vlanSai", vlanSai) &&
+            vlanEntry.lookupValue("defaultPortId", defaultPortId))) {
+            return false;
+        }
+
+        VlanEntry vlEn;
+        vlEn.vlanSai = vlanSai;
+        vlEn.defaultPortId = defaultPortId;
+
+        std::string portKey("ports"); 
+        libconfig::Setting &ports = vlanEntry[portKey.c_str()];
+        if (!vlanMapSetting.isList()) {
+            std::cout << "ports is not a list" << std::endl;
+            return false;
+        }
+        for (int j = 0; j < ports.getLength(); ++j) {
+            libconfig::Setting &port = ports[j];
+
+            int portId;
+            long long memberSai;
+
+            if (!(port.lookupValue("portId", portId) &&
+                port.lookupValue("memberSai", memberSai))) {
+                return false;
+            }
+
+            vlEn.ports.push_back({static_cast<uint16_t>(portId),static_cast<sai_object_id_t>(memberSai)});
+        }
+
+        vlanMap[vlanNum] = vlEn;
+    }
+
+  return true;
+}
+
+static void printVlanEntry(uint16_t num, const VlanEntry& vlan) {
+    std::cout << "VLAN ID: " << std::dec << num
+        << ", OID: 0x" << std::setw(16) << std::setfill('0') << std::hex << vlan.vlanSai
+        << std::endl;
+    std::cout << "Ports:" << std::endl;
+    for (const VlanMember& member : vlan.ports) {
+        std::cout << "  Port ID: "<< std::dec << member.portId
+            << ", OID: 0x" << std::setw(16) << std::setfill('0') << std::hex << member.memberSai
+            << std::endl;
+    }
+    std::cout << "Default port ID: " << vlan.defaultPortId << std::endl;
+}
+
+bool vlanWarmBootSaveHandler() {
+    return serializeVlanMapConfig(vlanMap, BACKUP_FILE_VLAN);
+}
+
+bool vlanWarmBootRestoreHandler() {
+    std::map<uint16_t, VlanEntry> vlanMap;
+
+    bool status = true;
+
+    status = deserializeVlanMapConfig(vlanMap, BACKUP_FILE_VLAN);
+    if (!status) {
+        std::cout << "Error deserializing vlan map" << std::endl;
+        return false;
+    }
+
+    if (!vlanMap.size()) {
+        std::cout << "Vlan map is empty!" << std::endl;
+        return true;
+    }
+
+    std::cout << "Founded VLAN configurations:" << std::endl;
+    for (const auto& entry : vlanMap) {
+        printVlanEntry(entry.first, entry.second);
+        std::cout << std::endl;
+    }
+
+    std::cout << std::endl;
+    std::cout << "Restore process:" << std::endl;
+    status = restoreVlans(vlanMap);
+    if (!status) {
+        std::cout << "Error restore vlans" << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+void vlanWarmBootCleanHandler() {
+    std::unique_lock<std::mutex> lock(vlanMutex);
+    vlanMap.clear();
 }
 
 }

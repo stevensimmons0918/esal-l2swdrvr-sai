@@ -109,6 +109,14 @@ extern SFPGetPort_fp_t esalSFPGetPort;
 
 bool portCfgFlowControlInit();
 bool perPortCfgFlowControlInit(uint16_t portNum);
+
+typedef struct
+{
+    uint32_t index;
+    uint32_t macAge;
+    bool valid;
+} macData;
+
 }
 
 #define OID_VALUE_MASK 0x000000FFFFFFFFFFULL
@@ -121,7 +129,9 @@ const int ESAL_SFP_FAIL = -2;
 const int ESAL_RESOURCE_EXH = -3;
 const int ESAL_INVALID_PORT = -4;
 const int ESAL_INVALID_VLAN = -5;
+const int ESAL_WARMBOOT_FAIL = -6;
 
 const int ESAL_UNITTEST_MAGIC_NUM = 155;
+
 
 #endif  // ESAL_VENDOR_API_HEADERS_ESALSAIDEF_H_

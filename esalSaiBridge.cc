@@ -12,6 +12,7 @@
 #include "headers/esalSaiDef.h"
 #include "headers/esalSaiUtils.h"
 #include <iostream>
+#include <iomanip>
 #include <cinttypes>
 #include <string>
 #include <mutex>
@@ -26,6 +27,9 @@
 #include "sfp_vendor_api/sfp_vendor_api.h"
 #endif
 #include "esal_vendor_api/esal_vendor_api.h"
+#include "esal_warmboot_api/esal_warmboot_api.h"
+
+#include <libconfig.h++>
 
 extern "C" {
 
@@ -519,5 +523,138 @@ int VendorEnableMacLearningPerPort(uint16_t lPort) {
 
     return setMacLearning(pPort, true);
 }
+
+static bool restoreBridges(BridgeMember* bridgePortTable, int bridgePortTableSize) {
+    bool status = true;
+    for (int i = 0; i < bridgePortTableSize; i++) {
+        if(!esalBridgePortCreate(bridgePortTable[i].portSai, &(bridgePortTable[i].bridgePortSai), bridgePortTable[i].vlanId)) {
+            status &= false;
+            std::cout << "Error esalBridgePortCreate portSai: " << bridgePortTable[i].portSai << " vlan id: " << bridgePortTable[i].vlanId << std::endl;
+        }
+    }
+    return status;
+}
+
+static bool serializeBridgePortTableConfig(BridgeMember *bridgePortTable, const int bridgePortTableSize, const std::string &fileName) {
+    std::unique_lock<std::mutex> lock(bridgeMutex);
+
+    libconfig::Config cfg;
+    libconfig::Setting &root = cfg.getRoot();
+
+    root.add("bridgePortTableSize", libconfig::Setting::TypeInt) = bridgePortTableSize;
+
+    libconfig::Setting &portTable = root.add("bridgePortTable", libconfig::Setting::TypeList);
+
+    for (int i = 0; i < bridgePortTableSize; i++)
+    {
+        libconfig::Setting &port = portTable.add(libconfig::Setting::TypeGroup);
+        port.add("portId", libconfig::Setting::TypeInt) = bridgePortTable[i].portId;
+        port.add("vlanId", libconfig::Setting::TypeInt) = bridgePortTable[i].vlanId;
+        port.add("portSai", libconfig::Setting::TypeInt64) = static_cast<int64_t>(bridgePortTable[i].portSai);
+        port.add("bridgePortSai", libconfig::Setting::TypeInt64) = static_cast<int64_t>(bridgePortTable[i].bridgePortSai);
+    }
+
+    try {
+        cfg.writeFile(fileName.c_str());
+        return true;
+    } catch (const libconfig::FileIOException &ex) {
+        std::cerr << "Error writing to file: " << ex.what() << std::endl;
+        return false;
+    }
+}
+
+static bool deserializeBridgePortTableConfig(BridgeMember *bridgePortTable, int *bridgePortTableSize, const std::string &fileName) {
+    libconfig::Config cfg;
+    try {
+        cfg.readFile(fileName.c_str());
+    } catch (const libconfig::FileIOException &ex) {
+        std::cout << "Error reading file: " << ex.what() << std::endl;
+        return false;
+    } catch (const libconfig::ParseException &ex) {
+        std::cout << "Error parsing file: " << ex.what() << " at line "
+                            << ex.getLine() << std::endl;
+        return false;
+    }
+
+    *bridgePortTableSize = cfg.lookup("bridgePortTableSize");
+
+    libconfig::Setting &portTable = cfg.lookup("bridgePortTable");
+
+    for (int i = 0; i < *bridgePortTableSize; i++)
+    {
+        libconfig::Setting &port = portTable[i];
+
+        int portId;
+        int vlanId;
+        long long portSaiOid;
+        long long bridgePortSaiOid;
+
+        if (!(port.lookupValue("portId", portId) &&
+              port.lookupValue("vlanId", vlanId) &&
+              port.lookupValue("portSai", portSaiOid) &&
+              port.lookupValue("bridgePortSai", bridgePortSaiOid))) {
+            return false;
+        }
+
+        bridgePortTable[i].portId = static_cast<uint16_t>(portId);
+        bridgePortTable[i].vlanId = static_cast<uint16_t>(vlanId);
+        bridgePortTable[i].portSai = static_cast<sai_object_id_t>(portSaiOid);
+        bridgePortTable[i].bridgePortSai = static_cast<sai_object_id_t>(bridgePortSaiOid);
+    }
+
+    return true;
+}
+
+static void printBridgeMember(BridgeMember bridgeMember) {
+    std::cout << "Port ID: " << std::dec << bridgeMember.portId
+        << ", VLAN ID: " << std::dec << bridgeMember.vlanId
+        << std::endl;
+    std::cout << "Port OID: 0x" << std::setw(16) << std::setfill('0') << std::hex << bridgeMember.portSai
+        << ", Bridge Port OID: 0x" << std::setw(16) << std::setfill('0') << std::hex << bridgeMember.bridgePortSai
+        << std::endl;
+}
+
+bool bridgeWarmBootSaveHandler() {
+    return serializeBridgePortTableConfig(bridgePortTable, bridgePortTableSize, BACKUP_FILE_BRIDGE);
+}
+
+bool bridgeWarmBootRestoreHandler() {
+    bool status = true;
+
+    BridgeMember bridgeTable[BRIDGE_PORT_TABLE_MAXSIZE];
+    int bridgeTableSize = 0;
+
+    status = deserializeBridgePortTableConfig(bridgeTable, &bridgeTableSize, BACKUP_FILE_BRIDGE);
+    if (!status) {
+        std::cout << "Error deserializing bridge map" << std::endl;
+        return false;
+    }
+
+    if (!bridgeTableSize) {
+        std::cout << "Bridge table is empty!" << std::endl;
+        return false;
+    }
+
+    std::cout << "Founded bridge configurations:" << std::endl;
+    for (int i = 0; i < bridgeTableSize; i++) {
+        printBridgeMember(bridgeTable[i]);
+    }
+
+    std::cout << std::endl;
+    std::cout << "Restore process:" << std::endl;
+    status = restoreBridges(bridgeTable, bridgeTableSize);
+    if (!status) {
+        std::cout << "Error restore bridges" << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+void bridgeWarmBootCleanHandler() {
+    std::unique_lock<std::mutex> lock(bridgeMutex);
+    bridgePortTableSize = 0;
+}
+
 
 }

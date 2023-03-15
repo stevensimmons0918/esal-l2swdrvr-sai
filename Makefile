@@ -42,7 +42,8 @@ FILES := \
   esalSaiTag.cc \
   esalSaiUtils.cc \
   esalSaiVlan.cc \
-  esalSaiPolicer.cc
+  esalSaiPolicer.cc \
+  esalWarmbootApi.cc
 
 
 MKDIR_P = mkdir -p
@@ -69,15 +70,15 @@ ESAL_DEP = $(patsubst %.o,%.d,$(ESAL_OBJECTS))
 
 $(OUT_DIR)/%.o:%.cc
 	$(call compile,$(CFLAGS),$(OUT_DIR))
-#-L. -lsai -lXdkCpssgit 
+#-L. -lsai -lXdkCpssgit
 
 esal_app: esal_lib
 	$(MKDIR_P) $(BIN_DIR)
-	$(CC) -o esalApp $(CFLAGS) $(LDFLAGS) esalMain.cc -lesal -I/usr/include/python2.7 -lpython2.7
+	$(CC) -o esalApp $(CFLAGS) $(LDFLAGS) esalMain.cc -lesal -lsai -I/usr/include/python2.7 -lpython2.7
 
 esal_lib: $(ESAL_OBJECTS)
 	echo ESAL objects: $(ESAL_OBJECTS)
-	$(CC) -shared -o $(OUT_DIR)/libesal.so $(LDFLAGS) $(ESAL_OBJECTS) -ldl -lpthread -lrt -lstdc++ -lm -lsai -ldl
+	$(CC) -shared -o $(OUT_DIR)/libesal.so $(LDFLAGS) $(ESAL_OBJECTS) -ldl -lpthread -lrt -lstdc++ -lm -lsai -ldl -lconfig++
 	sudo cp $(OUT_DIR)/libesal.so /usr/lib
 
 clean:

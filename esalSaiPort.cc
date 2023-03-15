@@ -10,16 +10,24 @@
  */
 
 #include "headers/esalSaiDef.h"
+#include <bits/stdint-uintn.h>
+#include <cstddef>
+#include <cstdint>
 #ifdef HAVE_MRVL
 #include "headers/esalCpssDefs.h"
 #endif
 #include "headers/esalSaiUtils.h"
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <cinttypes>
 #include <mutex>
 #include <vector>
+
+#include <libconfig.h++>
+
 #include "esal_vendor_api/esal_vendor_api.h"
+#include "esal_warmboot_api/esal_warmboot_api.h"
 
 #include "sai/sai.h"
 #include "sai/saiport.h"
@@ -61,6 +69,8 @@ struct SaiPortEntry{
     bool autoneg;
     vendor_speed_t speed; 
     vendor_duplex_t duplex;
+    bool adminState = false;
+    bool operationState = false;
 };
 
 const int MAX_PORT_TABLE_SIZE = 512;
@@ -70,6 +80,24 @@ CPSS_PORT_MANAGER_SGMII_AUTO_NEGOTIATION_STC autoNegFlowControlCfg[MAX_PORT_TABL
 #endif
 int portTableSize = 0;
 std::mutex portTableMutex; 
+
+void esalDumpPortTable(void) {
+
+static int cnt = 0; 
+if (cnt++ > 20) return;
+
+std::cout << "ESAL Port Table Size: " << portTableSize << "\n" << std::flush;
+for (auto i = 0; i < portTableSize; i++) {
+   std::cout << "PortId: " << portTable[i].portId 
+       << " PortSai: " << portTable[i].portSai 
+       << " CU: " << portTable[i].isCopper 
+       << " SGMII: " << portTable[i].isSGMII 
+       << " CHNG: " << portTable[i].isChangeable 
+       << " lPort: " << portTable[i].lPort 
+       << " adm: " << portTable[i].adminState 
+       << " op: " << portTable[i].operationState << "\n" << std::flush; 
+}
+}
 
 void processSerdesInit(uint16_t lPort);
 void processRateLimitsInit(uint32_t lPort);
@@ -222,6 +250,15 @@ bool esalPortTableGetSaiByIdx(uint16_t idx, sai_object_id_t *portSai) {
     }
     *portSai = SAI_NULL_OBJECT_ID;
     return false;
+}
+
+SaiPortEntry* esalPortTableGetEntryById(uint16_t portId) {
+    for (int i = 0; i < portTableSize; i++) {
+        if (portTable[i].portId == portId) {
+            return &portTable[i];
+        }
+    }
+    return nullptr;
 }
 
 bool esalPortTableAddEntry(uint16_t portId, sai_object_id_t *portSai) {
@@ -621,6 +658,8 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
 #ifndef UTS
     bool isCopper = false; 
 #endif
+esalDumpPortTable();
+
 
     if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
@@ -1102,6 +1141,11 @@ int VendorGetPortAutoNeg(uint16_t lPort, bool *aneg) {
 
 #endif
 
+    SaiPortEntry* portEntry = esalPortTableGetEntryById(pPort);
+    if (portEntry != nullptr) {
+        portEntry->adminState = true;
+    }
+
     return rc;
 }
 
@@ -1132,7 +1176,6 @@ int VendorGetPortLinkState(uint16_t lPort, bool *ls) {
 
 #ifndef LARCH_ENVIRON
     if (esalPortTableIsChangeable(pPort)) {
-static int cnt = 100;
         // Changeable need to check first to see if hardware has changed.
         // then get link state from L2SW. 
         std::vector<SFPAttribute> values;
@@ -1143,10 +1186,6 @@ static int cnt = 100;
         esalSFPGetPort(lPort, values.size(), values.data());
         esalPortTableSetCopper(pPort, values[0].SFPVal.Copper);
         esalPortTableSetIfMode(pPort);
-        if (cnt) {
-           cnt--;
-           std::cout << "esalPortTableIsChangeablei chk: " << pPort << " : " << values[0].SFPVal.Copper << "\n";
-        } 
     } else if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
         // Check to see if supported by SFP library.
         std::vector<SFPAttribute> values;
@@ -1280,6 +1319,11 @@ int VendorEnablePort(uint16_t lPort) {
 
 #endif
 
+    SaiPortEntry* portEntry = esalPortTableGetEntryById(pPort);
+    if (portEntry != nullptr) {
+        portEntry->adminState = true;
+    }
+
     return rc;
 }
 
@@ -1338,6 +1382,11 @@ int VendorDisablePort(uint16_t lPort) {
         return ESAL_RC_FAIL; 
     }
 #endif
+
+    SaiPortEntry* portEntry = esalPortTableGetEntryById(pPort);
+    if (portEntry != nullptr) {
+        portEntry->adminState = false;
+    }
 
     return rc;
 }
@@ -2149,6 +2198,228 @@ int VendorDropUntaggedPacketsOnIngress(uint16_t lPort) {
 #endif
 
     return ESAL_RC_OK;
+}
+
+static bool restorePorts(SaiPortEntry* portTable, int portTableSize) {
+    bool status = true;
+    for (int i = 0; i < portTableSize; i++) {
+        if (!esalPortTableAddEntry(portTable[i].portId, &portTable[i].portSai)) {
+            status &= false;
+            std::cout << "Error esalPortTableAddEntry " << portTable[i].portId << std::endl;
+        }
+
+        uint16_t pPort = portTable[i].portId;
+        uint32_t lPort;
+        if (!saiUtils.GetLogicalPort(0, pPort, &lPort)) {
+                std::cout << "Error GetLogicalPort: " << pPort << std::endl;
+                status &= false;
+                continue;
+        }
+
+        if (VendorSetPortRate(lPort, portTable[i].autoneg, portTable[i].speed, portTable[i].duplex) != ESAL_RC_OK) {
+            std::cout << "Error VendorSetPortRate " << lPort << std::endl;
+            status &= false;
+            continue;
+        }
+
+        if (portTable[i].adminState) {
+            if (VendorEnablePort(lPort) != ESAL_RC_OK) {
+                std::cout << "Error VendorEnablePort " << lPort << std::endl;
+                status &= false;
+                continue;
+            }
+        } else {
+            if (VendorDisablePort(lPort) != ESAL_RC_OK) {
+                std::cout << "Error VendorDisablePort " << lPort << std::endl;
+                status &= false;
+                continue;
+            }
+        }
+
+        bool ls;
+        if (VendorGetPortLinkState(lPort, &ls) != ESAL_RC_OK) {
+            std::cout << "Error VendorGetPortLinkState: " << lPort << std::endl;
+            status &= false;
+            continue;
+        }
+
+        // Check if state 
+        if (ls != portTable[i].operationState) {
+            std::cout << "Operation state isn't same on port: " << lPort << std::endl;
+            status &= false;
+            continue;
+        }
+    }
+
+    return status;
+}
+
+static bool serializePortTableConfig(SaiPortEntry *portTable, const int portTableSize,
+                                                            const std::string &fileName) {
+    libconfig::Config cfg;
+    libconfig::Setting &root = cfg.getRoot();
+
+    libconfig::Setting &portTableSetting =
+            root.add("portTable", libconfig::Setting::TypeList);
+
+    for (int i = 0; i < portTableSize; i++) {
+        uint32_t lPort;
+        if (!saiUtils.GetLogicalPort(0, portTable[i].portId, &lPort)) {
+            continue;
+        }
+        libconfig::Setting &portEntry =
+                portTableSetting.add(libconfig::Setting::TypeGroup);
+        portEntry.add("portId", libconfig::Setting::TypeInt) = portTable[i].portId;
+        portEntry.add("portSai", libconfig::Setting::TypeInt64) = static_cast<int64_t>(portTable[i].portSai);
+        portEntry.add("autoneg", libconfig::Setting::TypeBoolean) = portTable[i].autoneg;
+        portEntry.add("speed", libconfig::Setting::TypeInt) = portTable[i].speed;
+        portEntry.add("duplex", libconfig::Setting::TypeInt) = portTable[i].duplex;
+        portEntry.add("adminState", libconfig::Setting::TypeBoolean) = portTable[i].adminState;
+    }
+
+    try {
+        cfg.writeFile(fileName.c_str());
+        return true;
+    } catch (const libconfig::FileIOException &ex) {
+        std::cout << "Error writing to file: " << ex.what() << std::endl;
+        return false;
+    }
+}
+
+static bool deserializePortTableConfig(SaiPortEntry *portTable, int *portTableSize,
+                                                                const std::string &fileName) {
+    libconfig::Config cfg;
+    try {
+        cfg.readFile(fileName.c_str());
+    } catch (const libconfig::FileIOException &ex) {
+        std::cout << "Error reading file: " << ex.what() << std::endl;
+        return false;
+    } catch (const libconfig::ParseException &ex) {
+        std::cout << "Error parsing file: " << ex.what() << " at line "
+                  << ex.getLine() << std::endl;
+        return false;
+    }
+
+    libconfig::Setting &portTableSetting = cfg.lookup("portTable");
+    if (!portTableSetting.isList()) {
+        std::cout << "portTable is not a list" << std::endl;
+        return false;
+    }
+
+    *portTableSize = 0;
+    for (int i = 0; i < portTableSetting.getLength(); ++i) {
+        libconfig::Setting &portEntry = portTableSetting[i];
+
+        int portId, speed, duplex;
+        long long portSai;
+        bool autoneg, adminState;
+
+        if (!(portEntry.lookupValue("portId", portId)   &&
+              portEntry.lookupValue("portSai", portSai) &&
+              portEntry.lookupValue("autoneg", autoneg) &&
+              portEntry.lookupValue("speed", speed) &&
+              portEntry.lookupValue("duplex", duplex) &&
+              portEntry.lookupValue("adminState", adminState))) {
+            return false;
+        }
+
+        if (*portTableSize >= MAX_PORT_TABLE_SIZE) {
+            std::cout << "portTableSize >= MAX_PORT_TABLE_SIZE" << std::endl;
+            return false;
+        }
+
+        portTable[*portTableSize].portId = static_cast<uint16_t>(portId);
+        portTable[*portTableSize].portSai = static_cast<sai_object_id_t>(portSai);
+        portTable[*portTableSize].autoneg = autoneg;
+        portTable[*portTableSize].speed = static_cast<vendor_speed_t>(speed);
+        portTable[*portTableSize].duplex = static_cast<vendor_duplex_t>(duplex);
+        portTable[*portTableSize].adminState = adminState;
+        (*portTableSize)++;
+    }
+
+    return true;
+}
+
+static void printPortEntry(const SaiPortEntry& portEntry) {
+    std::cout << "Port ID: " << std::dec << portEntry.portId
+        << ", OID: 0x" << std::setw(16) << std::setfill('0') << std::hex << portEntry.portSai
+        << (portEntry.adminState ? "\tUP" : "\tDOWN")
+        << std::endl
+        << "autoneg: " << std::dec << portEntry.autoneg
+        << ", speed: " << std::dec << portEntry.speed
+        << ", duplex: " << std::dec << portEntry.duplex << std::endl;
+}
+
+bool portWarmBootSaveHandler() {
+    bool status = true;
+
+    std::unique_lock<std::mutex> lock(portTableMutex);
+ 
+    // Saving a current operation state for ports
+    //
+    for (int i = 0; i < portTableSize; i++) {
+        bool ls;
+        uint16_t pPort;
+        uint32_t lPort;
+
+        pPort = portTable[i].portId;
+
+        if (!saiUtils.GetLogicalPort(0, pPort, &lPort)) {
+            continue;
+        }
+        if (VendorGetPortLinkState(lPort, &ls) != ESAL_RC_OK) {
+            std::cout << "Error VendorGetPortLinkState: " << lPort << std::endl;
+            status &= false;
+            continue;
+        }
+
+        portTable[i].operationState = ls;
+    }
+
+    if (!serializePortTableConfig(portTable, portTableSize, BACKUP_FILE_PORT)) {
+        std::cout << "Error serializePortTableConfig" << std::endl;
+        status &= false;
+    }
+
+    return status;
+}
+
+bool portWarmBootRestoreHandler () {
+    bool status = true;
+
+    SaiPortEntry portTable[MAX_PORT_TABLE_SIZE];
+    int portTableSize = 0;
+
+    status = deserializePortTableConfig(portTable, &portTableSize, BACKUP_FILE_PORT);
+    if (!status) {
+        std::cout << "Error deserializing vlan map" << std::endl;
+        return false;
+    }
+
+    if (!portTableSize) {
+        std::cout << "Port table is empty!" << std::endl;
+        return false;
+    }
+
+    std::cout << "Founded port configurations:" << std::endl;
+    for (int i = 0; i < portTableSize; i++) {
+        printPortEntry(portTable[i]);
+    }
+
+    std::cout << std::endl;
+    std::cout << "Restore process:" << std::endl;
+    status = restorePorts(portTable, portTableSize);
+    if (!status) {
+        std::cout << "Error restore ports" << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+void portWarmBootCleanHandler() {
+    std::unique_lock<std::mutex> lock(portTableMutex);
+    portTableSize = 0;
 }
 
 }
