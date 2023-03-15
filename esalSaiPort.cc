@@ -2263,6 +2263,10 @@ static bool serializePortTableConfig(SaiPortEntry *portTable, const int portTabl
             root.add("portTable", libconfig::Setting::TypeList);
 
     for (int i = 0; i < portTableSize; i++) {
+        uint32_t lPort;
+        if (!saiUtils.GetLogicalPort(0, portTable[i].portId, &lPort)) {
+            continue;
+        }
         libconfig::Setting &portEntry =
                 portTableSetting.add(libconfig::Setting::TypeGroup);
         portEntry.add("portId", libconfig::Setting::TypeInt) = portTable[i].portId;
