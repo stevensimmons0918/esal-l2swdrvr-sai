@@ -305,6 +305,10 @@ static bool serializeStpTableConfig(const std::vector<StpGroupMember>& stpPortTa
             root.add("stpPortTable", libconfig::Setting::TypeList);
 
     for (const auto& stpMember : stpPortTable) {
+        uint32_t lPort;
+        if (!saiUtils.GetLogicalPort(0, stpMember.portId, &lPort)) {
+            continue;
+        }
         libconfig::Setting& stpEntry =
                 stpTableSetting.add(libconfig::Setting::TypeGroup);
         stpEntry.add("portId",        libconfig::Setting::TypeInt)   = stpMember.portId;
