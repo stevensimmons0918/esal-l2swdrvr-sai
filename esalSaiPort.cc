@@ -2365,8 +2365,6 @@ bool portWarmBootSaveHandler() {
         pPort = portTable[i].portId;
 
         if (!saiUtils.GetLogicalPort(0, pPort, &lPort)) {
-            std::cout << "Error GetLogicalPort: " << pPort << std::endl;
-            status &= false;
             continue;
         }
         if (VendorGetPortLinkState(lPort, &ls) != ESAL_RC_OK) {
