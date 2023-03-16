@@ -116,12 +116,12 @@ bool createFolderIfNotExist(const char *path) {
         return true;
     }
 
-    char *path_copy = strdup(path);
-    char *last_slash = strrchr(path_copy, '/');
-    if (last_slash != NULL) {
-        *last_slash = '\0';
-        bool parent_created = createFolderIfNotExist(path_copy);
-        free(path_copy);
+    std::string path_copy(path);
+    auto last_slash = path_copy.find_last_of('/');
+    if (last_slash != std::string::npos) {
+        std::string new_dir(path_copy.substr(0, last_slash));
+        std::cout << "createFolderIfNotExist create path: " << new_dir << "\n";
+        bool parent_created = createFolderIfNotExist(new_dir.c_str());
         if (!parent_created) {
             return false;
         }

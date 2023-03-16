@@ -576,11 +576,11 @@ def VendorSetPortNniMode(lPort, mode):
     r_mode = w_mode.value
     return {'rc': ret, 'lPort': r_lPort, 'mode': r_mode}
 
-# int VendorConfigurationComplete();
-esai_vendor_api.VendorConfigurationComplete.restype = ctypes.c_int
-esai_vendor_api.VendorConfigurationComplete.argtypes = None
-def VendorConfigurationComplete ():
-    ret = esai_vendor_api.VendorConfigurationComplete()
+# int VendorConfigEnd();
+esai_vendor_api.VendorConfigEnd.restype = ctypes.c_int
+esai_vendor_api.VendorConfigEnd.argtypes = None
+def VendorConfigEnd ():
+    ret = esai_vendor_api.VendorConfigEnd()
     return {'rc': ret}
 
 class vendor_vlan_translation_t(ctypes.Structure):

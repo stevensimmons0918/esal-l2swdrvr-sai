@@ -942,7 +942,7 @@ void VendorConfigEnd()
                          SWERR_FILELINE, "esalWarmRestartReNotifyFdb failed\n"));
              std::cout << "esalWarmRestartReNotifyFdb fail: "
                        << status << std::endl;
-             return ESAL_RC_FAIL;
+             return;
         }
     }
     std::cout << "VendorConfigEnd end\n";
