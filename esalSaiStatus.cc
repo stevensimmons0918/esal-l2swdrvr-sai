@@ -173,7 +173,6 @@ int VendorGetL2Pm(uint16_t *usedLen, uint16_t maxLen, char* gpbBuf) {
             // Check to see port exists.
             sai_object_id_t portSai;
             if (!esalPortTableFindSai(pPort, &portSai)) {
-std::cout << "SIMMONS did not find sai " << pPort << "\n" << std::flush; 
                 continue;
             }
             // Get the stats
