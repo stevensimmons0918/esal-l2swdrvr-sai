@@ -1,3 +1,14 @@
+
+/*
+ *  esalSaiDefs.h
+ *
+ *  Copyright (C) 2022, Fujitsu Networks Communications, Inc.
+ *
+ *  Brief: Global Definitions associated with ESAL SAI interface.
+ *
+ *  Author: Dmutro Kukhno
+ */
+
 #ifndef WARMBOOT_DEFS_H
 #define WARMBOOT_DEFS_H
 

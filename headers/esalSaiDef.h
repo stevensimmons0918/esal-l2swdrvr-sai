@@ -96,6 +96,8 @@ extern bool esalCreateBpduTrapAcl();
 extern bool esalEnableBpduTrapOnPort(std::vector<sai_object_id_t>& portSaiList);
 extern int esalVlanAddPortTagPushPop(uint16_t pPort, bool ingr, bool push);
 extern std::map<std::string, std::string> esalProfileMap;
+extern bool VendorWarmBootRestoreHandler();
+extern bool VendorWarmBootSaveHandler();
 
 #ifndef LARCH_ENVIRON
 extern SFPLibInitialize_fp_t esalSFPLibInitialize;
@@ -129,9 +131,7 @@ const int ESAL_SFP_FAIL = -2;
 const int ESAL_RESOURCE_EXH = -3;
 const int ESAL_INVALID_PORT = -4;
 const int ESAL_INVALID_VLAN = -5;
-const int ESAL_WARMBOOT_FAIL = -6;
 
 const int ESAL_UNITTEST_MAGIC_NUM = 155;
-
 
 #endif  // ESAL_VENDOR_API_HEADERS_ESALSAIDEF_H_

@@ -11,7 +11,6 @@
 
 #include "headers/esalSaiDef.h"
 #include "headers/esalSaiUtils.h"
-#include <bits/stdint-uintn.h>
 #include <iostream>
 #include <iomanip>
 #include <cinttypes>

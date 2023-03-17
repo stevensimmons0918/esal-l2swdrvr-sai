@@ -1038,7 +1038,6 @@ extern GT_STATUS cpssDxChDiagDeviceTemperatureGet(GT_U8 devNum,
                      GT_32 *temperaturePtr);
 extern GT_STATUS cpssSystemRecoveryStateSet(CPSS_SYSTEM_RECOVERY_INFO_STC *recovery_info);
 
-
 extern GT_STATUS prvCpssDrvHwPpWriteRegister (GT_U8 devNum, GT_U32 regAddr, GT_U32 value);
 extern GT_STATUS cpssDxChCfgTableNumEntriesGet(GT_U8 devNum, CPSS_DXCH_CFG_TABLES_ENT table, 
                                                GT_U32 *numEntriesPtr);
