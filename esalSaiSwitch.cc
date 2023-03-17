@@ -590,16 +590,20 @@ int DllInit(void) {
     }
 #endif
 
-    const char *esal_warm_env = std::getenv("PSI_resetReason");
-    if (esal_warm_env) {
-        std::string resetReason(esal_warm_env);
-        std::transform(resetReason.begin(), resetReason.end(),
-                       resetReason.begin(),
-                       std::ptr_fun <int, int>(std::toupper));
-        if (resetReason.compare("WARM") == 0) {
-            WARM_RESTART = true;
-        } else {
-            WARM_RESTART = false;
+    auto bkupFile = fopen(BACKUP_FOLDER, "r");
+    if (bkupFile) {
+        fclose(bkupFile);
+        const char *esal_warm_env = std::getenv("PSI_resetReason");
+        if (esal_warm_env) {
+            std::string resetReason(esal_warm_env);
+            std::transform(resetReason.begin(), resetReason.end(),
+                           resetReason.begin(),
+                           std::ptr_fun <int, int>(std::toupper));
+            if (resetReason.compare("WARM") == 0) {
+                WARM_RESTART = true;
+            } else {
+                WARM_RESTART = false;
+            }
         }
     }
 
