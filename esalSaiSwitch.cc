@@ -771,6 +771,16 @@ hard_reset:
 #endif
     }
 
+#ifndef UTS
+    // Remove the backup folder.
+    //
+    std::string rmCmd("rm -rf ");
+    rmCmd.append(BACKUP_FOLDER); 
+    if (system(rmCmd.c_str())) {
+        std::cout << "DllInit: fail rm cmd: " <<  BACKUP_FOLDER << "\n";
+    }
+#endif
+
     std::cout << "Dll Init after restore handler\n";
 
     return ESAL_RC_OK;
