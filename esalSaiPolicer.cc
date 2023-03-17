@@ -30,7 +30,7 @@ bool SetBroadcastRateLimiting(uint16_t pPort,
                      sai_object_id_t *bcSaiPolicer) {
     std::cout << "SetBroadcastRateLimiting: pPort=" << pPort << " bcastRateLimit="
               << bcastRateLimit << " bcastBurstLimit=" << bcastBurstLimit
-              << std::endl;
+              << " in kbps" << std::endl;
 
      // Get port table api
     sai_status_t retcode;
@@ -56,7 +56,7 @@ bool SetBroadcastRateLimiting(uint16_t pPort,
     sai_attribute_t attr;
 
     attr.id = SAI_POLICER_ATTR_METER_TYPE;
-    attr.value.s32 = SAI_METER_TYPE_PACKETS;
+    attr.value.s32 = SAI_METER_TYPE_BYTES;
     attributes.push_back(attr);
 
     attr.id = SAI_POLICER_ATTR_MODE;
@@ -68,15 +68,15 @@ bool SetBroadcastRateLimiting(uint16_t pPort,
     attributes.push_back(attr);
 
     attr.id = SAI_POLICER_ATTR_CIR;
-    attr.value.u64 = bcastRateLimit;
+    attr.value.u64 = bcastRateLimit * 125;
     attributes.push_back(attr);
 
     attr.id = SAI_POLICER_ATTR_PBS;
-    attr.value.u64 = bcastBurstLimit;
+    attr.value.u64 = bcastBurstLimit * 125;
     attributes.push_back(attr);
 
     attr.id = SAI_POLICER_ATTR_CBS;
-    attr.value.u64 = bcastBurstLimit;
+    attr.value.u64 = bcastBurstLimit * 125;
     attributes.push_back(attr);
 
     attr.id = SAI_POLICER_ATTR_GREEN_PACKET_ACTION;
@@ -111,7 +111,7 @@ bool SetMulticastRateLimiting(uint16_t pPort,
                      sai_object_id_t *mcSaiPolicer) {
     std::cout << "SetMulticastRateLimiting: pPort=" << pPort
               << " mcastRateLimit=" << mcastRateLimit << " mcastBurstLimit="
-              << mcastBurstLimit << std::endl;
+              << mcastBurstLimit << " in kbps" << std::endl;
 
      // Get port table api
     sai_status_t retcode;
@@ -137,7 +137,7 @@ bool SetMulticastRateLimiting(uint16_t pPort,
     sai_attribute_t attr;
 
     attr.id = SAI_POLICER_ATTR_METER_TYPE;
-    attr.value.s32 = SAI_METER_TYPE_PACKETS;
+    attr.value.s32 = SAI_METER_TYPE_BYTES;
     attributes.push_back(attr);
 
     attr.id = SAI_POLICER_ATTR_MODE;
@@ -149,15 +149,15 @@ bool SetMulticastRateLimiting(uint16_t pPort,
     attributes.push_back(attr);
 
     attr.id = SAI_POLICER_ATTR_CIR;
-    attr.value.u64 = mcastRateLimit;
+    attr.value.u64 = mcastRateLimit * 125;
     attributes.push_back(attr);
 
     attr.id = SAI_POLICER_ATTR_PBS;
-    attr.value.u64 = mcastBurstLimit;
+    attr.value.u64 = mcastBurstLimit * 125;
     attributes.push_back(attr);
 
     attr.id = SAI_POLICER_ATTR_CBS;
-    attr.value.u64 = mcastBurstLimit;
+    attr.value.u64 = mcastBurstLimit * 125;
     attributes.push_back(attr);
 
     attr.id = SAI_POLICER_ATTR_GREEN_PACKET_ACTION;
