@@ -1038,7 +1038,9 @@ extern GT_STATUS cpssDxChDiagDeviceTemperatureGet(GT_U8 devNum,
                      GT_32 *temperaturePtr);
 extern GT_STATUS cpssSystemRecoveryStateSet(CPSS_SYSTEM_RECOVERY_INFO_STC *recovery_info);
 
+
 extern GT_STATUS prvCpssDrvHwPpWriteRegister (GT_U8 devNum, GT_U32 regAddr, GT_U32 value);
+
 extern GT_STATUS cpssDxChCfgTableNumEntriesGet(GT_U8 devNum, CPSS_DXCH_CFG_TABLES_ENT table, 
                                                GT_U32 *numEntriesPtr);
 extern GT_STATUS cpssDxChBrgFdbMacEntryRead(GT_U8 devNum, GT_U32 index, GT_BOOL *validPtr,
@@ -1052,6 +1054,43 @@ extern GT_STATUS cpssDxChHwPpSoftResetSkipParamSet(GT_U8 devNum,
                     GT_BOOL skipEnable);
 
 extern GT_STATUS cpssDxChHwPpSoftResetTrigger(GT_U8 devNum);
+
+typedef enum{
+    CPSS_PORT_MANAGER_FAILURE_NONE_E,
+    CPSS_PORT_MANAGER_FAILURE_SIGNAL_STABILITY_FAILED_E,
+    CPSS_PORT_MANAGER_FAILURE_TRAINING_FAILED_E,
+    CPSS_PORT_MANAGER_FAILURE_ALIGNMENT_TIMER_EXPIRED_E,
+    CPSS_PORT_MANAGER_FAILURE_CONFIDENCE_INTERVAL_TIMER_EXPIRED_E,
+    CPSS_PORT_MANAGER_FAILURE_CREATE_PORT_FAILED_E,
+    CPSS_PORT_MANAGER_FAILURE_LAST_E
+} CPSS_PORT_MANAGER_FAILURE_ENT;
+
+typedef enum{
+    CPSS_PORT_MANAGER_STATE_RESET_E,                /* 0 */
+    CPSS_PORT_MANAGER_STATE_LINK_DOWN_E,            /* 1 */
+    CPSS_PORT_MANAGER_STATE_INIT_IN_PROGRESS_E,     /* 2 */
+    CPSS_PORT_MANAGER_STATE_LINK_UP_E,              /* 3 */
+    CPSS_PORT_MANAGER_STATE_MAC_LINK_DOWN_E,        /* 4 */
+    CPSS_PORT_MANAGER_STATE_FAILURE_E,              /* 5 */
+    CPSS_PORT_MANAGER_STATE_DEBUG_E,                /* 6 */
+    CPSS_PORT_MANAGER_STATE_FORCE_LINK_DOWN_E,      /* 7 */
+    CPSS_PORT_MANAGER_STATE_LAST_E
+} CPSS_PORT_MANAGER_STATE_ENT;
+
+typedef struct {
+    CPSS_PORT_MANAGER_STATE_ENT portState;
+    GT_BOOL portUnderOperDisable;
+    CPSS_PORT_MANAGER_FAILURE_ENT failure;
+    CPSS_PORT_INTERFACE_MODE_ENT ifMode;
+    CPSS_PORT_SPEED_ENT speed;
+    CPSS_PORT_FEC_MODE_ENT fecType;
+    GT_BOOL remoteFaultConfig;
+} CPSS_PORT_MANAGER_STATUS_STC;
+
+extern GT_STATUS cpssDxChPortManagerStatusGet(
+    GT_U8 devNum,  GT_PHYSICAL_PORT_NUM portNum,
+    CPSS_PORT_MANAGER_STATUS_STC  *portStagePtr);
+
 
 #endif
 }

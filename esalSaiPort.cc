@@ -70,6 +70,7 @@ struct SaiPortEntry{
     vendor_duplex_t duplex;
     bool adminState = false;
     bool operationState = false;
+    int opStateDownCnt;
 };
 
 const int MAX_PORT_TABLE_SIZE = 512;
@@ -227,6 +228,35 @@ void esalPortTableSetIfMode(uint16_t portId) {
     return;
 }
 
+void esalDetermineToRetrain(uint16_t portId,  bool linkstate) {
+    for(auto i = 0; i < portTableSize; i++) {
+        if (portTable[i].portId == portId) {
+
+            // Special case here is needed to force re-training of Copper SFP. 
+            // That is, if CU SFP is in MAC LINK DOWN STATE for 2mins, retrain
+            // by temporarily making 1000X, bouncing link.  Note, MAC_LINK_DOWN
+            // is different than LINKDOWN.  Defect L900-2175.
+            //
+            if (linkstate || !portTable[i].isCopper) {
+                portTable[i].opStateDownCnt = 0;
+            } else {
+                CPSS_PORT_MANAGER_STATUS_STC portStatus; 
+                auto rc = cpssDxChPortManagerStatusGet(0, portId, &portStatus);
+                if ((rc == GT_OK) && 
+                    (portStatus.portState == CPSS_PORT_MANAGER_STATE_MAC_LINK_DOWN_E)) {
+
+                    portTable[i].opStateDownCnt++;
+                    if (portTable[i].opStateDownCnt > 120) {
+                        portTable[i].opStateDownCnt = 0;
+                        VendorResetPort(portTable[i].lPort) ;
+                    }
+                }
+            }
+            return;
+        }
+    } 
+}
+
 bool esalPortTableFindSai(uint16_t portId, sai_object_id_t *portSai) {
     // Search array for match.
     for(auto i = 0; i < portTableSize; i++) {
@@ -379,6 +409,15 @@ bool perPortCfgFlowControlInit(uint16_t portNum) {
     uint8_t devNum = 0;
     CPSS_DXCH_PORT_AP_PARAMS_STC tmpStsParams; 
     GT_BOOL apEnable;
+
+    // 10G ports should not execute code because ports are put FORCE_LINK_DOWN.
+    //
+    for(auto i = 0; i < portTableSize; i++) {
+        if (portTable[i].portId == portNum) {
+            if (portTable[i].speed == VENDOR_SPEED_TEN_GIGABIT) return true;
+            break;
+        }
+    }
 
 // Port configuration update
     if (autoNegFlowControlCfg[portNum].readyToUpdFlag == GT_TRUE) {
@@ -1240,6 +1279,7 @@ int VendorGetPortLinkState(uint16_t lPort, bool *ls) {
     }
 
     *ls = (attributes[0].value.u32 == SAI_PORT_OPER_STATUS_UP) ? true : false;
+    esalDetermineToRetrain(pPort, *ls);
 #endif
 
     return rc;
@@ -1862,26 +1902,13 @@ void *portStateCbData = 0;
 
 // All SFPs will go through this callback. 
 //
-bool esalSfpCallback(
-     void *cbId, uint16_t lPort, bool ls, bool aneg, vendor_speed_t spd, vendor_duplex_t dup)
+bool esalSfpCallback(void *, uint16_t, bool, bool, vendor_speed_t, vendor_duplex_t)
 {
+    // Earlier design used SFP for callback.  Lab testing verified
+    // that L2SW Port Manager is sufficient. 
+    //
     std::cout << "esalSfpCallback\n" << std::flush;
-    uint32_t pPort;
-    uint32_t dev;
-
-    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-              SWERR_FILELINE, "esalSfpCallback failed to get pPort\n"));
-        return false;
-    }
-
-    if (esalPortTableIsChangeable(pPort)) {
-        std::cout << "esalSfpCallback changeable\n";
-        return true; 
-    }
-
-    if (!portStateChangeCb) return false;  
-    return portStateChangeCb(cbId, lPort, ls, aneg, spd, dup);
+    return true; 
 }
 
 
@@ -1954,6 +1981,7 @@ void esalPortTableState(sai_object_id_t portSai, bool portState){
     std::cout << "esalPortTableState : " << pPort << ":" << portState << "\n" << std::flush;
 
 
+
 #ifndef LARCH_ENVIRON
     // Check to see if the SFP supported by SFP Library. If so, just call
     // set link state, and let SFP library handle callback. 
@@ -1967,7 +1995,6 @@ void esalPortTableState(sai_object_id_t portSai, bool portState){
         values.push_back(val);
         if (!esalSFPSetPort) return;
         esalSFPSetPort(lPort, values.size(), values.data());
-        return;
     }
 #endif
     if (!portStateChangeCb) return;
@@ -2001,8 +2028,7 @@ void esalPortTableState(sai_object_id_t portSai, bool portState){
 }
 
 int VendorResetPort(uint16_t lPort) {
-    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort
-              << " is NYI" << std::endl;
+    std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort << std::endl;
 
     if (!useSaiFlag) {
         return ESAL_RC_OK;

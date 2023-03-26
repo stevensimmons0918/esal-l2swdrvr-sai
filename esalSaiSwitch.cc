@@ -895,8 +895,6 @@ int VendorGetTemp(char *temp) {
     if (rc != GT_OK) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "cpssDxChDiagDeviceTemperatureGet failed\n"));
-        std::cout << "cpss cpssDxChDiagDeviceTemperatureGet fail: "
-                  << rc << std::endl;
         return ESAL_RC_FAIL;
     } else {
         std::string tmp_str = std::to_string(tmp);
