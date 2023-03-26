@@ -410,6 +410,15 @@ bool perPortCfgFlowControlInit(uint16_t portNum) {
     CPSS_DXCH_PORT_AP_PARAMS_STC tmpStsParams; 
     GT_BOOL apEnable;
 
+    // 10G ports should not execute code because ports are put FORCE_LINK_DOWN.
+    //
+    for(auto i = 0; i < portTableSize; i++) {
+        if (portTable[i].portId == portNum) {
+            if (portTable[i].speed == VENDOR_SPEED_TEN_GIGABIT) return true;
+            break;
+        }
+    }
+
 // Port configuration update
     if (autoNegFlowControlCfg[portNum].readyToUpdFlag == GT_TRUE) {
         if (cpssDxChPortInbandAutoNegEnableSet(devNum, portNum, 
@@ -1893,26 +1902,13 @@ void *portStateCbData = 0;
 
 // All SFPs will go through this callback. 
 //
-bool esalSfpCallback(
-     void *cbId, uint16_t lPort, bool ls, bool aneg, vendor_speed_t spd, vendor_duplex_t dup)
+bool esalSfpCallback(void *, uint16_t, bool, bool, vendor_speed_t, vendor_duplex_t)
 {
+    // Earlier design used SFP for callback.  Lab testing verified
+    // that L2SW Port Manager is sufficient. 
+    //
     std::cout << "esalSfpCallback\n" << std::flush;
-    uint32_t pPort;
-    uint32_t dev;
-
-    if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-              SWERR_FILELINE, "esalSfpCallback failed to get pPort\n"));
-        return false;
-    }
-
-    if (esalPortTableIsChangeable(pPort)) {
-        std::cout << "esalSfpCallback changeable\n";
-        return true; 
-    }
-
-    if (!portStateChangeCb) return false;  
-    return portStateChangeCb(cbId, lPort, ls, aneg, spd, dup);
+    return true; 
 }
 
 
@@ -1999,7 +1995,6 @@ void esalPortTableState(sai_object_id_t portSai, bool portState){
         values.push_back(val);
         if (!esalSFPSetPort) return;
         esalSFPSetPort(lPort, values.size(), values.data());
-        return;
     }
 #endif
     if (!portStateChangeCb) return;
