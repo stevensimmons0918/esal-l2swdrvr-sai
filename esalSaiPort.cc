@@ -1222,18 +1222,7 @@ int VendorGetPortLinkState(uint16_t lPort, bool *ls) {
         esalSFPGetPort(lPort, values.size(), values.data());
         esalPortTableSetCopper(pPort, values[0].SFPVal.Copper);
         esalPortTableSetIfMode(pPort);
-    } else if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
-        // Check to see if supported by SFP library.
-        std::vector<SFPAttribute> values;
-        SFPAttribute val;
-        val.SFPAttr = SFPLinkStatus;
-        val.SFPVal.LinkStatus = *ls;
-        values.push_back(val); 
-        if (!esalSFPGetPort) return ESAL_RC_FAIL; 
-        esalSFPGetPort(lPort, values.size(), values.data());
-        *ls = values[0].SFPVal.LinkStatus;
-        return rc; 
-    }
+    } 
 #endif    
     if (!useSaiFlag){
         return ESAL_RC_OK;
