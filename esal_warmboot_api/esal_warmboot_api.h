@@ -26,8 +26,6 @@
 #define BACKUP_FILE_STP                     BACKUP_FOLDER   "/wb_stp"
 #define BACKUP_FILE_PORT_TRANS_MAP_ING      BACKUP_FOLDER   "/wb_port_trans_map_ing"
 #define BACKUP_FILE_PORT_TRANS_MAP_EGR      BACKUP_FOLDER   "/wb_port_trans_map_egr"
-#define BACKUP_FILE_PORT_ACL_ING            BACKUP_FOLDER   "/wb_port_acl_ing"
-#define BACKUP_FILE_PORT_ACL_EGR            BACKUP_FOLDER   "/wb_port_acl_egr"
 
 // Warmboot flag
 //
