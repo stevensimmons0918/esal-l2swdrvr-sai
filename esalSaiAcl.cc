@@ -1861,76 +1861,9 @@ static void printVlanTranslation(const portVlanTransMap& trans) {
                  std::endl;
 }
 
-static bool serializePortAclMap(const std::map<uint16_t, sai_object_id_t>& aclMap, const std::string& fileName) {
-    std::unique_lock<std::mutex> lock(aclMutex);
-
-    libconfig::Config cfg;
-    libconfig::Setting& root = cfg.getRoot();
-
-    libconfig::Setting& aclMapSetting = root.add("aclMap", libconfig::Setting::TypeList);
-
-    for (const auto& acl : aclMap) {
-        libconfig::Setting& aclEntry = aclMapSetting.add(libconfig::Setting::TypeGroup);
-        aclEntry.add("portId", libconfig::Setting::TypeInt) = acl.first;
-        aclEntry.add("aclId", libconfig::Setting::TypeInt64) = static_cast<int64_t>(acl.second);
-    }
-
-    try {
-        cfg.writeFile(fileName.c_str());
-        return true;
-    } catch (const libconfig::FileIOException& ex) {
-        std::cout << "Error writing to file: " << ex.what() << std::endl;
-        return false;
-    }
-}
-
-static bool deserializePortAclMap(std::map<uint16_t, sai_object_id_t>& aclMap, const std::string& fileName) {
-    libconfig::Config cfg;
-    try {
-        cfg.readFile(fileName.c_str());
-    } catch (const libconfig::FileIOException& ex) {
-        std::cout << "Error reading file: " << ex.what() << std::endl;
-        return false;
-    } catch (const libconfig::ParseException& ex) {
-        std::cout << "Error parsing file: " << ex.what() << " at line " << ex.getLine() << std::endl;
-        return false;
-    }
-
-    libconfig::Setting& aclMapSetting = cfg.lookup("aclMap");
-    if (!aclMapSetting.isList()) {
-        std::cout << "aclMap is not a list" << std::endl;
-        return false;
-    }
-
-    aclMap.clear();
-    for (int i = 0; i < aclMapSetting.getLength(); ++i) {
-        libconfig::Setting& acl = aclMapSetting[i];
-
-        int portId;
-        long long aclId;
-
-        if (!(acl.lookupValue("portId", portId) && 
-              acl.lookupValue("aclId", aclId))) {
-            return false;
-        }
-
-        aclMap[portId] = static_cast<sai_object_id_t>(aclId);
-    }
-
-    return true;
-}
-
-static void printAcl(const uint16_t pPortNum,  const sai_object_id_t aclTableOid) {
-    std::cout << "portid: " << std::dec << pPortNum <<
-                 ", aclTableOid: 0x" << std::setw(16) << std::setfill('0') << std::hex << aclTableOid <<
-                 std::endl;
-}
-
 bool aclWarmBootSaveHandler() {
     return (serializePortTransMapConfig(ingressPortTransMap, BACKUP_FILE_PORT_TRANS_MAP_ING) &&
-            serializePortTransMapConfig(egressPortTransMap, BACKUP_FILE_PORT_TRANS_MAP_EGR) &&
-            serializePortAclMap(portIngressAcl, BACKUP_FILE_PORT_ACL_ING) &&
-            serializePortAclMap(portEgressAcl, BACKUP_FILE_PORT_ACL_EGR));
+            serializePortTransMapConfig(egressPortTransMap, BACKUP_FILE_PORT_TRANS_MAP_EGR));
 }
 
 bool aclWarmBootRestoreHandler() {
@@ -1962,31 +1895,6 @@ bool aclWarmBootRestoreHandler() {
     for (const auto& ptm_egr : egressPortTransMap) {
         printVlanTranslation(ptm_egr);
     }
-
-    status = deserializePortAclMap(portIngressAcl, BACKUP_FILE_PORT_ACL_ING);
-    if (!status) {
-        std::cout << "Error deserializing portIngressAcl" << std::endl;
-        return false;
-    }
-    
-    std::cout << "Founded portIngressAcl:" << std::endl;
-    for (const auto& pa_ing : portIngressAcl) {
-        printAcl(pa_ing.first, pa_ing.second);
-    }
-
-    status = deserializePortAclMap(portEgressAcl, BACKUP_FILE_PORT_ACL_EGR);
-    if (!status) {
-        std::cout << "Error deserializing portEgressAcl" << std::endl;
-        return false;
-    }
-
-    std::cout << "Founded portEgressAcl:" << std::endl;
-    for (const auto& pa_egr : portEgressAcl) {
-        printAcl(pa_egr.first, pa_egr.second);
-    }
-
-    ::portIngressAcl = portIngressAcl;
-    ::portEgressAcl = portEgressAcl;
 
     std::cout << std::endl;
     std::cout << "Restore process:" << std::endl;
