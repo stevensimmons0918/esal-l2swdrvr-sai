@@ -70,7 +70,6 @@ struct SaiPortEntry{
     vendor_duplex_t duplex;
     bool adminState = false;
     bool operationState = false;
-    int opStateDownCnt;
 };
 
 const int MAX_PORT_TABLE_SIZE = 512;
@@ -94,8 +93,8 @@ void esalDumpPortTable(void) {
             << " SGMII: " << portTable[i].isSGMII 
             << " CHNG: " << portTable[i].isChangeable 
             << " lPort: " << portTable[i].lPort 
-            << " adm: " << portTable[i].adminState 
-            << " op: " << portTable[i].operationState << "\n" << std::flush; 
+            << " adm: " << portTable[i].adminState
+            << "\n" << std::flush; 
     }
 }
 
@@ -226,35 +225,6 @@ void esalPortTableSetIfMode(uint16_t portId) {
         }
     }
     return;
-}
-
-void esalDetermineToRetrain(uint16_t portId,  bool linkstate) {
-    for(auto i = 0; i < portTableSize; i++) {
-        if (portTable[i].portId == portId) {
-
-            // Special case here is needed to force re-training of Copper SFP. 
-            // That is, if CU SFP is in MAC LINK DOWN STATE for 2mins, retrain
-            // by temporarily making 1000X, bouncing link.  Note, MAC_LINK_DOWN
-            // is different than LINKDOWN.  Defect L900-2175.
-            //
-            if (linkstate || !portTable[i].isCopper) {
-                portTable[i].opStateDownCnt = 0;
-            } else {
-                CPSS_PORT_MANAGER_STATUS_STC portStatus; 
-                auto rc = cpssDxChPortManagerStatusGet(0, portId, &portStatus);
-                if ((rc == GT_OK) && 
-                    (portStatus.portState == CPSS_PORT_MANAGER_STATE_MAC_LINK_DOWN_E)) {
-
-                    portTable[i].opStateDownCnt++;
-                    if (portTable[i].opStateDownCnt > 120) {
-                        portTable[i].opStateDownCnt = 0;
-                        VendorResetPort(portTable[i].lPort) ;
-                    }
-                }
-            }
-            return;
-        }
-    } 
 }
 
 bool esalPortTableFindSai(uint16_t portId, sai_object_id_t *portSai) {
@@ -1268,7 +1238,6 @@ int VendorGetPortLinkState(uint16_t lPort, bool *ls) {
     }
 
     *ls = (attributes[0].value.u32 == SAI_PORT_OPER_STATUS_UP) ? true : false;
-    esalDetermineToRetrain(pPort, *ls);
 #endif
 
     return rc;
@@ -2211,6 +2180,7 @@ int VendorDropUntaggedPacketsOnIngress(uint16_t lPort) {
 
     return ESAL_RC_OK;
 }
+
 
 static bool restorePorts(SaiPortEntry* portTable, int portTableSize) {
     bool status = true;
