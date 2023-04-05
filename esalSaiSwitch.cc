@@ -11,6 +11,7 @@
 
 #include "headers/esalSaiDef.h"
 #include "headers/esalSaiUtils.h"
+#include "saitypes.h"
 #ifdef HAVE_MRVL
 #include "headers/esalCpssDefs.h"
 #endif
@@ -460,157 +461,11 @@ void onPacketEvent(sai_object_id_t sid,
 
 sai_object_id_t esalSwitchId = SAI_NULL_OBJECT_ID;
 
-int DllInit(void) {
-    std::cout << __PRETTY_FUNCTION__ << std::endl;
-
-    // load the sfp library.
-    //
-#if !defined(UTS) && !defined(LARCH_ENVIRON)
-    loadSFPLibrary();
-#endif
-
-    // Verify that a config file is present first. 
-    //
-    std::string marvellScript(saiUtils.GetCfgPath("mvll.cfg"));
-    auto fptr = fopen(marvellScript.c_str(), "r");
-    if (fptr) {
-        // Now, send the appDemo command if file exists. 
-        //
-        fclose(fptr);
-        std::string cmdLine("/usr/bin/appDemo -daemon -config ");
-        cmdLine.append(marvellScript);
-        if (auto retcode = std::system(cmdLine.c_str())) {
-            std::cout << "appdemo failed: " << retcode << "\n";
-        }
-        return ESAL_RC_OK;
-    } else {
-       std::cout << "Marvell cfg file not found: " << marvellScript << "\n";
-       useSaiFlag = true;
-    }
-
-    // std::string fn(saiUtils.GetCfgPath("sai"));
-    // handleProfileMap(fn);
-    std::string profile_file(saiUtils.GetCfgPath("sai.profile.ini"));
-    std::cout << "profile file: " << profile_file << "\n";
-
-    if (handleProfileMap(profile_file) != ESAL_RC_OK) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "handleProfileMap Fail in DllInit\n"));
-        std::cout << "Configuration file not found at " << profile_file << std::endl;
-#ifndef LARCH_ENVIRON
-        useSaiFlag = false;
-        return ESAL_RC_FAIL;
-#endif
-    }
-
-    if (!esalProfileMap.count("hwId")) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-            SWERR_FILELINE, "hwId read Fail in DllInit\n"));
-        std::cout << "Configuration file must contain at least hwId setting" << profile_file << std::endl;
-#ifndef LARCH_ENVIRON
-        useSaiFlag = false;
-        return ESAL_RC_FAIL;
-#endif
-    }
+static int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_api_t *saiSwitchApi) {
+    sai_status_t retcode = ESAL_RC_OK;
+    sai_attribute_t attr;
 
 #ifndef UTS
-
-    // Initialize the SAI.
-    //
-    sai_api_initialize(0, &testServices);
-
-    // Query to get switch_api
-    //  
-    sai_switch_api_t *saiSwitchApi; 
-    sai_status_t retcode = sai_api_query(SAI_API_SWITCH, (void**)&saiSwitchApi);
-    if (retcode) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-              SWERR_FILELINE, "API Query Fail in DllInit\n"));
-        std::cout << "sai_api_query failed: " << esalSaiError(retcode) << "\n"; 
-        return ESAL_RC_FAIL;
-    } 
-
-    // Determine which switch attributes to set. 
-    // 
-    std::vector<sai_attribute_t> attributes;
-
-    sai_attribute_t attr;
-    
-    attr.id = SAI_SWITCH_ATTR_INIT_SWITCH;
-    attr.value.booldata = true;
-    attributes.push_back(attr); 
-
-    attr.id = SAI_SWITCH_ATTR_SWITCH_STATE_CHANGE_NOTIFY;
-    attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onSwitchStateChange);
-    attributes.push_back(attr); 
-
-    attr.id = SAI_SWITCH_ATTR_FDB_EVENT_NOTIFY;
-    attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onFdbEvent);
-    attributes.push_back(attr); 
-
-    attr.id = SAI_SWITCH_ATTR_PORT_STATE_CHANGE_NOTIFY;
-    attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onPortStateChange);
-    attributes.push_back(attr); 
-
-    attr.id = SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY;
-    attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onPacketEvent);
-    attributes.push_back(attr);
-
-    attr.id = SAI_SWITCH_ATTR_SWITCH_PROFILE_ID;
-    attr.value.u32 = 0;
-    attributes.push_back(attr); 
-
-    attr.id = SAI_SWITCH_ATTR_SWITCH_HARDWARE_INFO;
-#ifndef LARCH_ENVIRON
-    std::string hwid_value = esalProfileMap["hwId"];
-#else
-    std::string hwid_value = "ALDRIN2EVAL";;
-#endif
-    attr.value.s8list.list = (sai_int8_t*)calloc(hwid_value.length() + 1, sizeof(sai_int8_t));
-    std::copy(hwid_value.begin(), hwid_value.end(), attr.value.s8list.list);
-    attributes.push_back(attr);
-
-    attr.id = SAI_SWITCH_ATTR_FDB_AGING_TIME;
-    attr.value.u32 = 180;
-    attributes.push_back(attr); 
-
-#if 0 // Currently FNC does not need this.
-    // If we don't set this attribute then all interfaces have random MAC.
-    // But it is not affect send packet functionality
-    // Adding fake mac address to debug purposes
-    // In normal situation this mac
-    // will be derived from sai.profile
-    // FIXME: http://rtx-swtl-jira.fnc.net.local/browse/LARCH-4
-    // Value must be determine by reading lladdr for eth interface. 
-    //
-    attr.id = SAI_SWITCH_ATTR_SRC_MAC_ADDRESS;
-    memset(&attr.value.mac, 0, sizeof(attr.value.mac));
-    if (get_mac_addr("eth0", &attr.value.mac) == ESAL_RC_OK) {
-        attributes.push_back(attr);
-    }
-#endif
-
-    auto bkupFile = fopen(BACKUP_FOLDER, "r");
-    if (bkupFile) {
-        fclose(bkupFile);
-        const char *esal_warm_env = std::getenv("PSI_resetReason");
-        if (esal_warm_env) {
-            std::string resetReason(esal_warm_env);
-            std::transform(resetReason.begin(), resetReason.end(),
-                           resetReason.begin(),
-                           std::ptr_fun <int, int>(std::toupper));
-            if (resetReason.compare("WARM") == 0) {
-                WARM_RESTART = true;
-            } else {
-                WARM_RESTART = false;
-            }
-        }
-    }
-
-    // The point we need to jump to to re-initialize (make a hard reset) if "hot boot restore" fails.
-    //
-hard_reset:
-
     retcode =  saiSwitchApi->create_switch(
         &esalSwitchId, attributes.size(), attributes.data());
     if (retcode) {
@@ -749,7 +604,7 @@ hard_reset:
         return ESAL_RC_FAIL;
     }
 
-#endif
+#endif // UTS
 
     if (!portCfgFlowControlInit()) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
@@ -757,6 +612,166 @@ hard_reset:
         std::cout << "portCfgFlowControlInit fail \n";
         return ESAL_RC_FAIL;
     }
+
+    return ESAL_RC_OK;
+}
+
+int DllInit(void) {
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    // load the sfp library.
+    //
+#if !defined(UTS) && !defined(LARCH_ENVIRON)
+    loadSFPLibrary();
+#endif
+
+    // Verify that a config file is present first. 
+    //
+    std::string marvellScript(saiUtils.GetCfgPath("mvll.cfg"));
+    auto fptr = fopen(marvellScript.c_str(), "r");
+    if (fptr) {
+        // Now, send the appDemo command if file exists. 
+        //
+        fclose(fptr);
+        std::string cmdLine("/usr/bin/appDemo -daemon -config ");
+        cmdLine.append(marvellScript);
+        if (auto retcode = std::system(cmdLine.c_str())) {
+            std::cout << "appdemo failed: " << retcode << "\n";
+        }
+        return ESAL_RC_OK;
+    } else {
+       std::cout << "Marvell cfg file not found: " << marvellScript << "\n";
+       useSaiFlag = true;
+    }
+
+    // std::string fn(saiUtils.GetCfgPath("sai"));
+    // handleProfileMap(fn);
+    std::string profile_file(saiUtils.GetCfgPath("sai.profile.ini"));
+    std::cout << "profile file: " << profile_file << "\n";
+
+    if (handleProfileMap(profile_file) != ESAL_RC_OK) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+            SWERR_FILELINE, "handleProfileMap Fail in DllInit\n"));
+        std::cout << "Configuration file not found at " << profile_file << std::endl;
+#ifndef LARCH_ENVIRON
+        useSaiFlag = false;
+        return ESAL_RC_FAIL;
+#endif
+    }
+
+    if (!esalProfileMap.count("hwId")) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+            SWERR_FILELINE, "hwId read Fail in DllInit\n"));
+        std::cout << "Configuration file must contain at least hwId setting" << profile_file << std::endl;
+#ifndef LARCH_ENVIRON
+        useSaiFlag = false;
+        return ESAL_RC_FAIL;
+#endif
+    }
+
+#ifndef UTS
+
+    // Initialize the SAI.
+    //
+    sai_api_initialize(0, &testServices);
+
+    // Query to get switch_api
+    //  
+    sai_switch_api_t *saiSwitchApi; 
+    sai_status_t retcode = sai_api_query(SAI_API_SWITCH, (void**)&saiSwitchApi);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "API Query Fail in DllInit\n"));
+        std::cout << "sai_api_query failed: " << esalSaiError(retcode) << "\n"; 
+        return ESAL_RC_FAIL;
+    } 
+
+    // Determine which switch attributes to set. 
+    // 
+    std::vector<sai_attribute_t> attributes;
+
+    sai_attribute_t attr;
+    
+    attr.id = SAI_SWITCH_ATTR_INIT_SWITCH;
+    attr.value.booldata = true;
+    attributes.push_back(attr); 
+
+    attr.id = SAI_SWITCH_ATTR_SWITCH_STATE_CHANGE_NOTIFY;
+    attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onSwitchStateChange);
+    attributes.push_back(attr); 
+
+    attr.id = SAI_SWITCH_ATTR_FDB_EVENT_NOTIFY;
+    attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onFdbEvent);
+    attributes.push_back(attr); 
+
+    attr.id = SAI_SWITCH_ATTR_PORT_STATE_CHANGE_NOTIFY;
+    attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onPortStateChange);
+    attributes.push_back(attr); 
+
+    attr.id = SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY;
+    attr.value.ptr = reinterpret_cast<sai_pointer_t>(&onPacketEvent);
+    attributes.push_back(attr);
+
+    attr.id = SAI_SWITCH_ATTR_SWITCH_PROFILE_ID;
+    attr.value.u32 = 0;
+    attributes.push_back(attr); 
+
+    attr.id = SAI_SWITCH_ATTR_SWITCH_HARDWARE_INFO;
+#ifndef LARCH_ENVIRON
+    std::string hwid_value = esalProfileMap["hwId"];
+#else
+    std::string hwid_value = "AC3XROB";;
+#endif
+    attr.value.s8list.list = (sai_int8_t*)calloc(hwid_value.length() + 1, sizeof(sai_int8_t));
+    std::copy(hwid_value.begin(), hwid_value.end(), attr.value.s8list.list);
+    attributes.push_back(attr);
+
+    attr.id = SAI_SWITCH_ATTR_FDB_AGING_TIME;
+    attr.value.u32 = 180;
+    attributes.push_back(attr); 
+
+#if 0 // Currently FNC does not need this.
+    // If we don't set this attribute then all interfaces have random MAC.
+    // But it is not affect send packet functionality
+    // Adding fake mac address to debug purposes
+    // In normal situation this mac
+    // will be derived from sai.profile
+    // FIXME: http://rtx-swtl-jira.fnc.net.local/browse/LARCH-4
+    // Value must be determine by reading lladdr for eth interface. 
+    //
+    attr.id = SAI_SWITCH_ATTR_SRC_MAC_ADDRESS;
+    memset(&attr.value.mac, 0, sizeof(attr.value.mac));
+    if (get_mac_addr("eth0", &attr.value.mac) == ESAL_RC_OK) {
+        attributes.push_back(attr);
+    }
+#endif
+
+    auto bkupFile = fopen(BACKUP_FOLDER, "r");
+    if (bkupFile) {
+        fclose(bkupFile);
+        const char *esal_warm_env = std::getenv("PSI_resetReason");
+        if (esal_warm_env) {
+            std::string resetReason(esal_warm_env);
+            std::transform(resetReason.begin(), resetReason.end(),
+                           resetReason.begin(),
+                           std::ptr_fun <int, int>(std::toupper));
+            if (resetReason.compare("WARM") == 0) {
+                WARM_RESTART = true;
+            } else {
+                WARM_RESTART = false;
+            }
+        }
+    }
+
+#endif // UTS
+
+    retcode = esalInitSwitch(attributes, saiSwitchApi);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "esalInitSwitch Fail in DllInit\n"));
+        std::cout << "esalInitSwitch failed: " << esalSaiError(retcode) << "\n"; 
+        return ESAL_RC_FAIL;
+    } 
 
     if (WARM_RESTART) {
 #ifndef UTS
@@ -766,7 +781,15 @@ hard_reset:
             std::cout << "VendorWarmBootRestoreHandler fail \n";
             WARM_RESTART = false;
             VendorWarmBootCleanHanlder();
-            goto hard_reset;
+            
+            // Reinit switch (cold boot)
+            retcode = esalInitSwitch(attributes, saiSwitchApi);
+            if (retcode) {
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "esalInitSwitch Fail in DllInit\n"));
+                std::cout << "esalInitSwitch failed: " << esalSaiError(retcode) << "\n"; 
+                return ESAL_RC_FAIL;
+            }
         }
 #endif
     }
@@ -783,7 +806,7 @@ hard_reset:
 
     std::cout << "Dll Init after restore handler\n";
 
-    return ESAL_RC_OK;
+    return ESAL_RC_OK;    
 }
 
 int DllDestroy(void) {
