@@ -832,7 +832,13 @@ static bool restoreVlans(std::map<uint16_t, VlanEntry>& vlanMap) {
         // Add ports to vlan
         std::vector<uint16_t> portIds;
         for (const VlanMember& vlanMember : vlanEntry.ports) {
-            portIds.push_back(vlanMember.portId);
+            uint32_t lPort;
+            if (!saiUtils.GetLogicalPort(0, vlanMember.portId, &lPort)) {
+               std::cout << "VendorGetPortsInVlan, failed to get lPort"
+                    << " pPort=" << vlanMember.portId << std::endl;
+                continue;
+            }
+            portIds.push_back(lPort);
         }
         if ((ret = VendorAddPortsToVlan(vlanId, portIds.size(), portIds.data())) != ESAL_RC_OK) {
             status &= false;
