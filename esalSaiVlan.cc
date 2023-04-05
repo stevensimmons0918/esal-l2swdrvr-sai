@@ -847,7 +847,13 @@ static bool restoreVlans(std::map<uint16_t, VlanEntry>& vlanMap) {
 
         // Set default port
         if (vlanEntry.defaultPortId != 0xffff) {
-            if ((ret = VendorSetPortDefaultVlan(vlanEntry.defaultPortId, vlanId)) != ESAL_RC_OK) {
+            uint32_t defaultLPort;
+            if (!saiUtils.GetLogicalPort(0, vlanEntry.defaultPortId, &defaultLPort)) {
+                 std::cout << "VendorGetPortsInVlan, failed to get lPort for "
+                 << " pPort=" << vlanEntry.defaultPortId << std::endl;
+                continue;
+            }
+            if ((ret = VendorSetPortDefaultVlan(defaultLPort, vlanId)) != ESAL_RC_OK) {
                 status &= false;
                 std::cout << "Error setting default port for VLAN " << vlanId << ": " << esalSaiError(ret) << std::endl;
             }
