@@ -148,9 +148,14 @@ static bool restorePortsTag(std::map<uint16_t, PortTagMember>& portsTagMap) {
     int ret = ESAL_RC_OK;
 
     for (auto& portTag : portsTagMap) {
-        uint16_t lPort = portTag.first;
+        uint16_t pPort = portTag.first;
         PortTagMember portTagMember = portTag.second;
-
+        uint32_t lPort;
+        if (!saiUtils.GetLogicalPort(0, pPort, &lPort)) {
+            std::cout << "VendorGetPortsInVlan, failed to get lPort"
+                    << " pPort=" << pPort << std::endl;
+            continue;
+        }
         // Set Double Tag Mode
         if ((ret = VendorSetPortDoubleTagMode(lPort, portTagMember.dtag_mode)) != ESAL_RC_OK) {
             status &= false;
