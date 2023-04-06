@@ -156,6 +156,7 @@ bool esalPortTableIsChangeable(uint16_t portId) {
 }
 
 void esalPortTableSetIfMode(uint16_t portId) {
+    if (WARM_RESTART) return;
     for(auto i = 0; i < portTableSize; i++) {
         if (portTable[i].portId == portId) {
             
