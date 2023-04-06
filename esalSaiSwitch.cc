@@ -955,6 +955,7 @@ void VendorConfigEnd()
                        << status << std::endl;
              return;
         }
+        WARM_RESTART = false;
     }
 #endif
     std::cout << "VendorConfigEnd end\n";
