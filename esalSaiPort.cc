@@ -568,6 +568,8 @@ void processSerdesInit(uint16_t lPort) {
     EsalSaiUtils::serdesTx_t tx;
     EsalSaiUtils::serdesRx_t rx;
 
+    if (WARM_RESTART) return;
+
     if (saiUtils.GetSerdesInfo(lPort, dev, pPort, tx, rx)) {
         if (tx.has_vals) {
 #ifndef UTS
