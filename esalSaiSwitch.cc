@@ -564,7 +564,7 @@ int DllInit(void) {
 #ifndef LARCH_ENVIRON
     std::string hwid_value = esalProfileMap["hwId"];
 #else
-    std::string hwid_value = "ALDRIN2EVAL";;
+    std::string hwid_value = "ALDRIN2EVAL";
 #endif
     attr.value.s8list.list = (sai_int8_t*)calloc(hwid_value.length() + 1, sizeof(sai_int8_t));
     std::copy(hwid_value.begin(), hwid_value.end(), attr.value.s8list.list);
@@ -606,6 +606,14 @@ int DllInit(void) {
             }
         }
     }
+
+    // No need to support WARM RESTART on Eval.  Right now, it creates
+    // packet loop/storm w/o call to cpssDxChHwPpSoftResetTrigger.
+    //
+    if (hwid_value == "ALDRIN2EVAL") {
+        WARM_RESTART = false;
+    }
+    std::cout << "WARM RESTART: " << WARM_RESTART << "\n" << std::flush;
 
     // The point we need to jump to to re-initialize (make a hard reset) if "hot boot restore" fails.
     //
