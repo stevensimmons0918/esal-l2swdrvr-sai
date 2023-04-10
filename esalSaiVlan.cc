@@ -617,7 +617,7 @@ int VendorTagPacketsOnIngress(uint16_t lPort) {
 
     sai_attribute_t attr;
     attr.id = SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE;
-    attr.value.s32 = SAI_VLAN_TAGGING_MODE_TAGGED;
+    attr.value.s32 = SAI_VLAN_TAGGING_MODE_UNTAGGED;
 #endif
 
     // Iterate over the VLAN Map.
