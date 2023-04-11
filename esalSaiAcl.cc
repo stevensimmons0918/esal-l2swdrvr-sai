@@ -115,8 +115,8 @@ struct aclEntryAttributes {
 
 static std::vector<portVlanTransMap> ingressPortTransMap;
 static std::vector<portVlanTransMap> egressPortTransMap;
-static std::map<uint16_t, sai_object_id_t> portIngressAcl;
-static std::map<uint16_t, sai_object_id_t> portEgressAcl;
+sai_object_id_t portIngressAclTable = 0;
+sai_object_id_t portEgressAclTable = 0;
 static std::mutex aclMutex;
 
 extern "C" {
@@ -266,6 +266,10 @@ int VendorSetIngressVlanTranslation(uint16_t lPort,
                   << "lPort= " << lPort << std::endl;
         return ESAL_RC_FAIL;
     }
+    std::cout << "dev= " << dev << std::endl;
+    std::cout << "phyPort= " << pPort << std::endl;
+    std::cout << "trans.oldVlan= " << trans.oldVlan << std::endl;
+    std::cout << "trans.newVlan= " << trans.newVlan << std::endl;
     // Grab mutex.
     //
     std::unique_lock<std::mutex> lock(aclMutex);
@@ -296,9 +300,8 @@ int VendorSetIngressVlanTranslation(uint16_t lPort,
     // Check to see if the ingress table has already been created.
     //
     sai_object_id_t aclTable = 0;
-    auto aclTableFound = portIngressAcl.find(pPort);
-    if (aclTableFound != portIngressAcl.end()) {
-        aclTable = aclTableFound->second;
+    if (0 != portIngressAclTable) {
+        aclTable = portIngressAclTable;
     } else {
         // STAGE is ingress. Build ACL Attributes.
         //
@@ -316,7 +319,7 @@ int VendorSetIngressVlanTranslation(uint16_t lPort,
             return ESAL_RC_FAIL;
         }
 #endif
-        portIngressAcl[pPort] = aclTable;
+        portIngressAclTable = aclTable;
 
         // Add ACL Table to Port
         //
@@ -465,8 +468,8 @@ int VendorSetEgressVlanTranslation(uint16_t lPort,
     std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort << std::endl;
     uint32_t dev;
     uint32_t pPort;
-    bool rc = saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort);
 
+    bool rc = saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort);
     if (!rc) {
         std::cout << "VendorSetEgressVlanTranslation failed to get pPort "
                   << " lPort=" << lPort << std::endl;
@@ -476,6 +479,10 @@ int VendorSetEgressVlanTranslation(uint16_t lPort,
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
+    std::cout << "dev= " << dev << std::endl;
+    std::cout << "phyPort= " << pPort << std::endl;
+    std::cout << "trans.oldVlan= " << trans.oldVlan << std::endl;
+    std::cout << "trans.newVlan= " << trans.newVlan << std::endl;
     // Grab mutex.
     //
     std::unique_lock<std::mutex> lock(aclMutex);
@@ -507,9 +514,8 @@ int VendorSetEgressVlanTranslation(uint16_t lPort,
     // Check to see if the ingress table has already been created.
     //
     sai_object_id_t aclTable = 0;
-    auto aclTableFound = portEgressAcl.find(pPort);
-    if (aclTableFound != portEgressAcl.end()) {
-        aclTable = aclTableFound->second;
+    if (0 != portEgressAclTable) {
+        aclTable = portEgressAclTable;
     } else {
         std::vector<sai_attribute_t> attributes;
         buildACLTable(SAI_ACL_STAGE_EGRESS, attributes);
@@ -525,7 +531,7 @@ int VendorSetEgressVlanTranslation(uint16_t lPort,
             return ESAL_RC_FAIL;
         }
 #endif
-        portEgressAcl[pPort] = aclTable;
+        portEgressAclTable = aclTable;
 
         // Add ACL Table to Port
         //
@@ -1871,8 +1877,6 @@ bool aclWarmBootRestoreHandler() {
     
     static std::vector<portVlanTransMap> ingressPortTransMap;
     static std::vector<portVlanTransMap> egressPortTransMap;
-    static std::map<uint16_t, sai_object_id_t> portIngressAcl;
-    static std::map<uint16_t, sai_object_id_t> portEgressAcl;
 
     status = deserializePortTransMapConfig(ingressPortTransMap, BACKUP_FILE_PORT_TRANS_MAP_ING);
     if (!status) {
@@ -1935,8 +1939,8 @@ void aclWarmBootCleanHandler() {
     std::unique_lock<std::mutex> lock(aclMutex);
     ingressPortTransMap.clear();
     egressPortTransMap.clear();
-    portIngressAcl.clear();
-    portEgressAcl.clear();
+    portIngressAclTable = 0;
+    portEgressAclTable = 0;
 }
 
 }
