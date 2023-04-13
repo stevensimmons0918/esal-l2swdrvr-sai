@@ -2271,6 +2271,7 @@ static bool serializePortTableConfig(SaiPortEntry *portTable, const int portTabl
     }
 }
 
+std::vector<uint16_t> adminDownPorts;
 static bool deserializePortTableConfig(SaiPortEntry *portTable, int *portTableSize,
                                                                 const std::string &fileName) {
     libconfig::Config cfg;
@@ -2319,6 +2320,10 @@ static bool deserializePortTableConfig(SaiPortEntry *portTable, int *portTableSi
         portTable[*portTableSize].speed = static_cast<vendor_speed_t>(speed);
         portTable[*portTableSize].duplex = static_cast<vendor_duplex_t>(duplex);
         portTable[*portTableSize].adminState = adminState;
+        if (!adminState) {
+std::cout << "ADMIN DOWN PORT: " << portId << "\n" << std::flush; 
+            adminDownPorts.push_back(portTable[*portTableSize].portId);
+        }
         (*portTableSize)++;
     }
 
@@ -2367,6 +2372,19 @@ bool portWarmBootSaveHandler() {
     }
 
     return status;
+}
+
+void esalRestoreAdminDownPorts(void) {
+     for (auto pPort : adminDownPorts) {
+        
+         std::cout << "esalRestoreAdminDownPorrs: " << pPort << "\n" << std::flush;
+         uint32_t lPort;
+         if (!saiUtils.GetLogicalPort(0, pPort, &lPort)) {
+            continue;
+         }
+         std::cout << "lports: " << lPort << "\n" << std::flush;
+         VendorResetPort(lPort);
+     }
 }
 
 bool portWarmBootRestoreHandler () {
