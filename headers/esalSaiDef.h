@@ -92,6 +92,8 @@ extern const char *esalSaiError(sai_status_t rc);
 extern bool esalStpCreate(sai_object_id_t *defStpId);
 extern bool esalStpPortCreate(sai_object_id_t stpSai,
                     sai_object_id_t bridgePortSai, sai_object_id_t *stpPortSai);
+extern void esalRestoreAdminDownPorts(void);
+
 extern bool esalCreateBpduTrapAcl();
 extern bool esalEnableBpduTrapOnPort(std::vector<sai_object_id_t>& portSaiList);
 extern int esalVlanAddPortTagPushPop(uint16_t pPort, bool ingr, bool push);

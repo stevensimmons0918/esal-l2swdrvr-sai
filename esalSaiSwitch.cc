@@ -617,7 +617,7 @@ int DllInit(void) {
 
     // The point we need to jump to to re-initialize (make a hard reset) if "hot boot restore" fails.
     //
-hard_reset:
+//hard_reset:
 
     retcode =  saiSwitchApi->create_switch(
         &esalSwitchId, attributes.size(), attributes.data());
@@ -772,9 +772,11 @@ hard_reset:
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "VendorWarmBootRestoreHandler fail\n"));
             std::cout << "VendorWarmBootRestoreHandler fail \n";
+#ifdef NYI
             WARM_RESTART = false;
             VendorWarmBootCleanHanlder();
             goto hard_reset;
+#endif
         }
 #endif
     }
@@ -963,7 +965,8 @@ void VendorConfigEnd()
                        << status << std::endl;
              return;
         }
-        WARM_RESTART = false;
+        WARM_RESTART = false; 
+        esalRestoreAdminDownPorts();
     }
 #endif
     std::cout << "VendorConfigEnd end\n";
