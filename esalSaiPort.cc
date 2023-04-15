@@ -22,6 +22,7 @@
 #include <cinttypes>
 #include <mutex>
 #include <vector>
+#include <map>
 
 #include <libconfig.h++>
 
@@ -2185,6 +2186,7 @@ int VendorDropUntaggedPacketsOnIngress(uint16_t lPort) {
 }
 
 
+std::vector<uint32_t> adminDownPorts;
 static bool restorePorts(SaiPortEntry* portTable, int portTableSize) {
     bool status = true;
     for (int i = 0; i < portTableSize; i++) {
@@ -2214,6 +2216,7 @@ static bool restorePorts(SaiPortEntry* portTable, int portTableSize) {
                 continue;
             }
         } else {
+            adminDownPorts.push_back(lPort); 
             if (VendorDisablePort(lPort) != ESAL_RC_OK) {
                 std::cout << "Error VendorDisablePort " << lPort << std::endl;
                 status &= false;
@@ -2247,11 +2250,19 @@ static bool serializePortTableConfig(SaiPortEntry *portTable, const int portTabl
     libconfig::Setting &portTableSetting =
             root.add("portTable", libconfig::Setting::TypeList);
 
+    std::map<uint32_t, bool> portRefed;
     for (int i = 0; i < portTableSize; i++) {
         uint32_t lPort;
         if (!saiUtils.GetLogicalPort(0, portTable[i].portId, &lPort)) {
             continue;
         }
+
+        if (portRefed.find(lPort) != portRefed.end()) {
+            std::cout << "serializePortTableConfig referenced same port: " << lPort << "\n";
+            continue; 
+        }
+        portRefed[lPort] = true;
+
         libconfig::Setting &portEntry =
                 portTableSetting.add(libconfig::Setting::TypeGroup);
         portEntry.add("portId", libconfig::Setting::TypeInt) = portTable[i].portId;
@@ -2259,6 +2270,9 @@ static bool serializePortTableConfig(SaiPortEntry *portTable, const int portTabl
         portEntry.add("autoneg", libconfig::Setting::TypeBoolean) = portTable[i].autoneg;
         portEntry.add("speed", libconfig::Setting::TypeInt) = portTable[i].speed;
         portEntry.add("duplex", libconfig::Setting::TypeInt) = portTable[i].duplex;
+        if (esalHostPortId == portTable[i].portId) {
+            portTable[i].adminState = true;
+        }
         portEntry.add("adminState", libconfig::Setting::TypeBoolean) = portTable[i].adminState;
     }
 
@@ -2271,7 +2285,6 @@ static bool serializePortTableConfig(SaiPortEntry *portTable, const int portTabl
     }
 }
 
-std::vector<uint16_t> adminDownPorts;
 static bool deserializePortTableConfig(SaiPortEntry *portTable, int *portTableSize,
                                                                 const std::string &fileName) {
     libconfig::Config cfg;
@@ -2309,6 +2322,7 @@ static bool deserializePortTableConfig(SaiPortEntry *portTable, int *portTableSi
             return false;
         }
 
+
         if (*portTableSize >= MAX_PORT_TABLE_SIZE) {
             std::cout << "portTableSize >= MAX_PORT_TABLE_SIZE" << std::endl;
             return false;
@@ -2320,10 +2334,6 @@ static bool deserializePortTableConfig(SaiPortEntry *portTable, int *portTableSi
         portTable[*portTableSize].speed = static_cast<vendor_speed_t>(speed);
         portTable[*portTableSize].duplex = static_cast<vendor_duplex_t>(duplex);
         portTable[*portTableSize].adminState = adminState;
-        if (!adminState) {
-std::cout << "ADMIN DOWN PORT: " << portId << "\n" << std::flush; 
-            adminDownPorts.push_back(portTable[*portTableSize].portId);
-        }
         (*portTableSize)++;
     }
 
@@ -2375,14 +2385,8 @@ bool portWarmBootSaveHandler() {
 }
 
 void esalRestoreAdminDownPorts(void) {
-     for (auto pPort : adminDownPorts) {
-        
-         std::cout << "esalRestoreAdminDownPorrs: " << pPort << "\n" << std::flush;
-         uint32_t lPort;
-         if (!saiUtils.GetLogicalPort(0, pPort, &lPort)) {
-            continue;
-         }
-         std::cout << "lports: " << lPort << "\n" << std::flush;
+     for (auto lPort : adminDownPorts) {
+         std::cout << "esalRestoreAdminDownPorrs: " << lPort << "\n" << std::flush;
          VendorResetPort(lPort);
      }
 }
