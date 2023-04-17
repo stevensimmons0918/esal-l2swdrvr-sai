@@ -11,6 +11,7 @@
 
 #include "headers/esalSaiDef.h"
 #include "headers/esalSaiUtils.h"
+#include "headers/esalCpssDefs.h"
 #include <cstdint>
 #include <iostream>
 #include <iomanip>
@@ -685,8 +686,6 @@ int VendorStripTagsOnEgress(uint16_t lPort) {
 }
 
 static int setVLANLearning(uint16_t vlanId, bool enabled) {
-
-
     // Grab mutex.
     //
     std::unique_lock<std::mutex> lock(vlanMutex);
@@ -703,30 +702,14 @@ static int setVLANLearning(uint16_t vlanId, bool enabled) {
 
 
 #ifndef UTS
-    // Query for VLAN API
-    //
-    sai_status_t retcode;
-    sai_vlan_api_t *saiVlanApi;
-    retcode = sai_api_query(SAI_API_VLAN, (void**) &saiVlanApi);
-    if (retcode) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                    SWERR_FILELINE, "sai_api_query fail in setVLANLearning\n"));
-        std::cout << "sai_api_query fail: " << esalSaiError(retcode) << "\n";
-        return ESAL_RC_FAIL;
-    }
+    GT_STATUS rc = cpssDxChBrgVlanNaToCpuEnable(0, vlanId, (GT_BOOL)enabled);
 
-    // Set vlan attribute object.
-    //
-    sai_attribute_t attr;
-    attr.id = SAI_VLAN_ATTR_LEARN_DISABLE;
-    attr.value.booldata = (enabled ? false : true);
-
-    VlanEntry &entry = vlanMap[vlanId];
-    retcode = saiVlanApi->set_vlan_attribute(entry.vlanSai, &attr);
-    if (retcode) {
+    if (rc != GT_OK) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                    SWERR_FILELINE, "set_vlan_attribute fail in setVLANLearning\n"));
-        std::cout << "set_vlan_attribute fail: " << esalSaiError(retcode) << "\n";
+                    SWERR_FILELINE, "cpssDxChBrgVlanNaToCpuEnable fail \
+                                     in setVLANLearning\n"));
+        std::cout << "cpssDxChBrgVlanNaToCpuEnable fail: "
+                  << esalSaiError(rc) << "\n";
         return ESAL_RC_FAIL;
     }
 

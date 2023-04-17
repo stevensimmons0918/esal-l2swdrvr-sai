@@ -1091,6 +1091,8 @@ extern GT_STATUS cpssDxChPortManagerStatusGet(
     GT_U8 devNum,  GT_PHYSICAL_PORT_NUM portNum,
     CPSS_PORT_MANAGER_STATUS_STC  *portStagePtr);
 
+extern GT_STATUS cpssDxChBrgVlanNaToCpuEnable(
+    GT_U8 devNum, GT_U16 vlanId, GT_BOOL enable);
 
 #endif
 }
