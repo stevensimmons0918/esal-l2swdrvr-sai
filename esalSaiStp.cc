@@ -122,7 +122,7 @@ int VendorSetPortStpState(uint16_t lPort, vendor_stp_state_t stpState) {
     }
 #endif
 
-    StpGroupMember* mbr = esalFindStpMemberByPortId(lPort);
+    StpGroupMember* mbr = esalFindStpMemberByPortId(pPort);
     if (mbr == nullptr) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
               SWERR_FILELINE, "esalFindStpMemberByPortId fail in VendorSetPortStpState\n"));
