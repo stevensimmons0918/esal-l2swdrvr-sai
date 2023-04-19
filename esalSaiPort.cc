@@ -676,6 +676,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
               SWERR_FILELINE, "VendorSetPortRate failed to get pPort\n"));
         return ESAL_RC_FAIL;
     }
+
 #ifndef LARCH_ENVIRON
 #ifndef UTS
     std::string hwid_value = esalProfileMap["hwId"];
@@ -861,6 +862,18 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
 
 #endif
 
+    if (!WARM_RESTART) {
+        if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
+            VendorResetPort(lPort);
+
+            SaiPortEntry* portEntry = esalPortTableGetEntryById(pPort);
+            if (portEntry != nullptr) {
+                if (!portEntry->adminState) {
+                    VendorDisablePort(lPort);
+                }
+            }
+        }
+    }
     return rc;
 }
 
@@ -1997,6 +2010,7 @@ int VendorResetPort(uint16_t lPort) {
     }
 
     VendorDisablePort(lPort);
+    sleep(1);
     VendorEnablePort(lPort);
     return ESAL_RC_OK;
 }
