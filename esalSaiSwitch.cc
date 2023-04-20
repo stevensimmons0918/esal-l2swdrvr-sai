@@ -11,6 +11,7 @@
 
 #include "headers/esalSaiDef.h"
 #include "headers/esalSaiUtils.h"
+#include "saitypes.h"
 #ifdef HAVE_MRVL
 #include "headers/esalCpssDefs.h"
 #endif
@@ -459,6 +460,160 @@ void onPacketEvent(sai_object_id_t sid,
 #endif
 
 sai_object_id_t esalSwitchId = SAI_NULL_OBJECT_ID;
+static int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_api_t *saiSwitchApi) {
+    sai_status_t retcode = ESAL_RC_OK;
+    sai_attribute_t attr;
+
+#ifndef UTS
+    retcode =  saiSwitchApi->create_switch(
+        &esalSwitchId, attributes.size(), attributes.data());
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "create_switch Fail in DllInit\n"));
+        std::cout << "create failed: " << esalSaiError(retcode) << "\n"; 
+        return ESAL_RC_FAIL;
+    } 
+
+    attr.id = SAI_SWITCH_ATTR_DEFAULT_1Q_BRIDGE_ID;
+
+    retcode =  saiSwitchApi->get_switch_attribute(esalSwitchId, 1, &attr);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "get_switch_attribute Fail in DllInit\n"));
+        std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
+        return ESAL_RC_FAIL;
+    } 
+
+    if (!esalSetDefaultBridge(attr.value.oid)) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                  SWERR_FILELINE, "esalSetDefaultBridge fail VendorAddPortsToVlan\n"));
+            std::cout << "can't set default bridge object:" << "\n";
+                return ESAL_RC_FAIL;
+
+    }
+
+    attr.id = SAI_SWITCH_ATTR_PORT_NUMBER;
+
+    retcode =  saiSwitchApi->get_switch_attribute(esalSwitchId, 1, &attr);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "get_switch_attribute Fail in DllInit\n"));
+        std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
+        return ESAL_RC_FAIL;
+    } 
+    uint32_t port_number = attr.value.u32;
+
+    // Get port list //
+    std::vector<sai_object_id_t> port_list;
+    port_list.resize(port_number);
+
+    attr.id = SAI_SWITCH_ATTR_PORT_LIST;
+    attr.value.objlist.count = (uint32_t)port_list.size();
+    attr.value.objlist.list = port_list.data();
+
+    retcode =  saiSwitchApi->get_switch_attribute(esalSwitchId, 1, &attr);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+           SWERR_FILELINE, "get_switch_attribute Fail in DllInit\n"));
+        std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
+        return ESAL_RC_FAIL;
+    } 
+ 
+    for (uint32_t i = 0; i < port_number; i++) {
+        if (!esalPortTableAddEntry(i, &attr.value.objlist.list[i])) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                SWERR_FILELINE, "esalPortTableAddEntry fail in DllInit\n"));
+            std::cout << "esalPortTableSet fail:" << "\n";
+            return ESAL_RC_FAIL;
+        }
+        auto portId = (uint16_t)GET_OID_VAL(attr.value.objlist.list[i]);
+        if (portId > esalMaxPort) {
+            esalMaxPort = portId; 
+        }
+    }
+
+    // Create default STP group
+    if (!esalStpCreate(&defStpId)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+            SWERR_FILELINE, "esalStpCreate fail\n"));
+        std::cout << "esalStpCreate fail:" << "\n";
+        return ESAL_RC_FAIL;
+    }
+
+    // Get bridge ports from bridge
+    if (!esalBridgePortListInit(port_number)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+            SWERR_FILELINE, "esalBridgePortListInit fail\n"));
+        std::cout << "esalBridgePortListInit fail:" << "\n";
+        return ESAL_RC_FAIL;
+    }
+    
+    // Create all host interfaces
+    sai_object_id_t portSai;
+    uint16_t portId;
+    sai_object_id_t stpPortSai;
+    sai_object_id_t bridgePortSai;
+   
+    for (uint32_t i = 0; i < port_number; i++) {
+
+        if (!esalPortTableGetSaiByIdx(i, &portSai)) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                 SWERR_FILELINE, "esalPortTableFindSai fail in DllInit\n"));
+            std::cout << "esalPortTableFindSai fail:" << "\n";
+            return ESAL_RC_FAIL;
+        }
+
+        portId = (uint16_t)GET_OID_VAL(portSai);
+
+        if (!esalFindBridgePortSaiFromPortId(portId, &bridgePortSai)) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                 SWERR_FILELINE, "esalFindBridgePortSaiFromPortId fail\n"));
+            std::cout << "can't find portid for bridgePortSai:" << bridgePortSai << "\n";
+            return ESAL_RC_FAIL;
+        }
+
+        if (!esalStpPortCreate(defStpId, bridgePortSai, &stpPortSai)) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                SWERR_FILELINE, "esalStpPortCreate fail in DllInit\n"));
+            std::cout << "esalStpPortCreate fail:" << "\n";
+            return ESAL_RC_FAIL;
+        }
+    }
+
+    if (!esalCreateBpduTrapAcl()) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+            SWERR_FILELINE, "esalCreateBpduTrapAcl fail\n"));
+        std::cout << "can't create bpdu trap acl \n";
+        return ESAL_RC_FAIL;
+    }
+
+    for (uint ii = 0; ii < port_list.size(); ii++) {
+        bpdu_port_list.push_back(port_list[ii]);
+    }
+
+    if (esalProfileMap.count("hostIfListDisable")) {
+        esalHostIfListParser("hostIfListDisable", bpdu_port_list);
+    }
+
+    if (!esalEnableBpduTrapOnPort(bpdu_port_list)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "esalEnableBpduTrapOnPort fail\n"));
+        std::cout << "can't enable bpdu trap acl \n";
+        return ESAL_RC_FAIL;
+    }
+
+#endif // UTS
+
+    if (!portCfgFlowControlInit()) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "portCfgFlowControlInit fail\n"));
+        std::cout << "portCfgFlowControlInit fail \n";
+        return ESAL_RC_FAIL;
+    }
+
+    return ESAL_RC_OK;
+}
+
 
 int DllInit(void) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
@@ -606,6 +761,7 @@ int DllInit(void) {
             }
         }
     }
+#endif
 
     // No need to support WARM RESTART on Eval.  Right now, it creates
     // packet loop/storm w/o call to cpssDxChHwPpSoftResetTrigger.
@@ -617,154 +773,13 @@ int DllInit(void) {
 
     // The point we need to jump to to re-initialize (make a hard reset) if "hot boot restore" fails.
     //
-//hard_reset:
-
-    retcode =  saiSwitchApi->create_switch(
-        &esalSwitchId, attributes.size(), attributes.data());
+    retcode = esalInitSwitch(attributes, saiSwitchApi);
     if (retcode) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-              SWERR_FILELINE, "create_switch Fail in DllInit\n"));
-        std::cout << "create failed: " << esalSaiError(retcode) << "\n"; 
+              SWERR_FILELINE, "esalInitSwitch Fail in DllInit\n"));
+        std::cout << "esalInitSwitch failed: " << esalSaiError(retcode) << "\n"; 
         return ESAL_RC_FAIL;
     } 
-
-    attr.id = SAI_SWITCH_ATTR_DEFAULT_1Q_BRIDGE_ID;
-    
-    retcode =  saiSwitchApi->get_switch_attribute(esalSwitchId, 1, &attr);
-    if (retcode) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-              SWERR_FILELINE, "get_switch_attribute Fail in DllInit\n"));
-        std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
-        return ESAL_RC_FAIL;
-    } 
-    
-    if (!esalSetDefaultBridge(attr.value.oid)) {
-            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                  SWERR_FILELINE, "esalSetDefaultBridge fail VendorAddPortsToVlan\n"));
-            std::cout << "can't set default bridge object:" << "\n";
-                return ESAL_RC_FAIL;
-            
-    }
-     
-    attr.id = SAI_SWITCH_ATTR_PORT_NUMBER;
-    
-    retcode =  saiSwitchApi->get_switch_attribute(esalSwitchId, 1, &attr);
-    if (retcode) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-              SWERR_FILELINE, "get_switch_attribute Fail in DllInit\n"));
-        std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
-        return ESAL_RC_FAIL;
-    } 
-    uint32_t port_number = attr.value.u32;
-
-    // Get port list //
-    std::vector<sai_object_id_t> port_list;
-    port_list.resize(port_number);
-
-    attr.id = SAI_SWITCH_ATTR_PORT_LIST;
-    attr.value.objlist.count = (uint32_t)port_list.size();
-    attr.value.objlist.list = port_list.data();
-    
-    retcode =  saiSwitchApi->get_switch_attribute(esalSwitchId, 1, &attr);
-    if (retcode) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-              SWERR_FILELINE, "get_switch_attribute Fail in DllInit\n"));
-        std::cout << "get_switch_attribute failed: " << esalSaiError(retcode) << "\n"; 
-        return ESAL_RC_FAIL;
-    } 
-
-    for (uint32_t i = 0; i < port_number; i++) {
-        if (!esalPortTableAddEntry(i, &attr.value.objlist.list[i])) {
-            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                  SWERR_FILELINE, "esalPortTableAddEntry fail in DllInit\n"));
-            std::cout << "esalPortTableSet fail:" << "\n";
-                return ESAL_RC_FAIL;
-        }
-        auto portId = (uint16_t)GET_OID_VAL(attr.value.objlist.list[i]);
-        if (portId > esalMaxPort) {
-            esalMaxPort = portId; 
-        }
-
-    }
-
-    // Create default STP group
-    if (!esalStpCreate(&defStpId)) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                SWERR_FILELINE, "esalStpCreate fail\n"));
-        std::cout << "esalStpCreate fail:" << "\n";
-            return ESAL_RC_FAIL;
-    }
-
-    // Get bridge ports from bridge
-    if (!esalBridgePortListInit(port_number)) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                SWERR_FILELINE, "esalBridgePortListInit fail\n"));
-        std::cout << "esalBridgePortListInit fail:" << "\n";
-            return ESAL_RC_FAIL;
-    }
-
-    // Create all host interfaces
-    sai_object_id_t portSai;
-    uint16_t        portId;
-    sai_object_id_t stpPortSai;
-    sai_object_id_t bridgePortSai;
-
-    for (uint32_t i = 0; i < port_number; i++) {
-        
-        if (!esalPortTableGetSaiByIdx(i, &portSai)) {
-            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                  SWERR_FILELINE, "esalPortTableFindSai fail in DllInit\n"));
-            std::cout << "esalPortTableFindSai fail:" << "\n";
-                return ESAL_RC_FAIL;
-        }
-
-        portId = (uint16_t)GET_OID_VAL(portSai);
-
-        if (!esalFindBridgePortSaiFromPortId(portId, &bridgePortSai)) {
-            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                        SWERR_FILELINE, "esalFindBridgePortSaiFromPortId fail\n"));
-            std::cout << "can't find portid for bridgePortSai:" << bridgePortSai << "\n";
-            return ESAL_RC_FAIL;
-        }
-
-        if (!esalStpPortCreate(defStpId, bridgePortSai, &stpPortSai)) {
-            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                    SWERR_FILELINE, "esalStpPortCreate fail in DllInit\n"));
-            std::cout << "esalStpPortCreate fail:" << "\n";
-                return ESAL_RC_FAIL;
-        }
-    }
-
-    if (!esalCreateBpduTrapAcl()) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                    SWERR_FILELINE, "esalCreateBpduTrapAcl fail\n"));
-        std::cout << "can't create bpdu trap acl \n";
-        return ESAL_RC_FAIL;
-    }
-
-    for (uint ii = 0; ii < port_list.size(); ii++) {
-        bpdu_port_list.push_back(port_list[ii]);
-    }
-
-    if (esalProfileMap.count("hostIfListDisable")) {
-        esalHostIfListParser("hostIfListDisable", bpdu_port_list);
-    }
-
-    if (!esalEnableBpduTrapOnPort(bpdu_port_list)) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                    SWERR_FILELINE, "esalEnableBpduTrapOnPort fail\n"));
-        std::cout << "can't enable bpdu trap acl \n";
-        return ESAL_RC_FAIL;
-    }
-
-#endif
-
-    if (!portCfgFlowControlInit()) {
-        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                    SWERR_FILELINE, "portCfgFlowControlInit fail\n"));
-        std::cout << "portCfgFlowControlInit fail \n";
-        return ESAL_RC_FAIL;
-    }
 
     if (WARM_RESTART) {
 #ifndef UTS
@@ -772,12 +787,18 @@ int DllInit(void) {
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "VendorWarmBootRestoreHandler fail\n"));
             std::cout << "VendorWarmBootRestoreHandler fail \n";
-#ifdef NYI
             WARM_RESTART = false;
             VendorWarmBootCleanHanlder();
-            goto hard_reset;
-#endif
-        }
+
+            // Reinit switch (cold boot)
+            retcode = esalInitSwitch(attributes, saiSwitchApi);
+            if (retcode) {
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "esalInitSwitch Fail in DllInit\n"));
+                std::cout << "esalInitSwitch failed: " << esalSaiError(retcode) << "\n"; 
+                return ESAL_RC_FAIL;
+            }
+       }
 #endif
     }
 
