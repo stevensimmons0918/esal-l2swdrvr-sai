@@ -72,6 +72,8 @@ extern bool esalFindBridgePortSaiFromPortId(
                 uint16_t portId, sai_object_id_t *bridgePortSai);
 extern bool esalPortTableSet(
                 uint16_t tableIndex, sai_object_id_t portSai, uint16_t portId);
+extern void esalPortSetStp(uint16_t portId, vendor_stp_state_t stpState);
+
 extern bool esalBridgePortCreate(sai_object_id_t portSai,
                 sai_object_id_t *bridgePortSai, uint16_t vlanId);
 extern bool esalBridgePortRemove(sai_object_id_t portSai, uint16_t vlanId);

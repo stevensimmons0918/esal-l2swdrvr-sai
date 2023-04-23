@@ -71,6 +71,8 @@ struct SaiPortEntry{
     vendor_duplex_t duplex;
     bool adminState = false;
     bool operationState = false;
+    bool stpStateSet = false;
+    vendor_stp_state_t stpState;
 };
 
 const int MAX_PORT_TABLE_SIZE = 512;
@@ -112,6 +114,26 @@ bool esalPortTableFindId(sai_object_id_t portSai, uint16_t* portId) {
     }
     *portId = 0;
     return false; 
+}
+
+void esalPortSetStp(uint16_t portId, vendor_stp_state_t stpState) {
+    for(auto i = 0; i < portTableSize; i++) {
+        if (portTable[i].portId == portId) {
+            portTable[i].stpStateSet = true;
+            portTable[i].stpState = stpState;
+            return;
+        }
+    }
+}
+
+bool esalPortGetStp(uint32_t lPort, vendor_stp_state_t &stpState) {
+    for(auto i = 0; i < portTableSize; i++) {
+        if (portTable[i].lPort == lPort) {
+            stpState = portTable[i].stpState;
+            return portTable[i].stpStateSet;
+        }
+    }
+    return false;
 }
 
 void esalPortSavePortAttr(
@@ -860,6 +882,18 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
     }
 
 #endif
+
+    if (!WARM_RESTART) {
+        if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
+            VendorResetPort(lPort);
+            SaiPortEntry* portEntry = esalPortTableGetEntryById(pPort);
+            if (portEntry != nullptr) {
+                if (!portEntry->adminState) {
+                    VendorDisablePort(lPort);
+                }
+            }
+        }
+    }  
 
     return rc;
 }
@@ -1997,6 +2031,7 @@ int VendorResetPort(uint16_t lPort) {
     }
 
     VendorDisablePort(lPort);
+    sleep(1);
     VendorEnablePort(lPort);
     return ESAL_RC_OK;
 }
@@ -2388,6 +2423,10 @@ void esalRestoreAdminDownPorts(void) {
      for (auto lPort : adminDownPorts) {
          std::cout << "esalRestoreAdminDownPorrs: " << lPort << "\n" << std::flush;
          VendorResetPort(lPort);
+         vendor_stp_state_t stpState;
+         if (esalPortGetStp(lPort, stpState)) {
+             VendorSetPortStpState(lPort, stpState);
+         }
      }
 }
 
