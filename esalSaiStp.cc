@@ -73,6 +73,8 @@ int VendorSetPortStpState(uint16_t lPort, vendor_stp_state_t stpState) {
         return ESAL_RC_FAIL;
     }
 
+    esalPortSetStp(pPort, stpState);
+
 #ifndef UTS
     sai_stp_api_t *saiStpApi;
     sai_attribute_t attr;
