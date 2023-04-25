@@ -460,11 +460,11 @@ void onPacketEvent(sai_object_id_t sid,
 #endif
 
 sai_object_id_t esalSwitchId = SAI_NULL_OBJECT_ID;
-static int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_api_t *saiSwitchApi) {
+int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_api_t *saiSwitchApi) {
+#ifndef UTS
     sai_status_t retcode = ESAL_RC_OK;
     sai_attribute_t attr;
 
-#ifndef UTS
     retcode =  saiSwitchApi->create_switch(
         &esalSwitchId, attributes.size(), attributes.data());
     if (retcode) {
@@ -602,6 +602,9 @@ static int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_a
         return ESAL_RC_FAIL;
     }
 
+#else
+    (void) attributes;
+    (void) saiSwitchApi;
 #endif // UTS
 
     if (!portCfgFlowControlInit()) {
@@ -761,7 +764,6 @@ int DllInit(void) {
             }
         }
     }
-#endif
 
     // No need to support WARM RESTART on Eval.  Right now, it creates
     // packet loop/storm w/o call to cpssDxChHwPpSoftResetTrigger.
@@ -780,6 +782,7 @@ int DllInit(void) {
         std::cout << "esalInitSwitch failed: " << esalSaiError(retcode) << "\n"; 
         return ESAL_RC_FAIL;
     } 
+#endif
 
     if (WARM_RESTART) {
 #ifndef UTS
