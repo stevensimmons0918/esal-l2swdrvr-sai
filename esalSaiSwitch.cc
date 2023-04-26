@@ -28,8 +28,6 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 
 #include "esal_vendor_api/esal_vendor_api.h"
 #include "esal_warmboot_api/esal_warmboot_api.h"
@@ -41,7 +39,6 @@
 #include "sai/sai.h"
 #include "sai/saiswitch.h"
 #include "sai/saihostif.h"
-#include <pthread.h> 
 
 //Default STP ID 
 sai_object_id_t defStpId = 0;
@@ -77,86 +74,6 @@ std::map<std::string, std::string> esalProfileMap;
 extern macData *macAddressData;
 #endif
 #ifndef LARCH_ENVIRON
-
-bool isHostIfRunning(void) {
-    struct ifreq ifr;
-    int sock = socket(PF_INET6, SOCK_DGRAM, IPPROTO_IP);
-    memset(&ifr, 0, sizeof(ifr));
-    strncpy(ifr.ifr_name, esalHostIfName, sizeof(ifr.ifr_name));
-    if (ioctl(sock, SIOCGIFFLAGS, &ifr) < 0) {
-        std::cout << "isHostIfRunning unable to ioctl\n";
-    }
-    close(sock);
-    return !!(ifr.ifr_flags & IFF_RUNNING);
-}
-
-bool esalHealthLeave = false; 
-void* esalHealthMonitor(void*) {
-#ifndef UTS
-    int failRunningCnt = 0;
-    int failSwitchCnt = 0; 
-    sleep(5); 
-
-    // Health monitor continues to check for both the stack interface being
-    // present, as well as communication to the switch over PCI. 
-    //
-    while(true) {
-  
-        // Check the host interface in the stack to be RUNNING. 
-        //
-        if (isHostIfRunning()) {
-            failRunningCnt = 0;
-        } else {
-            failRunningCnt++;
-            std::cout << "ESAL Health Chk NOT RUNNING: " << esalHostIfName << "\n" << std::flush; 
-        }
-
-        // Check the Enable Configured 
-        //
-        GT_BOOL enabled;
-        if (!cpssDxChCfgDevEnableGet(0, &enabled)) {
-            if (enabled) {
-               failSwitchCnt= 0; 
-            } else {
-               failSwitchCnt++;
-               std::cout << "Esal Health Chk enabled:" << enabled << "\n" << std::flush;
-            }
-        } else { 
-            std::cout << "cpssDxChCfgDevEnableGet FAIL\n" << std::flush; 
-        } 
-
-        // Give yourself 20 failures in a row.  This avoids temporary 
-        // instability.
-        if ((failRunningCnt > 20) || (failSwitchCnt > 20)) {
-            std::cout << "ESAL Health Check IFFRUNNING: " << failRunningCnt 
-                      << " SwitchCnt: " << failSwitchCnt << "\n" << std::flush; 
-            assert(0);
-        }
-
-        // DllDestrory will trigger us to leave loop. 
-        // 
-        if (esalHealthLeave) break; 
-
-        // Just sleep.
-        // 
-        sleep(1); 
-    }
-    pthread_exit(NULL); 
-#endif
-
-    return 0;
-}
-
-pthread_t esalHealthTid;
-void esalCreateHealthMonitor(void)  {
-#ifndef UTS
-    if (pthread_create(&esalHealthTid, NULL, esalHealthMonitor, NULL) ){
-        std::cout << "ERROR esalCreateHealthMonitor fail\n";
-    }
-    (void) pthread_setname_np(esalHealthTid, "ESALHealthCheck"); 
-#endif
-}
-
 void loadSFPLibrary(void) {
 
     // Instantiate DLL Object.
@@ -543,11 +460,11 @@ void onPacketEvent(sai_object_id_t sid,
 #endif
 
 sai_object_id_t esalSwitchId = SAI_NULL_OBJECT_ID;
-int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_api_t *saiSwitchApi) {
-#ifndef UTS
+static int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_api_t *saiSwitchApi) {
     sai_status_t retcode = ESAL_RC_OK;
     sai_attribute_t attr;
 
+#ifndef UTS
     retcode =  saiSwitchApi->create_switch(
         &esalSwitchId, attributes.size(), attributes.data());
     if (retcode) {
@@ -685,9 +602,6 @@ int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_api_t *s
         return ESAL_RC_FAIL;
     }
 
-#else
-    (void) attributes;
-    (void) saiSwitchApi;
 #endif // UTS
 
     if (!portCfgFlowControlInit()) {
@@ -697,7 +611,6 @@ int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_api_t *s
         return ESAL_RC_FAIL;
     }
 
-    esalCreateHealthMonitor(); 
     return ESAL_RC_OK;
 }
 
@@ -848,6 +761,7 @@ int DllInit(void) {
             }
         }
     }
+#endif
 
     // No need to support WARM RESTART on Eval.  Right now, it creates
     // packet loop/storm w/o call to cpssDxChHwPpSoftResetTrigger.
@@ -866,7 +780,6 @@ int DllInit(void) {
         std::cout << "esalInitSwitch failed: " << esalSaiError(retcode) << "\n"; 
         return ESAL_RC_FAIL;
     } 
-#endif
 
     if (WARM_RESTART) {
 #ifndef UTS
@@ -906,8 +819,6 @@ int DllInit(void) {
 
 int DllDestroy(void) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
-
-    esalHealthLeave = true; 
 
     if (!useSaiFlag){
         return ESAL_RC_OK;
