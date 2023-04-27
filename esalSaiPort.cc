@@ -687,6 +687,13 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
                       vendor_speed_t speed, vendor_duplex_t duplex) {
     std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort << std::endl;
     int rc  = ESAL_RC_OK;
+
+    if (saiUtils.GetL2CommsProvDisable(lPort)) {
+        std::cout << " VendorSetPortRate: skipping setPortRate for"
+                  << " lPort=" << lPort << std::endl;
+        return rc;
+    }
+
     uint32_t pPort;
     uint32_t dev;
 #ifndef UTS

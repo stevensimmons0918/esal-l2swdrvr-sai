@@ -231,6 +231,26 @@ bool EsalSaiUtils::GetChangeable(const uint32_t lPort)
     return rc;
 }
 
+bool EsalSaiUtils::GetL2CommsProvDisable(const uint32_t lPort)
+{
+    bool rc = false;
+
+#ifndef LARCH_ENVIRON
+    if (phyPortInfoMap_.find(lPort) == phyPortInfoMap_.end()) {
+        rc = false;
+        std::string err = "lPort not in phyPortInfoMap_" +
+            std::string(" lPort=") +
+            std::to_string(lPort) + "\n";
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, err));
+    }
+    else {
+        rc = phyPortInfoMap_[lPort].l2CommsProvDisable;
+    }
+#endif
+    return rc;
+}
+
 bool EsalSaiUtils::GetRateLimitInfo(const uint32_t lPort,
                                     uint32_t &devId, uint32_t &pPort,
                                     rateLimit_t &rLimit) {
@@ -336,12 +356,18 @@ void EsalSaiUtils::ParseConfig(void) {
                 portInfo.changeable = set[i]["changeable"];
             }
 
+            portInfo.l2CommsProvDisable = false;
+            if (portsSetting.exists("l2CommsProvDisable")) {
+                portInfo.changeable = set[i]["l2CommsProvDisable"];
+            }
+
             std::cout << __FUNCTION__ << ":" << __LINE__
                       << " lPort=" << lPort
                       << " devId=" << portInfo.devId
                       << " pPort=" << portInfo.pPort
                       << " serdesTx.vals=" << portInfo.serdesTx.has_vals
                       << " serdesRx.vals=" << portInfo.serdesRx.has_vals
+                      << " l2CommsProvDisable=" << portInfo.l2CommsProvDisable
                       << std::endl;
 
             phyPortInfoMap_[lPort] = portInfo;
