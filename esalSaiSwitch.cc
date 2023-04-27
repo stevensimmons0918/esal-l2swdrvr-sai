@@ -139,6 +139,8 @@ void* esalHealthMonitor(void*) {
         if ((failRunningCnt > 20) || (failSwitchCnt > 20)) {
             std::cout << "ESAL Health Check IFFRUNNING: " << failRunningCnt 
                       << " SwitchCnt: " << failSwitchCnt << "\n" << std::flush; 
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "ESAL Health Chk failure\n"));
             assert(0); 
         }
 
