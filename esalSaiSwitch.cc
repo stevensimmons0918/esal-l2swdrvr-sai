@@ -88,6 +88,10 @@ bool isHostIfRunning(void) {
        // Choose to allow failed ioctl to say running to prevent 
        // continuous reboots if esalHostIfName is not defined. 
        ifRunning = true; 
+    } else if (!(ifr.ifr_flags & IFF_RUNNING)) { 
+       // Comms Manager marks interface up.  Avoid race condition. 
+       // if interface is not IFF_UP consider IFF_RUNNING until IFF_UP.
+       ifRunning = true; 
     } else {
        ifRunning = !!(ifr.ifr_flags & IFF_RUNNING);
     }
