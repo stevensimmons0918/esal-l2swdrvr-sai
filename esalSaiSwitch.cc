@@ -80,14 +80,19 @@ extern macData *macAddressData;
 
 bool isHostIfRunning(void) {
     struct ifreq ifr;
-    int sock = socket(PF_INET6, SOCK_DGRAM, IPPROTO_IP);
     memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifr_name, esalHostIfName, sizeof(ifr.ifr_name));
+    bool ifRunning = true; 
+    int sock = socket(PF_INET6, SOCK_DGRAM, IPPROTO_IP);
     if (ioctl(sock, SIOCGIFFLAGS, &ifr) < 0) {
-        std::cout << "isHostIfRunning unable to ioctl\n";
+       // Choose to allow failed ioctl to say running to prevent 
+       // continuous reboots if esalHostIfName is not defined. 
+       ifRunning = true; 
+    } else {
+       ifRunning = !!(ifr.ifr_flags & IFF_RUNNING);
     }
     close(sock);
-    return !!(ifr.ifr_flags & IFF_RUNNING);
+    return ifRunning;
 }
 
 bool esalHealthLeave = false; 
@@ -130,7 +135,7 @@ void* esalHealthMonitor(void*) {
         if ((failRunningCnt > 20) || (failSwitchCnt > 20)) {
             std::cout << "ESAL Health Check IFFRUNNING: " << failRunningCnt 
                       << " SwitchCnt: " << failSwitchCnt << "\n" << std::flush; 
-            assert(0);
+            assert(0); 
         }
 
         // DllDestrory will trigger us to leave loop. 
