@@ -14,6 +14,7 @@ std::map<std::string, bool (*)()> warmBootRestoreHandlers = {
     {"TAG",     tagWarmBootRestoreHandler},
     {"STP",     stpWarmBootRestoreHandler},
     {"ACL",     aclWarmBootRestoreHandler},
+    {"ROLE",    roleWarmBootRestoreHandler},
 };
 
 std::map<std::string, bool (*)()> warmBootSaveHandlers = {
@@ -23,6 +24,7 @@ std::map<std::string, bool (*)()> warmBootSaveHandlers = {
     {"TAG",     tagWarmBootSaveHandler},
     {"STP",     stpWarmBootSaveHandler},
     {"ACL",     aclWarmBootSaveHandler},
+    {"ROLE",    roleWarmBootSaveHandler},
 };
 
 std::map<std::string, void (*)()> warmBootCleanHandlers = {
@@ -32,6 +34,7 @@ std::map<std::string, void (*)()> warmBootCleanHandlers = {
     {"TAG",     tagWarmBootCleanHandler},
     {"STP",     stpWarmBootCleanHandler},
     {"ACL",     aclWarmBootCleanHandler},
+    {"ROLE",    roleWarmBootCleanHandler},
 };
 
 bool VendorWarmBootRestoreHandler() {
