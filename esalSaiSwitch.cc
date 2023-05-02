@@ -28,6 +28,8 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 #include "esal_vendor_api/esal_vendor_api.h"
 #include "esal_warmboot_api/esal_warmboot_api.h"
@@ -39,6 +41,8 @@
 #include "sai/sai.h"
 #include "sai/saiswitch.h"
 #include "sai/saihostif.h"
+#include <pthread.h> 
+#include <libconfig.h++>
 
 //Default STP ID 
 sai_object_id_t defStpId = 0;
@@ -74,6 +78,97 @@ std::map<std::string, std::string> esalProfileMap;
 extern macData *macAddressData;
 #endif
 #ifndef LARCH_ENVIRON
+
+bool isHostIfRunning(void) {
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    strncpy(ifr.ifr_name, esalHostIfName, sizeof(ifr.ifr_name));
+    bool ifRunning = true; 
+    int sock = socket(PF_INET6, SOCK_DGRAM, IPPROTO_IP);
+    if (ioctl(sock, SIOCGIFFLAGS, &ifr) < 0) {
+       // Choose to allow failed ioctl to say running to prevent 
+       // continuous reboots if esalHostIfName is not defined. 
+       ifRunning = true; 
+    } else if (!(ifr.ifr_flags & IFF_RUNNING)) { 
+       // Comms Manager marks interface up.  Avoid race condition. 
+       // if interface is not IFF_UP consider IFF_RUNNING until IFF_UP.
+       ifRunning = true; 
+    } else {
+       ifRunning = (ifr.ifr_flags & IFF_RUNNING) ? true : false;
+    }
+    close(sock);
+    return ifRunning;
+}
+
+bool esalHealthLeave = false; 
+void* esalHealthMonitor(void*) {
+#ifndef UTS
+    int failRunningCnt = 0;
+    int failSwitchCnt = 0; 
+    sleep(5); 
+
+    // Health monitor continues to check for both the stack interface being
+    // present, as well as communication to the switch over PCI. 
+    //
+    while(true) {
+  
+        // Check the host interface in the stack to be RUNNING. 
+        //
+        if (isHostIfRunning()) {
+            failRunningCnt = 0;
+        } else {
+            failRunningCnt++;
+            std::cout << "ESAL Health Chk NOT RUNNING: " << esalHostIfName << "\n" << std::flush; 
+        }
+
+        // Check the Enable Configured 
+        //
+        GT_BOOL enabled;
+        if (!cpssDxChCfgDevEnableGet(0, &enabled)) {
+            if (enabled) {
+               failSwitchCnt= 0; 
+            } else {
+               failSwitchCnt++;
+               std::cout << "Esal Health Chk enabled:" << enabled << "\n" << std::flush;
+            }
+        } else { 
+            std::cout << "cpssDxChCfgDevEnableGet FAIL\n" << std::flush; 
+        } 
+
+        // Give yourself 20 failures in a row.  This avoids temporary 
+        // instability.
+        if ((failRunningCnt > 20) || (failSwitchCnt > 20)) {
+            std::cout << "ESAL Health Check IFFRUNNING: " << failRunningCnt 
+                      << " SwitchCnt: " << failSwitchCnt << "\n" << std::flush; 
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "ESAL Health Chk failure\n"));
+            assert(0); 
+        }
+
+        // DllDestrory will trigger us to leave loop. 
+        // 
+        if (esalHealthLeave) break; 
+
+        // Just sleep.
+        // 
+        sleep(1); 
+    }
+    pthread_exit(NULL); 
+#endif
+
+    return 0;
+}
+
+pthread_t esalHealthTid;
+void esalCreateHealthMonitor(void)  {
+#ifndef UTS
+    if (pthread_create(&esalHealthTid, NULL, esalHealthMonitor, NULL) ){
+        std::cout << "ERROR esalCreateHealthMonitor fail\n";
+    }
+    (void) pthread_setname_np(esalHealthTid, "ESALHealthCheck"); 
+#endif
+}
+
 void loadSFPLibrary(void) {
 
     // Instantiate DLL Object.
@@ -460,11 +555,12 @@ void onPacketEvent(sai_object_id_t sid,
 #endif
 
 sai_object_id_t esalSwitchId = SAI_NULL_OBJECT_ID;
-static int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_api_t *saiSwitchApi) {
+std::string previousShelfRole;
+int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_api_t *saiSwitchApi) {
+#ifndef UTS
     sai_status_t retcode = ESAL_RC_OK;
     sai_attribute_t attr;
 
-#ifndef UTS
     retcode =  saiSwitchApi->create_switch(
         &esalSwitchId, attributes.size(), attributes.data());
     if (retcode) {
@@ -602,6 +698,9 @@ static int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_a
         return ESAL_RC_FAIL;
     }
 
+#else
+    (void) attributes;
+    (void) saiSwitchApi;
 #endif // UTS
 
     if (!portCfgFlowControlInit()) {
@@ -611,6 +710,7 @@ static int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_a
         return ESAL_RC_FAIL;
     }
 
+    esalCreateHealthMonitor(); 
     return ESAL_RC_OK;
 }
 
@@ -760,8 +860,20 @@ int DllInit(void) {
                 WARM_RESTART = false;
             }
         }
+
+        // Check for change in SHELF Roles. That is, changing from SPM
+        // to TRIB should be a hard reset.
+        //
+        if (roleWarmBootRestoreHandler()) {
+            const char *esal_shelfRole = std::getenv("PSI_shelfRole");
+            if (esal_shelfRole && (previousShelfRole != esal_shelfRole)) {
+                std::cout << "Check current role: " << esal_shelfRole
+                    << " against previous: " << previousShelfRole << ":\n"
+                    << std::flush;
+                WARM_RESTART = false;
+            }
+        }
     }
-#endif
 
     // No need to support WARM RESTART on Eval.  Right now, it creates
     // packet loop/storm w/o call to cpssDxChHwPpSoftResetTrigger.
@@ -780,6 +892,7 @@ int DllInit(void) {
         std::cout << "esalInitSwitch failed: " << esalSaiError(retcode) << "\n"; 
         return ESAL_RC_FAIL;
     } 
+#endif
 
     if (WARM_RESTART) {
 #ifndef UTS
@@ -819,6 +932,8 @@ int DllInit(void) {
 
 int DllDestroy(void) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
+
+    esalHealthLeave = true; 
 
     if (!useSaiFlag){
         return ESAL_RC_OK;
@@ -993,4 +1108,63 @@ void VendorConfigEnd()
     std::cout << "VendorConfigEnd end\n";
     return;
 }
+
+static bool serializeShelfRole(const std::string &fileName) {
+
+    libconfig::Config cfg;
+    libconfig::Setting &root = cfg.getRoot();
+    const char *esal_shelfRole = std::getenv("PSI_shelfRole");
+    if (!esal_shelfRole) {
+        esal_shelfRole = "UNKNOWN";
+    }
+    root.add("shelfRole", libconfig::Setting::TypeString) = esal_shelfRole;
+    try {
+        cfg.writeFile(fileName.c_str());
+        return true;
+    } catch (const libconfig::FileIOException &ex) {
+        std::cerr << "Error writing to file: " << ex.what() << std::endl;
+        return false;
+    }
+}
+
+static bool deserializeShelfRole(const std::string &fileName) {
+    libconfig::Config cfg;
+    try {
+        cfg.readFile(fileName.c_str());
+    } catch (const libconfig::FileIOException &ex) {
+        std::cout << "Error reading file: " << ex.what() << std::endl;
+        return false;
+    } catch (const libconfig::ParseException &ex) {
+        std::cout << "Error parsing file: " << ex.what() << " at line "
+                            << ex.getLine() << std::endl;
+        return false;
+    }
+
+    libconfig::Setting &root = cfg.getRoot();
+    root.lookupValue("shelfRole", previousShelfRole);
+
+    std::cout << "SHELF ROLE: " << previousShelfRole << "\n" << std::flush;
+    return true;
+}
+
+bool roleWarmBootSaveHandler() {
+    return serializeShelfRole(BACKUP_FILE_ROLE);
+}
+
+bool roleWarmBootRestoreHandler() {
+    bool status = true;
+
+    status = deserializeShelfRole(BACKUP_FILE_ROLE);
+    if (!status) {
+        std::cout << "Error deserializing shelf role map" << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+void roleWarmBootCleanHandler() {
+    previousShelfRole = "";
+}
+
 }
