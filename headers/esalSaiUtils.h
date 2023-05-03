@@ -153,6 +153,8 @@ class EsalSaiUtils: public EsalSaiUtilsBase {
 
     bool GetChangeable(uint32_t lPort);
 
+    bool GetL2CommsProvDisable(const uint32_t lPort);
+
  private:
     typedef struct {
         uint32_t devId;
@@ -162,6 +164,7 @@ class EsalSaiUtils: public EsalSaiUtilsBase {
         flowCtrlAttrs flowCtrl; 
         bool changeable = false; 
         rateLimit_t rateLimits;
+        bool l2CommsProvDisable = false;
     } PhyPortInfo;
 
     //! UnitCode
