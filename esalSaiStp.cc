@@ -410,18 +410,8 @@ bool stpWarmBootRestoreHandler() {
     std::cout << std::endl;
     std::cout << "Restore process:" << std::endl;
 
-    for (const auto& mbr : stpTable) {
-        uint32_t lport;
-        if (!saiUtils.GetLogicalPort(0, mbr.portId, &lport)) {
-            std::cout << "stpWarmBootRestoreHandler failed to get lPort"
-                        << " pPort=" << mbr.portId << std::endl;
-            return false;
-        }
-        if (VendorSetPortStpState(lport, mbr.stpState) != ESAL_RC_OK) {
-            std::cout << "Error setting STP state for port " << mbr.portId << std::endl;
-            return false;
-        }
-    }
+    // Do not propaagate STP state before going down. 
+    // It should be assumed to be BLOCKING for STP Ports. 
 
     return true;
 }

@@ -2422,6 +2422,20 @@ bool portWarmBootSaveHandler() {
 }
 
 void esalRestoreAdminDownPorts(void) {
+
+     // Be sure to mark those ports with STP state.
+     //
+     for(int i = 0; i < portTableSize; i++) {
+        if (portTable[i].stpStateSet) {
+            std::cout << "esalRestoreAdminDownStp: " 
+                      << portTable[i].lPort << " : " 
+                      <<  (int) portTable[i].stpState << "\n" << std::flush;
+            VendorSetPortStpState(portTable[i].lPort, portTable[i].stpState);
+        }
+     }
+
+     // Iterate through all down ports. 
+     //
      for (auto lPort : adminDownPorts) {
          std::cout << "esalRestoreAdminDownPorrs: " << lPort << "\n" << std::flush;
          VendorResetPort(lPort);
@@ -2429,7 +2443,7 @@ void esalRestoreAdminDownPorts(void) {
          if (esalPortGetStp(lPort, stpState)) {
              VendorSetPortStpState(lPort, stpState);
          }
-     }
+     } 
 }
 
 bool portWarmBootRestoreHandler () {
