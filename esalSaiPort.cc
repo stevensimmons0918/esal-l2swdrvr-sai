@@ -2232,11 +2232,6 @@ std::vector<uint32_t> adminDownPorts;
 static bool restorePorts(SaiPortEntry* portTable, int portTableSize) {
     bool status = true;
     for (int i = 0; i < portTableSize; i++) {
-        if (!esalPortTableAddEntry(portTable[i].portId, &portTable[i].portSai)) {
-            status &= false;
-            std::cout << "Error esalPortTableAddEntry " << portTable[i].portId << std::endl;
-        }
-
         uint16_t pPort = portTable[i].portId;
         uint32_t lPort;
         if (!saiUtils.GetLogicalPort(0, pPort, &lPort)) {
