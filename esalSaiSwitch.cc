@@ -555,7 +555,6 @@ void onPacketEvent(sai_object_id_t sid,
 #endif
 
 sai_object_id_t esalSwitchId = SAI_NULL_OBJECT_ID;
-std::string previousShelfRole;
 int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_api_t *saiSwitchApi) {
 #ifndef UTS
     sai_status_t retcode = ESAL_RC_OK;
@@ -860,19 +859,6 @@ int DllInit(void) {
                 WARM_RESTART = false;
             }
         }
-
-        // Check for change in SHELF Roles. That is, changing from SPM
-        // to TRIB should be a hard reset.
-        //
-        if (roleWarmBootRestoreHandler()) {
-            const char *esal_shelfRole = std::getenv("PSI_shelfRole");
-            if (esal_shelfRole && (previousShelfRole != esal_shelfRole)) {
-                std::cout << "Check current role: " << esal_shelfRole
-                    << " against previous: " << previousShelfRole << ":\n"
-                    << std::flush;
-                WARM_RESTART = false;
-            }
-        }
     }
 
     // No need to support WARM RESTART on Eval.  Right now, it creates
@@ -1107,64 +1093,6 @@ void VendorConfigEnd()
 #endif
     std::cout << "VendorConfigEnd end\n";
     return;
-}
-
-static bool serializeShelfRole(const std::string &fileName) {
-
-    libconfig::Config cfg;
-    libconfig::Setting &root = cfg.getRoot();
-    const char *esal_shelfRole = std::getenv("PSI_shelfRole");
-    if (!esal_shelfRole) {
-        esal_shelfRole = "UNKNOWN";
-    }
-    root.add("shelfRole", libconfig::Setting::TypeString) = esal_shelfRole;
-    try {
-        cfg.writeFile(fileName.c_str());
-        return true;
-    } catch (const libconfig::FileIOException &ex) {
-        std::cerr << "Error writing to file: " << ex.what() << std::endl;
-        return false;
-    }
-}
-
-static bool deserializeShelfRole(const std::string &fileName) {
-    libconfig::Config cfg;
-    try {
-        cfg.readFile(fileName.c_str());
-    } catch (const libconfig::FileIOException &ex) {
-        std::cout << "Error reading file: " << ex.what() << std::endl;
-        return false;
-    } catch (const libconfig::ParseException &ex) {
-        std::cout << "Error parsing file: " << ex.what() << " at line "
-                            << ex.getLine() << std::endl;
-        return false;
-    }
-
-    libconfig::Setting &root = cfg.getRoot();
-    root.lookupValue("shelfRole", previousShelfRole);
-
-    std::cout << "SHELF ROLE: " << previousShelfRole << "\n" << std::flush;
-    return true;
-}
-
-bool roleWarmBootSaveHandler() {
-    return serializeShelfRole(BACKUP_FILE_ROLE);
-}
-
-bool roleWarmBootRestoreHandler() {
-    bool status = true;
-
-    status = deserializeShelfRole(BACKUP_FILE_ROLE);
-    if (!status) {
-        std::cout << "Error deserializing shelf role map" << std::endl;
-        return false;
-    }
-
-    return true;
-}
-
-void roleWarmBootCleanHandler() {
-    previousShelfRole = "";
 }
 
 }

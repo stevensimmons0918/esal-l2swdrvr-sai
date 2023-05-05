@@ -22,7 +22,6 @@
 #define BACKUP_FILE_VLAN                    BACKUP_FOLDER   "/wb_vlan"
 #define BACKUP_FILE_PORT                    BACKUP_FOLDER   "/wb_port"
 #define BACKUP_FILE_BRIDGE                  BACKUP_FOLDER   "/wb_bridge"
-#define BACKUP_FILE_ROLE                    BACKUP_FOLDER   "/wb_role"
 #define BACKUP_FILE_TAG                     BACKUP_FOLDER   "/wb_tag"
 #define BACKUP_FILE_STP                     BACKUP_FOLDER   "/wb_stp"
 #define BACKUP_FILE_PORT_TRANS_MAP_ING      BACKUP_FOLDER   "/wb_port_trans_map_ing"
@@ -44,7 +43,6 @@ extern "C" bool bridgeWarmBootRestoreHandler();
 extern "C" bool tagWarmBootRestoreHandler();
 extern "C" bool stpWarmBootRestoreHandler();
 extern "C" bool aclWarmBootRestoreHandler();
-extern "C" bool roleWarmBootRestoreHandler();
 
 // Warmboot restore handlers
 //
@@ -59,7 +57,6 @@ extern "C" bool bridgeWarmBootSaveHandler();
 extern "C" bool tagWarmBootSaveHandler();
 extern "C" bool stpWarmBootSaveHandler();
 extern "C" bool aclWarmBootSaveHandler();
-extern "C" bool roleWarmBootSaveHandler();
 
 // Warmboot save handlers
 //
@@ -73,7 +70,6 @@ extern "C" void bridgeWarmBootCleanHandler();
 extern "C" void tagWarmBootCleanHandler();
 extern "C" void stpWarmBootCleanHandler();
 extern "C" void aclWarmBootCleanHandler();
-extern "C" void roleWarmBootCleanHandler();
 
 // Warmboot clean handlers
 //
