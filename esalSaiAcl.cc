@@ -124,7 +124,9 @@ static sai_object_id_t aclTableBpduTrap;
 #ifndef UTS
 static sai_object_id_t aclEntryBpduTrap;
 #endif
-static sai_mac_t customBpduMac = {0x01, 0x80, 0xC2, 0x00, 0x00, 0xFF};
+// static sai_mac_t customBpduMac = {0x01, 0x80, 0xC2, 0x00, 0x00, 0xFF};
+static sai_mac_t mlsmBpduMac = {0x01, 0x80, 0xC2, 0x00, 0x00, 0xFF}; 
+static sai_mac_t rstpBpduMac = {0x01, 0x80, 0xC2, 0x00, 0x00, 0x00};
 static std::vector<sai_object_id_t> bpduEnablePorts;
 static void buildACLTable(uint32_t stage, std::vector<sai_attribute_t> &attributes) {
 #ifndef UTS
@@ -739,7 +741,20 @@ bool esalCreateBpduTrapAcl() {
     //
     sai_acl_field_data_t match_mac;
     match_mac.enable = true;
-    memcpy(match_mac.data.mac, customBpduMac, sizeof(customBpduMac));
+
+    std::string stp_type = esalProfileMap["stpType"];
+    if (stp_type.compare("MLSM") == 0) {
+        memcpy(match_mac.data.mac, mlsmBpduMac, sizeof(mlsmBpduMac));
+    }else if (stp_type.compare("RSTP") == 0) {
+        memcpy(match_mac.data.mac, rstpBpduMac, sizeof(rstpBpduMac));
+    }else if (stp_type.compare("MIX") == 0) {
+        // memcpy(match_mac.data.mac, customBpduMac, sizeof(customBpduMac));
+    }else {
+        std::cout << "stpType in sai.profile.ini is unknoun" << std::endl;
+        return false;
+    }
+    // memcpy(match_mac.data.mac, customBpduMac, sizeof(customBpduMac));
+    
     // exact match mac address
     memset(match_mac.mask.mac, 0xff, sizeof(sai_mac_t));
 
