@@ -1087,6 +1087,31 @@ typedef struct {
     GT_BOOL remoteFaultConfig;
 } CPSS_PORT_MANAGER_STATUS_STC;
 
+typedef enum
+{
+    INTR_MODE_LOCK =0,
+    INTR_MODE_UNLOCK
+}INTERRUPT_MODE;
+
+/**
+* @internal extDrvSetIntLockUnlock function
+* @endinternal
+*
+* @brief   Lock/unlock interrupts
+*
+* @param[in] mode                     - interrupt state lock/unlock
+* @param[in,out] key                      - if mode is INTR_MODE_UNLOCK, lock  returned by
+*                                      preceding interrupt disable call
+* @param[in,out] key                      - if mode is INTR_MODE_LOCK lock  for the interrupt
+*                                      level
+*                                       Lock key for the interrupt level
+*/
+extern GT_32 extDrvSetIntLockUnlock
+(
+    INTERRUPT_MODE mode,
+    GT_32          *key
+);
+
 extern GT_STATUS cpssDxChPortManagerStatusGet(
     GT_U8 devNum,  GT_PHYSICAL_PORT_NUM portNum,
     CPSS_PORT_MANAGER_STATUS_STC  *portStagePtr);
@@ -1095,6 +1120,11 @@ extern GT_STATUS cpssDxChBrgVlanNaToCpuEnable(
     GT_U8 devNum, GT_U16 vlanId, GT_BOOL enable);
 
 extern GT_STATUS cpssDxChCfgDevEnableGet(GT_U8 devNum, GT_BOOL *enable);
+
+extern GT_STATUS cpssDxChNetIfRestore
+(
+    GT_U8   devNum
+);
 
 #endif
 }
