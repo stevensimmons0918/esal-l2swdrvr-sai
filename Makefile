@@ -43,7 +43,8 @@ FILES := \
   esalSaiUtils.cc \
   esalSaiVlan.cc \
   esalSaiPolicer.cc \
-  esalWarmbootApi.cc
+  esalWarmbootApi.cc \
+  esalSaiDip.cc
 
 
 MKDIR_P = mkdir -p

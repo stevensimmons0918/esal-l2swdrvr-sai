@@ -81,7 +81,7 @@ extern bool esalBridgePortListInit(uint32_t port_number);
 extern void esalAlterForwardingTable(
                 sai_fdb_event_notification_data_t *fdbNotify);
 
-extern uint16_t esalHostPortId;
+extern int16_t esalHostPortId;
 extern char esalHostIfName[];
 
 extern int esalCreateSaiHost(uint16_t portId, const char *name);
