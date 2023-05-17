@@ -43,11 +43,13 @@
 #include "sai/saihostif.h"
 #include <pthread.h> 
 #include <libconfig.h++>
+#include "headers/esalSaiDip.h"
 
 //Default STP ID 
 sai_object_id_t defStpId = 0;
 
 EsalSaiUtils saiUtils;
+EsalSaiDips dip;
 
 std::vector<sai_object_id_t> bpdu_port_list;
 bool WARM_RESTART;
@@ -63,6 +65,7 @@ SFPLibrarySupport_fp_t esalSFPLibrarySupport;
 SFPRegisterL2ParamChangeCb_fp_t esalSFPRegisterL2ParamChangeCb;
 SFPSetPort_fp_t esalSFPSetPort;
 SFPGetPort_fp_t esalSFPGetPort;
+SFPResetPort_fp_t esalSFPResetPort;
 #endif
 #ifndef LARCH_ENVIRON
 #ifndef UTS
@@ -71,13 +74,30 @@ static DllUtil *sfpDll = 0;
 #endif
 bool useSaiFlag = false;
 static uint16_t esalMaxPort = 0; 
-uint16_t esalHostPortId;
+int16_t esalHostPortId = -1;
 char esalHostIfName[SAI_HOSTIF_NAME_SIZE];
 std::map<std::string, std::string> esalProfileMap;
 #ifndef UTS
 extern macData *macAddressData;
 #endif
 #ifndef LARCH_ENVIRON
+
+bool isHostPortUp(void) {
+    bool ls = true;  // assuming link up for failed cases
+
+    if (esalHostPortId != -1) {
+        uint32_t pPort = esalHostPortId;
+        uint32_t lPort;
+        uint32_t dev = 0;
+        if(saiUtils.GetLogicalPort(pPort, dev, &lPort)) {
+            bool tmpLs;
+            if (VendorGetPortLinkState(lPort, &tmpLs) == 0) {
+                ls = tmpLs;
+            }
+        }
+    }
+    return ls;
+}
 
 bool isHostIfRunning(void) {
     struct ifreq ifr;
@@ -101,57 +121,77 @@ bool isHostIfRunning(void) {
 }
 
 bool esalHealthLeave = false; 
+bool esalHealthMonEnable = true;
+int esalHealthMonitorDelay = 30;
+int esalHealthMonitorCycle = 5;
+
 void* esalHealthMonitor(void*) {
 #ifndef UTS
     int failRunningCnt = 0;
     int failSwitchCnt = 0; 
-    sleep(5); 
+    sleep(esalHealthMonitorDelay); 
+
+    std::cout << "starting esal health monitor" << std::endl;
 
     // Health monitor continues to check for both the stack interface being
     // present, as well as communication to the switch over PCI. 
     //
     while(true) {
-  
-        // Check the host interface in the stack to be RUNNING. 
-        //
-        if (isHostIfRunning()) {
-            failRunningCnt = 0;
-        } else {
-            failRunningCnt++;
-            std::cout << "ESAL Health Chk NOT RUNNING: " << esalHostIfName << "\n" << std::flush; 
-        }
-
-        // Check the Enable Configured 
-        //
-        GT_BOOL enabled;
-        if (!cpssDxChCfgDevEnableGet(0, &enabled)) {
-            if (enabled) {
-               failSwitchCnt= 0; 
+        if (esalHealthMonEnable) {
+            // Check the host interface in the stack to be RUNNING. 
+            //
+            if (isHostIfRunning()) {
+                failRunningCnt = 0;
             } else {
-               failSwitchCnt++;
-               std::cout << "Esal Health Chk enabled:" << enabled << "\n" << std::flush;
+                failRunningCnt++;
+                std::cout << "ESAL Health Chk NOT RUNNING: "
+                    << esalHostPortId << "\n" << std::flush; 
             }
-        } else { 
-            std::cout << "cpssDxChCfgDevEnableGet FAIL\n" << std::flush; 
-        } 
 
-        // Give yourself 20 failures in a row.  This avoids temporary 
-        // instability.
-        if ((failRunningCnt > 20) || (failSwitchCnt > 20)) {
-            std::cout << "ESAL Health Check IFFRUNNING: " << failRunningCnt 
-                      << " SwitchCnt: " << failSwitchCnt << "\n" << std::flush; 
-            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                    SWERR_FILELINE, "ESAL Health Chk failure\n"));
-            assert(0); 
+            // Check the Enable Configured 
+            //
+            GT_BOOL enabled;
+            if (!cpssDxChCfgDevEnableGet(0, &enabled)) {
+                if (enabled) {
+                   failSwitchCnt= 0; 
+                } else {
+                   failSwitchCnt++;
+                   std::cout << "Esal Health Chk enabled:" << enabled << "\n" << std::flush;
+                }
+            } else { 
+                std::cout << "cpssDxChCfgDevEnableGet FAIL\n" << std::flush; 
+            }
+
+            // Check if CPU port up
+            //
+            if (isHostPortUp()) {
+                failRunningCnt = 0;
+            } else {
+                failRunningCnt++;
+                std::cout << "ESAL Health Chk link NOT UP: "
+                    << esalHostIfName << "\n" << std::flush; 
+            }
+
+            // Give yourself 20 failures in a row.  This avoids temporary 
+            // instability.
+            if ((failRunningCnt > 20) || (failSwitchCnt > 20)) {
+                std::cout << "ESAL Health Check IFFRUNNING: " << failRunningCnt 
+                          << " SwitchCnt: " << failSwitchCnt << "\n" << std::flush; 
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE, "ESAL Health Chk failure\n"));
+                assert(0); 
+            }
         }
 
-        // DllDestrory will trigger us to leave loop. 
+        // dlldestrory will trigger us to leave loop. 
         // 
         if (esalHealthLeave) break; 
 
-        // Just sleep.
+        // just sleep.
         // 
-        sleep(1); 
+        std::cout << "Loop health check\n" << std::flush;
+        sleep(esalHealthMonitorCycle); 
+
     }
     pthread_exit(NULL); 
 #endif
@@ -193,6 +233,8 @@ void loadSFPLibrary(void) {
         reinterpret_cast<SFPSetPort_fp_t>(sfpDll->getDllFunc("SFPSetPort"));
     esalSFPGetPort =
         reinterpret_cast<SFPGetPort_fp_t>(sfpDll->getDllFunc("SFPGetPort"));
+    esalSFPResetPort =
+        reinterpret_cast<SFPResetPort_fp_t>(sfpDll->getDllFunc("SFPResetPort"));
 #endif
     
     // Initialize the SFP library. 
@@ -232,6 +274,7 @@ static void unloadSFPLibrary(void) {
     esalSFPRegisterL2ParamChangeCb = 0;
     esalSFPSetPort = 0;
     esalSFPGetPort = 0;
+    esalSFPResetPort = 0;
 }
 #endif
 #ifndef UTS
@@ -867,7 +910,32 @@ int DllInit(void) {
     if (hwid_value == "ALDRIN2EVAL") {
         WARM_RESTART = false;
     }
+
+#ifndef UTS
+    if (esalProfileMap.count("suppressWarmRestart")) {
+        std::string suppressRestart = esalProfileMap["suppressWarmRestart"];
+        if ((suppressRestart == "Y") || (suppressRestart == "y")) {
+            std::cout << "Suppressing warm restart\n";
+            WARM_RESTART = false;
+        }
+    }
+
     std::cout << "WARM RESTART: " << WARM_RESTART << "\n" << std::flush;
+
+    if (esalProfileMap.count("healthCheckDelay")) {
+        std::string healthCheckDelay = esalProfileMap["healthCheckDelay"];
+        esalHealthMonitorDelay = std::stoi(healthCheckDelay.c_str());
+        std::cout << "Health Check Monitor Delay: " 
+                  << esalHealthMonitorDelay << "\n" << std::flush;
+
+    }
+    if (esalProfileMap.count("healthCheckCycle")) {
+        std::string healthCheckDelay = esalProfileMap["healthCheckCycle"];
+        esalHealthMonitorCycle = std::stoi(healthCheckDelay.c_str());
+        std::cout << "Health Check Monitor Cycle: " 
+                  << esalHealthMonitorCycle << "\n" << std::flush;
+    }
+#endif
 
     // The point we need to jump to to re-initialize (make a hard reset) if "hot boot restore" fails.
     //
