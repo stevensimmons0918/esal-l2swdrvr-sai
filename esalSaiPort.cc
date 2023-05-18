@@ -2037,6 +2037,14 @@ int VendorResetPort(uint16_t lPort) {
         return ESAL_RC_OK;
     }
 
+    // Reset the LCN or PIU port
+    if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
+        if(esalSFPResetPort) {
+            std::cout << "Resetting lPort:" << lPort << std::endl;
+            esalSFPResetPort(lPort);
+        }
+    }
+
     VendorDisablePort(lPort);
     sleep(1);
     VendorEnablePort(lPort);
