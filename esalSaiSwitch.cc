@@ -53,8 +53,6 @@ EsalSaiDips dip;
 
 std::vector<sai_object_id_t> bpdu_port_list;
 bool WARM_RESTART;
-extern GT_32 GlobalIntKey;
-
 
 extern "C" {
 
@@ -753,7 +751,7 @@ int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_api_t *s
         return ESAL_RC_FAIL;
     }
 #ifndef LARCH_ENVIRON
-    esalCreateHealthMonitor(); 
+    esalCreateHealthMonitor();
 #endif
     return ESAL_RC_OK;
 }
@@ -1118,7 +1116,6 @@ void VendorConfigEnd()
     CPSS_SYSTEM_RECOVERY_INFO_STC recovery_info;
     GT_STATUS rc;
     int status;
-    uint8_t devNum = 0;
     std::cout << "VendorConfigEnd begin\n";
 
     if (WARM_RESTART)
@@ -1160,17 +1157,16 @@ void VendorConfigEnd()
         }
         WARM_RESTART = false; 
         esalRestoreAdminDownPorts();
-        rc = cpssDxChNetIfRestore(devNum);
+
+        rc = cpssHalWarmResetComplete();
         if (rc != GT_OK)
         {
              SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                         SWERR_FILELINE, "cpssDxChNetIfRestore failed\n"));
-             std::cout << "cpss cpssDxChNetIfRestore fail: "
+                         SWERR_FILELINE, "cpssHalWarmResetComplete failed\n"));
+             std::cout << "cpss cpssHalWarmResetComplete fail: "
                        << rc << std::endl;
              return;
         }
-        /* Enable Interrupts */
-        extDrvSetIntLockUnlock(INTR_MODE_UNLOCK, &GlobalIntKey);
     }
 #endif
     std::cout << "VendorConfigEnd end\n";
