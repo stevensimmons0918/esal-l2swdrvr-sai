@@ -27,7 +27,7 @@ lpm_fdb_em_profile=MID_L3_MID_L2_NO_EM
 portListWithCableLen=000:1 001:1 002:1 003:1 004:1 005:1 006:1 007:1 008:1 009:1 010:1 011:1 012:1 013:1 014:1 015:1
 hostIfListDisable=000:0 001:0 002:0 003:0 004:0 005:0
 HostPortId=47
-# stpType options MLSM/RSTP/CUSTOM
+# stpType options MLSM/RSTP/MIX
 stpType=MLSM
 
 ```  

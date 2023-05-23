@@ -123,11 +123,15 @@ extern "C" {
 static sai_object_id_t aclTableBpduTrap;
 #ifndef UTS
 static sai_object_id_t aclEntryBpduTrap;
+static sai_object_id_t aclEntryBpduTrapMix = 0;
 #endif
-// static sai_mac_t customBpduMac = {0x01, 0x80, 0xC2, 0x00, 0x00, 0xFF};
 static sai_mac_t mlsmBpduMac = {0x01, 0x80, 0xC2, 0x00, 0x00, 0xFF}; 
 static sai_mac_t rstpBpduMac = {0x01, 0x80, 0xC2, 0x00, 0x00, 0x00};
 static std::vector<sai_object_id_t> bpduEnablePorts;
+static bool addAclEntry(sai_acl_field_data_t* match_mac,
+                        sai_acl_api_t* saiAclApi,
+                        std::vector<sai_attribute_t>& aclAttr,
+                        sai_object_id_t* aclEntryBpduTrap);
 static void buildACLTable(uint32_t stage, std::vector<sai_attribute_t> &attributes) {
 #ifndef UTS
 
@@ -745,42 +749,67 @@ bool esalCreateBpduTrapAcl() {
     std::string stp_type = esalProfileMap["stpType"];
     if (stp_type.compare("MLSM") == 0) {
         memcpy(match_mac.data.mac, mlsmBpduMac, sizeof(mlsmBpduMac));
+        if (!addAclEntry(&match_mac, saiAclApi, aclAttr, &aclEntryBpduTrap)) {
+            std::cout << "createAclEntry add acl fail (MLSM)" << std::endl;
+        }
     }else if (stp_type.compare("RSTP") == 0) {
         memcpy(match_mac.data.mac, rstpBpduMac, sizeof(rstpBpduMac));
+        if (!addAclEntry(&match_mac, saiAclApi, aclAttr, &aclEntryBpduTrap)) {
+            std::cout << "createAclEntry add acl fail (RSTP)" << std::endl;
+        }
     }else if (stp_type.compare("MIX") == 0) {
-        // memcpy(match_mac.data.mac, customBpduMac, sizeof(customBpduMac));
+        memcpy(match_mac.data.mac, mlsmBpduMac, sizeof(mlsmBpduMac));
+        if (!addAclEntry(&match_mac, saiAclApi, aclAttr, &aclEntryBpduTrap)) {
+            std::cout << "createAclEntry add acl fail (MIX_MLSM)" << std::endl;
+        }
+        memcpy(match_mac.data.mac, rstpBpduMac, sizeof(rstpBpduMac));
+        if (!addAclEntry(&match_mac, saiAclApi, aclAttr, &aclEntryBpduTrapMix)) {
+            std::cout << "createAclEntry add acl fail (MIX_RSTP)" << std::endl;
+        }
     }else {
-        std::cout << "stpType in sai.profile.ini is unknoun" << std::endl;
-        return false;
+        std::cout << "stpType in sai.profile.ini is unknoun; use default protocol (MLSM)" << std::endl;
+        memcpy(match_mac.data.mac, mlsmBpduMac, sizeof(mlsmBpduMac));
+        if (!addAclEntry(&match_mac, saiAclApi, aclAttr, &aclEntryBpduTrap)) {
+            std::cout << "createAclEntry add acl fail (MLSM_default)" << std::endl;
+        }
     }
-    // memcpy(match_mac.data.mac, customBpduMac, sizeof(customBpduMac));
     
-    // exact match mac address
-    memset(match_mac.mask.mac, 0xff, sizeof(sai_mac_t));
+    return true;
+}
 
+static bool addAclEntry(sai_acl_field_data_t* match_mac,
+                        sai_acl_api_t* saiAclApi,
+                        std::vector<sai_attribute_t>& aclAttr,
+                        sai_object_id_t* aclEntryBpduTrapLocal) {
+    sai_status_t retcode;
+    sai_attribute_t attrib;
 
-    attr.id = SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC;
-    attr.value.aclfield = match_mac;
-    aclAttr.push_back(attr);
+    memset(match_mac->mask.mac, 0xff, sizeof(sai_mac_t));
+
+    attrib.id = SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC;
+    attrib.value.aclfield = *match_mac;
+    aclAttr.push_back(attrib);
 
     sai_acl_action_data_t acl_action;
     acl_action.enable = true;
     acl_action.parameter.s32 = SAI_PACKET_ACTION_TRAP;
 
-    attr.id = SAI_ACL_ENTRY_ATTR_ACTION_PACKET_ACTION;
-    attr.value.aclaction = acl_action;
-    aclAttr.push_back(attr);
-
+    attrib.id = SAI_ACL_ENTRY_ATTR_ACTION_PACKET_ACTION;
+    attrib.value.aclaction = acl_action;
+    aclAttr.push_back(attrib);
 
 #ifndef UTS
     retcode = saiAclApi->create_acl_entry(
-                &aclEntryBpduTrap, esalSwitchId, aclAttr.size(), aclAttr.data());
+                aclEntryBpduTrapLocal, esalSwitchId, aclAttr.size(), aclAttr.data());
     if (retcode) {
         std::cout << "esalEnableBpduTrapOnPort add acl fail: "
                   << esalSaiError(retcode) << std::endl;
         return false;
     }
 #endif
+
+    aclAttr.pop_back();
+    aclAttr.pop_back();
 
     return true;
 }
@@ -833,6 +862,15 @@ bool esalEnableBpduTrapOnPort(std::vector<sai_object_id_t>& portSaiList) {
         std::cout << "esalEnableBpduTrapOnPort add acl fail: "
                   << esalSaiError(retcode) << std::endl;
         return false;
+    }
+    if (aclEntryBpduTrapMix != 0) {
+        retcode = saiAclApi->set_acl_entry_attribute(
+                    aclEntryBpduTrapMix, &attr);
+        if (retcode) {
+            std::cout << "esalEnableBpduTrapOnPort add acl fail: "
+                    << esalSaiError(retcode) << std::endl;
+            return false;
+        }
     }
 #endif
 
