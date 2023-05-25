@@ -31,7 +31,14 @@ HostPortId=47
 stpType=MLSM
 
 ```  
-> Note: hwId is a mandatory parameter.  
+> Note: hwId is a mandatory parameter. <br />
+> Note_1: "stpType" parameter use: <br />
+Case stpType=MLSM or "stpType" parameter isn't presented: <br />
+    MLSM mac addresses will be traped <br />
+Case stpType=RSTP: <br />
+    RSTP mac addresses will be traped <br />
+Case stpType=MIX: <br />
+    Both MLSM and RSTP mac addresses will be traped <br />
 
 ## Getting started
 
