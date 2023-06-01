@@ -358,7 +358,7 @@ void EsalSaiUtils::ParseConfig(void) {
 
             portInfo.l2CommsProvDisable = false;
             if (portsSetting.exists("l2CommsProvDisable")) {
-                portInfo.changeable = set[i]["l2CommsProvDisable"];
+                portInfo.l2CommsProvDisable = set[i]["l2CommsProvDisable"];
             }
 
             std::cout << __FUNCTION__ << ":" << __LINE__
