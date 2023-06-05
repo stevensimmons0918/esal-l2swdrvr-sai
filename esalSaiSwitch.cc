@@ -54,6 +54,7 @@ EsalSaiDips dip;
 std::vector<sai_object_id_t> bpdu_port_list;
 bool WARM_RESTART;
 
+
 extern "C" {
 
 #ifndef LARCH_ENVIRON
@@ -188,7 +189,6 @@ void* esalHealthMonitor(void*) {
 
         // just sleep.
         // 
-        std::cout << "Loop health check\n" << std::flush;
         sleep(esalHealthMonitorCycle); 
 
     }
@@ -378,6 +378,7 @@ int esalHostIfListParser(std::string key , std::vector<sai_object_id_t>& out_vec
             } else {
                 std::cout << "esalHostIfListParser error: unknown port state or non-existent port in sai.prifile.ini file. Port " << port << "\n";
             }
+
             
             pos += 6;
         }
@@ -750,9 +751,8 @@ int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_api_t *s
         std::cout << "portCfgFlowControlInit fail \n";
         return ESAL_RC_FAIL;
     }
-#ifndef LARCH_ENVIRON
-    esalCreateHealthMonitor();
-#endif
+
+    esalCreateHealthMonitor(); 
     return ESAL_RC_OK;
 }
 
@@ -922,6 +922,9 @@ int DllInit(void) {
 
     std::cout << "WARM RESTART: " << WARM_RESTART << "\n" << std::flush;
 
+    // Retrieve the provisioned values for both delay and cycle time
+    // for health monitor check.
+    //
     if (esalProfileMap.count("healthCheckDelay")) {
         std::string healthCheckDelay = esalProfileMap["healthCheckDelay"];
         esalHealthMonitorDelay = std::stoi(healthCheckDelay.c_str());
@@ -929,9 +932,10 @@ int DllInit(void) {
                   << esalHealthMonitorDelay << "\n" << std::flush;
 
     }
+
     if (esalProfileMap.count("healthCheckCycle")) {
-        std::string healthCheckDelay = esalProfileMap["healthCheckCycle"];
-        esalHealthMonitorCycle = std::stoi(healthCheckDelay.c_str());
+        std::string healthCheckCycle = esalProfileMap["healthCheckCycle"];
+        esalHealthMonitorCycle = std::stoi(healthCheckCycle.c_str());
         std::cout << "Health Check Monitor Cycle: " 
                   << esalHealthMonitorCycle << "\n" << std::flush;
     }
@@ -986,9 +990,9 @@ int DllInit(void) {
 
 int DllDestroy(void) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
-#ifndef LARCH_ENVIRON
+
     esalHealthLeave = true; 
-#endif
+
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
@@ -1157,7 +1161,6 @@ void VendorConfigEnd()
         }
         WARM_RESTART = false; 
         esalRestoreAdminDownPorts();
-
         rc = cpssHalWarmResetComplete();
         if (rc != GT_OK)
         {
