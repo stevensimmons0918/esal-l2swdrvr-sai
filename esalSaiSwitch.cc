@@ -54,7 +54,6 @@ EsalSaiDips dip;
 std::vector<sai_object_id_t> bpdu_port_list;
 bool WARM_RESTART;
 
-
 extern "C" {
 
 #ifndef LARCH_ENVIRON
@@ -752,7 +751,7 @@ int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_api_t *s
         return ESAL_RC_FAIL;
     }
 #ifndef LARCH_ENVIRON
-    esalCreateHealthMonitor(); 
+    esalCreateHealthMonitor();
 #endif
     return ESAL_RC_OK;
 }
@@ -1158,6 +1157,16 @@ void VendorConfigEnd()
         }
         WARM_RESTART = false; 
         esalRestoreAdminDownPorts();
+
+        rc = cpssHalWarmResetComplete();
+        if (rc != GT_OK)
+        {
+             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                         SWERR_FILELINE, "cpssHalWarmResetComplete failed\n"));
+             std::cout << "cpss cpssHalWarmResetComplete fail: "
+                       << rc << std::endl;
+             return;
+        }
     }
 #endif
     std::cout << "VendorConfigEnd end\n";
