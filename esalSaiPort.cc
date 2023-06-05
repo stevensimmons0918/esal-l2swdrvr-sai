@@ -35,6 +35,10 @@
 #include "sfp_vendor_api/sfp_vendor_api.h"
 #endif
 
+#ifdef LARCH_ENVIRON
+#include <unistd.h>
+#endif
+
 extern "C" {
 
 // APPROACH TO SEMAPHORE: 
@@ -890,6 +894,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
 
 #endif
 
+#ifndef LARCH_ENVIRON
     if (!WARM_RESTART) {
         if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
             VendorResetPort(lPort);
@@ -901,7 +906,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
             }
         }
     }  
-
+#endif
     return rc;
 }
 

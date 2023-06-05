@@ -26,6 +26,10 @@
 #include "sfp_vendor_api/sfp_vendor_api.h"
 #endif
 
+#ifdef LARCH_ENVIRON
+#include "esal_vendor_api/esal_vendor_api.h"
+#endif
+
 #ifdef UTS
 #include "esal-vendor-api/headers/esalUnitTestDefs.h"
 extern "C" {

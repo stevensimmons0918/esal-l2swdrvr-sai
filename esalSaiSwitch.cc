@@ -377,7 +377,7 @@ int esalHostIfListParser(std::string key , std::vector<sai_object_id_t>& out_vec
             if (value == 0 && esalPortTableFindSai(port, &portSaiTmp)) {
                 out_vector.erase(std::remove(out_vector.begin(), out_vector.end(), portSaiTmp), out_vector.end());
             } else {
-                std::cout << "esalHostIfListParser error: unknown port state" << "\n";
+                std::cout << "esalHostIfListParser error: unknown port state or non-existent port in sai.prifile.ini file. Port " << port << "\n";
             }
             
             pos += 6;
@@ -751,8 +751,9 @@ int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_api_t *s
         std::cout << "portCfgFlowControlInit fail \n";
         return ESAL_RC_FAIL;
     }
-
+#ifndef LARCH_ENVIRON
     esalCreateHealthMonitor(); 
+#endif
     return ESAL_RC_OK;
 }
 
@@ -986,9 +987,9 @@ int DllInit(void) {
 
 int DllDestroy(void) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
-
+#ifndef LARCH_ENVIRON
     esalHealthLeave = true; 
-
+#endif
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
