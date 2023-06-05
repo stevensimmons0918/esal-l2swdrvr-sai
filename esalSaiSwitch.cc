@@ -752,7 +752,10 @@ int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_api_t *s
         return ESAL_RC_FAIL;
     }
 
-    esalCreateHealthMonitor(); 
+#ifndef LARCH_ENVIRON
+    esalCreateHealthMonitor();
+#endif
+
     return ESAL_RC_OK;
 }
 
