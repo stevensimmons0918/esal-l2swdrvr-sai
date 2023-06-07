@@ -1096,7 +1096,7 @@ extern GT_STATUS cpssDxChBrgVlanNaToCpuEnable(
 
 extern GT_STATUS cpssDxChCfgDevEnableGet(GT_U8 devNum, GT_BOOL *enable);
 
-extern GT_STATUS cpssHalWarmResetComplete();
+extern GT_STATUS cpssHalWarmResetComplete(void);
 
 #endif
 }

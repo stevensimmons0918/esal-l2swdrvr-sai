@@ -120,15 +120,15 @@ sai_object_id_t portEgressAclTable = 0;
 static std::mutex aclMutex;
 
 extern "C" {
-static sai_object_id_t aclTableBpduTrap;
 #ifndef UTS
+static sai_object_id_t aclTableBpduTrap;
 static sai_object_id_t aclEntryBpduTrap;
 static sai_object_id_t aclEntryBpduTrapMix = 0;
-#endif
 static sai_mac_t mlsmBpduMac = {0x01, 0x80, 0xC2, 0x00, 0x00, 0xFF}; 
 static sai_mac_t rstpBpduMac = {0x01, 0x80, 0xC2, 0x00, 0x00, 0x00};
+#endif
 static std::vector<sai_object_id_t> bpduEnablePorts;
-static bool addAclEntry(sai_acl_field_data_t* match_mac,
+bool addAclEntry(sai_acl_field_data_t* match_mac,
                         sai_acl_api_t* saiAclApi,
                         std::vector<sai_attribute_t>& aclAttr,
                         sai_object_id_t* aclEntryBpduTrap);
@@ -683,7 +683,6 @@ bool esalCreateBpduTrapAcl() {
                   << std::endl;
         return ESAL_RC_FAIL;
     }
-#endif
 
     // Set up ACL Entry
     std::vector<sai_attribute_t> attributes;
@@ -720,7 +719,6 @@ bool esalCreateBpduTrapAcl() {
     attr.id = SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC;
     attr.value.booldata = true;
     attributes.push_back(attr);
-#ifndef UTS
     // Create table and add to port ingress.
     //
     retcode = saiAclApi->create_acl_table(
@@ -730,7 +728,6 @@ bool esalCreateBpduTrapAcl() {
                   << esalSaiError(retcode) << std::endl;
         return false;
     }
-#endif
 
     // Set up ACL Entry
     std::vector<sai_attribute_t> aclAttr;
@@ -747,10 +744,10 @@ bool esalCreateBpduTrapAcl() {
     match_mac.enable = true;
 
     std::string stp_type = esalProfileMap["stpType"];
-    if (stp_type.compare("MLSM") == 0) {
+    if (stp_type.compare("MSLM") == 0) {
         memcpy(match_mac.data.mac, mlsmBpduMac, sizeof(mlsmBpduMac));
         if (!addAclEntry(&match_mac, saiAclApi, aclAttr, &aclEntryBpduTrap)) {
-            std::cout << "createAclEntry add acl fail (MLSM)" << std::endl;
+            std::cout << "createAclEntry add acl fail (MSLM)" << std::endl;
         }
     }else if (stp_type.compare("RSTP") == 0) {
         memcpy(match_mac.data.mac, rstpBpduMac, sizeof(rstpBpduMac));
@@ -774,14 +771,14 @@ bool esalCreateBpduTrapAcl() {
         }
     }
     
+#endif
     return true;
 }
 
-static bool addAclEntry(sai_acl_field_data_t* match_mac,
+bool addAclEntry(sai_acl_field_data_t* match_mac,
                         sai_acl_api_t* saiAclApi,
                         std::vector<sai_attribute_t>& aclAttr,
                         sai_object_id_t* aclEntryBpduTrapLocal) {
-    sai_status_t retcode;
     sai_attribute_t attrib;
 
     memset(match_mac->mask.mac, 0xff, sizeof(sai_mac_t));
@@ -799,7 +796,7 @@ static bool addAclEntry(sai_acl_field_data_t* match_mac,
     aclAttr.push_back(attrib);
 
 #ifndef UTS
-    retcode = saiAclApi->create_acl_entry(
+    auto retcode = saiAclApi->create_acl_entry(
                 aclEntryBpduTrapLocal, esalSwitchId, aclAttr.size(), aclAttr.data());
     if (retcode) {
         std::cout << "esalEnableBpduTrapOnPort add acl fail: "

@@ -807,7 +807,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         attributes.push_back(attr); 
     }
 #else // NOT_SUPPORTED_BY_SAI
-    if (esalHostPortId == pPort && 
+    if ((uint32_t)esalHostPortId == pPort && 
         ((hwid_value.compare("ALDRIN2XLFL") == 0) || 
          (hwid_value.compare("ALDRIN2EB3") == 0))) {
         attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
@@ -819,7 +819,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         attributes.push_back(attr);
             esalPortTableSetChangeable(pPort, true);
 
-    } else if (esalHostPortId == pPort && hwid_value.compare("ALDRIN2EVAL") == 0) {
+    } else if ((uint32_t)esalHostPortId == pPort && hwid_value.compare("ALDRIN2EVAL") == 0) {
         attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
         attr.value.booldata = false;
         attributes.push_back(attr);
@@ -828,7 +828,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         attr.value.s32 = SAI_PORT_FEC_MODE_FC;
         attributes.push_back(attr);
 
-    } else if (esalHostPortId == pPort && hwid_value.compare("AC3XILA") == 0) {
+    } else if ((uint32_t)esalHostPortId == pPort && hwid_value.compare("AC3XILA") == 0) {
         attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
         attr.value.booldata = true;
         attributes.push_back(attr);
@@ -907,6 +907,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         }
     }  
 #endif
+
     return rc;
 }
 
@@ -2045,9 +2046,9 @@ int VendorResetPort(uint16_t lPort) {
     // Reset the LCN or PIU port
     if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
         if(esalSFPResetPort) {
-            std::cout << "Resetting lPort:" << lPort << std::endl;
-            esalSFPResetPort(lPort);
-        }
+	    std::cout << "Resetting lPort:" << lPort << std::endl;
+	    esalSFPResetPort(lPort);
+	}
     }
 
     VendorDisablePort(lPort);
