@@ -692,6 +692,9 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
     std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort << std::endl;
     int rc  = ESAL_RC_OK;
 
+    if (WARM_RESTART)
+        return rc;
+
     if (saiUtils.GetL2CommsProvDisable(lPort)) {
         std::cout << " VendorSetPortRate: skipping setPortRate for"
                   << " lPort=" << lPort << std::endl;
