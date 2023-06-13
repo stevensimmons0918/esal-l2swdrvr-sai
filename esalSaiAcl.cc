@@ -27,7 +27,8 @@
 struct portVlanTransMap {
     uint16_t portid;
     vendor_vlan_translation_t trans;
-    sai_object_id_t attrSai;
+    sai_object_id_t attrSai; // rule to match non ip and ipv4 packets
+    sai_object_id_t attrSaiV6; // rule to match ipv6 packets
 };
 
 struct aclTableAttributes {
@@ -117,6 +118,8 @@ static std::vector<portVlanTransMap> ingressPortTransMap;
 static std::vector<portVlanTransMap> egressPortTransMap;
 sai_object_id_t portIngressAclTable = 0;
 sai_object_id_t portEgressAclTable = 0;
+sai_object_id_t portIngressAclTableV6 = 0;
+sai_object_id_t portEgressAclTableV6 = 0;
 static std::mutex aclMutex;
 
 extern "C" {
@@ -182,6 +185,68 @@ static void buildACLTable(uint32_t stage, std::vector<sai_attribute_t> &attribut
     // Define the packet fields to look at.
     //
     attr.id = SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID;
+    attr.value.booldata = true;
+    attributes.push_back(attr);
+#endif
+
+}
+
+static void buildACLTableV6(uint32_t stage, std::vector<sai_attribute_t> &attributes) {
+#ifndef UTS
+
+    sai_attribute_t attr;
+
+    // Define the stage.
+    //
+    attr.id = SAI_ACL_TABLE_ATTR_ACL_STAGE;
+    attr.value.u32 = stage;
+    attributes.push_back(attr);
+
+    // Defines the types of actions
+    //
+    const int actTabSize = 1;
+    int32_t actTab[actTabSize];
+    actTab[0] = SAI_ACL_ACTION_TYPE_SET_OUTER_VLAN_ID;
+    sai_s32_list_t actTabList;
+    actTabList.list = actTab;
+    actTabList.count = actTabSize;
+    attr.id = SAI_ACL_TABLE_ATTR_ACL_ACTION_TYPE_LIST;
+    attr.value.s32list = actTabList;
+    attributes.push_back(attr);
+
+    // Define the packet fields to look at.
+    //
+    attr.id = SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS;
+    attr.value.booldata = true;
+    attributes.push_back(attr);
+
+    // Define the packet fields to look at.
+    //
+    attr.id = SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS;
+    attr.value.booldata = true;
+    attributes.push_back(attr);
+
+    // Define the packet fields to look at. 
+    //
+    attr.id = SAI_ACL_TABLE_ATTR_FIELD_HAS_VLAN_TAG;
+    attr.value.booldata = true;
+    attributes.push_back(attr);
+
+    // Define the packet fields to look at.
+    //
+    attr.id = SAI_ACL_TABLE_ATTR_FIELD_PACKET_VLAN;
+    attr.value.booldata = true;
+    attributes.push_back(attr);
+
+    // Define the packet fields to look at.
+    //
+    attr.id = SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID;
+    attr.value.booldata = true;
+    attributes.push_back(attr);
+
+    // Define the packet fields to look at.
+    //
+    attr.id = SAI_ACL_TABLE_ATTR_FIELD_SRC_IPV6;
     attr.value.booldata = true;
     attributes.push_back(attr);
 #endif
@@ -306,8 +371,10 @@ int VendorSetIngressVlanTranslation(uint16_t lPort,
     // Check to see if the ingress table has already been created.
     //
     sai_object_id_t aclTable = 0;
-    if (0 != portIngressAclTable) {
+    sai_object_id_t aclTableV6 = 0;
+    if (0 != portIngressAclTable && 0 != portIngressAclTableV6) {
         aclTable = portIngressAclTable;
+        aclTableV6 = portIngressAclTableV6;
     } else {
         // STAGE is ingress. Build ACL Attributes.
         //
@@ -327,9 +394,30 @@ int VendorSetIngressVlanTranslation(uint16_t lPort,
 #endif
         portIngressAclTable = aclTable;
 
+         // Add ACL Table to Port
+        //
+       // esalAddAclToPort(portSai, aclTable, true);
+
+        // create acl table for ipv6 rules
+        attributes.clear();
+        buildACLTableV6(SAI_ACL_STAGE_INGRESS, attributes);
+
+        // Create table and add to port ingress.
+        //
+#ifndef UTS
+        retcode = saiAclApi->create_acl_table(
+                &aclTableV6, esalSwitchId, attributes.size(), attributes.data());
+        if (retcode) {
+            std::cout << "VendorSetIngressVlanTranslation create acl fail "
+                << esalSaiError(retcode) << "\n";
+            return ESAL_RC_FAIL;
+        }
+#endif
+        portIngressAclTableV6 = aclTableV6;
+
         // Add ACL Table to Port
         //
-        esalAddAclToPort(portSai, aclTable, true);
+        esalAddAclToPort(portSai, aclTableV6, true);
     }
 
     // Set up ACL Entry
@@ -365,12 +453,42 @@ int VendorSetIngressVlanTranslation(uint16_t lPort,
     }
 #endif
 
+    // Build ACL Entry List item
+    //
+    aclAttr.clear();
+    buildACLEntry(trans, aclTableV6, aclAttr);
+    port_list.clear();
+    port_list.push_back(portSai);
+    match_in_ports.enable = true;
+    match_in_ports.data.objlist.count = (uint32_t)port_list.size();
+    match_in_ports.data.objlist.list = port_list.data();
+
+    // Define in ports for ACL
+    //
+    attr.id = SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS;
+    attr.value.aclfield = match_in_ports;
+    aclAttr.push_back(attr);
+
+    // Create the ACL v6 Entry.
+    //
+    sai_object_id_t attrSaiV6 = 0;
+#ifndef UTS
+    retcode = saiAclApi->create_acl_entry(
+            &attrSaiV6, esalSwitchId, aclAttr.size(), aclAttr.data());
+    if (retcode) {
+        std::cout << "VendorSetIngressVlanTranslation add acl fail: "
+            << esalSaiError(retcode) << "\n";
+        return ESAL_RC_FAIL;
+    }
+#endif
+
     // Push onto the port vlan map.
     //
     portVlanTransMap newent;
     newent.portid = pPort;
     newent.trans = trans;
     newent.attrSai = attrSai;
+    newent.attrSai = attrSaiV6;
     ingressPortTransMap.push_back(newent);
 
     return ESAL_RC_OK;
@@ -454,6 +572,8 @@ int VendorDeleteIngressVlanTranslation(uint16_t lPort,
             // Remove the ACL from the SAI.
             //
             removeACLEntry(ent.attrSai);
+            // Remove ipv6 entry
+            removeACLEntry(ent.attrSaiV6);
 
             // Remove it from map translator.
             //
@@ -520,8 +640,10 @@ int VendorSetEgressVlanTranslation(uint16_t lPort,
     // Check to see if the ingress table has already been created.
     //
     sai_object_id_t aclTable = 0;
-    if (0 != portEgressAclTable) {
+    sai_object_id_t aclTableV6 = 0;
+    if (0 != portEgressAclTable && 0 != portEgressAclTableV6) {
         aclTable = portEgressAclTable;
+        aclTableV6 = portEgressAclTableV6;
     } else {
         std::vector<sai_attribute_t> attributes;
         buildACLTable(SAI_ACL_STAGE_EGRESS, attributes);
@@ -542,6 +664,26 @@ int VendorSetEgressVlanTranslation(uint16_t lPort,
         // Add ACL Table to Port
         //
         esalAddAclToPort(portSai, aclTable, false);
+
+        attributes.clear();
+        buildACLTableV6(SAI_ACL_STAGE_EGRESS, attributes);
+
+#ifndef UTS
+        // Create table and add to port egress.
+        //
+        retcode = saiAclApi->create_acl_table(
+                &aclTableV6, esalSwitchId, attributes.size(), attributes.data());
+        if (retcode) {
+            std::cout << "VendorSetIngressVlanTranslation create acl fail: "
+                      << esalSaiError(retcode) << std::endl;
+            return ESAL_RC_FAIL;
+        }
+#endif
+        portEgressAclTableV6 = aclTableV6;
+
+        // Add ACL Table to Port
+        //
+        esalAddAclToPort(portSai, aclTableV6, false);
     }
 
     // Set up ACL Entry
@@ -573,11 +715,41 @@ int VendorSetEgressVlanTranslation(uint16_t lPort,
     }
 #endif
 
+    // Build ACL Entry List item
+    //
+    aclAttr.clear();
+    buildACLEntry(trans, aclTableV6, aclAttr);
+    port_list.clear();
+    port_list.push_back(portSai);
+    match_in_ports.enable = true;
+    match_in_ports.data.objlist.count = (uint32_t)port_list.size();
+    match_in_ports.data.objlist.list = port_list.data();
+
+    // Define in ports for ACL
+    //
+    attr.id = SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS;
+    attr.value.aclfield = match_in_ports;
+    aclAttr.push_back(attr);
+
+    // Create the ACL v6 Entry.
+    //
+    sai_object_id_t attrSaiV6 = 0;
+#ifndef UTS
+    retcode = saiAclApi->create_acl_entry(
+            &attrSaiV6, esalSwitchId, aclAttr.size(), aclAttr.data());
+    if (retcode) {
+        std::cout << "VendorSetIngressVlanTranslation add acl fail: "
+            << esalSaiError(retcode) << "\n";
+        return ESAL_RC_FAIL;
+    }
+#endif
+
     // Push onto the port vlan map.
     portVlanTransMap newent;
     newent.portid = pPort;
     newent.trans = trans;
     newent.attrSai = attrSai;
+    newent.attrSaiV6 = attrSaiV6;
     egressPortTransMap.push_back(newent);
 
     return ESAL_RC_OK;
@@ -652,6 +824,9 @@ int VendorDeleteEgressVlanTranslation(uint16_t lPort,
             (ent.trans.oldVlan == trans.oldVlan)) {
             // Remove the ACL Entry from SAI.
             removeACLEntry(ent.attrSai);
+
+            // Remove the ACL v6 Entry from SAI.
+            removeACLEntry(ent.attrSaiV6);
 
             // Erase from port map.
             egressPortTransMap.erase(egressPortTransMap.begin()+idx);
@@ -1853,6 +2028,7 @@ static bool serializePortTransMapConfig(const std::vector<portVlanTransMap> &por
         libconfig::Setting &portEntry = portTransMapSetting.add(libconfig::Setting::TypeGroup);
         portEntry.add("portId", libconfig::Setting::TypeInt) = portTrans.portid;
         portEntry.add("attrSai", libconfig::Setting::TypeInt64) = static_cast<int64_t>(portTrans.attrSai);
+        portEntry.add("attrSaiV6", libconfig::Setting::TypeInt64) = static_cast<int64_t>(portTrans.attrSaiV6);
         portEntry.add("oldVlan", libconfig::Setting::TypeInt) = portTrans.trans.oldVlan;
         portEntry.add("newVlan", libconfig::Setting::TypeInt) = portTrans.trans.newVlan;
     }
@@ -1890,9 +2066,11 @@ static bool deserializePortTransMapConfig(std::vector<portVlanTransMap> &portTra
 
         int portId, oldVlan, newVlan;
         long long attrSai;
+        long long attrSaiV6;
 
         if (!(portTrans.lookupValue("portId", portId) &&
               portTrans.lookupValue("attrSai", attrSai) &&
+              portTrans.lookupValue("attrSaiV6", attrSaiV6) &&
               portTrans.lookupValue("oldVlan", oldVlan) &&
               portTrans.lookupValue("newVlan", newVlan))) {
             return false;
@@ -1901,6 +2079,7 @@ static bool deserializePortTransMapConfig(std::vector<portVlanTransMap> &portTra
         portVlanTransMap portTransEntry;
         portTransEntry.portid = static_cast<uint16_t>(portId);
         portTransEntry.attrSai = static_cast<sai_object_id_t>(attrSai);
+        portTransEntry.attrSaiV6 = static_cast<sai_object_id_t>(attrSaiV6);
         portTransEntry.trans.oldVlan = static_cast<uint16_t>(oldVlan);
         portTransEntry.trans.newVlan = static_cast<uint16_t>(newVlan);
         portTransMap.push_back(portTransEntry);
@@ -1912,6 +2091,7 @@ static bool deserializePortTransMapConfig(std::vector<portVlanTransMap> &portTra
 static void printVlanTranslation(const portVlanTransMap& trans) {
     std::cout << "pPortid: " << std::dec << trans.portid <<
                  ", attrSai: 0x" << std::setw(16) << std::setfill('0') << std::hex << trans.attrSai <<
+                 ", attrSaiV6: 0x" << std::setw(16) << std::setfill('0') << std::hex << trans.attrSaiV6 <<
                  ", oldVlan: " << std::dec << trans.trans.oldVlan <<
                  ", newVlan: " << std::dec << trans.trans.newVlan <<
                  std::endl;
@@ -1991,6 +2171,8 @@ void aclWarmBootCleanHandler() {
     egressPortTransMap.clear();
     portIngressAclTable = 0;
     portEgressAclTable = 0;
+    portIngressAclTableV6 = 0;
+    portEgressAclTableV6 = 0;
 }
 
 }
