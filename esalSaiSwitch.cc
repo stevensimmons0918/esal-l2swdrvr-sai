@@ -49,11 +49,11 @@
 sai_object_id_t defStpId = 0;
 
 EsalSaiUtils saiUtils;
+#ifndef LARCH_ENVIRON
 EsalSaiDips dip;
-
+#endif
 std::vector<sai_object_id_t> bpdu_port_list;
 bool WARM_RESTART;
-
 
 extern "C" {
 
@@ -923,8 +923,21 @@ int DllInit(void) {
         }
     }
 
-    std::cout << "WARM RESTART: " << WARM_RESTART << "\n" << std::flush;
+    // Check to see if we should reset the switch.
+    if (!WARM_RESTART) {
+        const char *l2swRst = "/usr/bin/l2sw_reset";
+        auto l2swFd = fopen(l2swRst, "r");
+        if (l2swFd) {
+            fclose(l2swFd);
+            if (system(l2swRst)) {
+                std::cout << "l2swreset failed\n";
+            }
+        }
+    }
 
+
+    std::cout << "WARM RESTART: " << WARM_RESTART << "\n" << std::flush;
+#ifndef LARCH_ENVIRON
     // Retrieve the provisioned values for both delay and cycle time
     // for health monitor check.
     //
@@ -935,13 +948,13 @@ int DllInit(void) {
                   << esalHealthMonitorDelay << "\n" << std::flush;
 
     }
-
     if (esalProfileMap.count("healthCheckCycle")) {
         std::string healthCheckCycle = esalProfileMap["healthCheckCycle"];
         esalHealthMonitorCycle = std::stoi(healthCheckCycle.c_str());
         std::cout << "Health Check Monitor Cycle: " 
                   << esalHealthMonitorCycle << "\n" << std::flush;
     }
+#endif
 #endif
 
     // The point we need to jump to to re-initialize (make a hard reset) if "hot boot restore" fails.
@@ -993,9 +1006,9 @@ int DllInit(void) {
 
 int DllDestroy(void) {
     std::cout << __PRETTY_FUNCTION__ << std::endl;
-
+#ifndef LARCH_ENVIRON
     esalHealthLeave = true; 
-
+#endif
     if (!useSaiFlag){
         return ESAL_RC_OK;
     }
