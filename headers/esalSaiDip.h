@@ -29,6 +29,8 @@
   }
 
   ESALSAI_DIP_CLASS(DipEsalHealthMon); 
+  ESALSAI_DIP_CLASS(DipEsalPolicerStats); 
+  ESALSAI_DIP_CLASS(DipEsalClearPolicerStats);
 
 class EsalSaiDips {
  public:
@@ -36,15 +38,25 @@ class EsalSaiDips {
       : esalsai_dip_(std::make_shared<DipCommand>()),
         esalHealthMon_("esalsai/esalHealthMon",
                         "esalHealthMon enable|disable",
+                        esalsai_dip_, nullptr),
+        esalPolicerStats_("esalsai/esalPolicerStats",
+                        "esalPolicerStats lPort",
+                        esalsai_dip_, nullptr),
+        esalClearPolicerStats_("esalsai/esalClearPolicerStats",
+                        "esalClearPolicerStats lPort",
                         esalsai_dip_, nullptr)
 {
   esalsai_dip_->dip_register_command(&esalHealthMon_);
+  esalsai_dip_->dip_register_command(&esalPolicerStats_);
+  esalsai_dip_->dip_register_command(&esalClearPolicerStats_);
 }
 protected:
   std::shared_ptr<DipCommand> esalsai_dip_;
 
  private:
-  EsalSaiDipEsalHealthMon       esalHealthMon_;
+  EsalSaiDipEsalHealthMon           esalHealthMon_;
+  EsalSaiDipEsalPolicerStats        esalPolicerStats_;
+  EsalSaiDipEsalClearPolicerStats   esalClearPolicerStats_;
 };
 #endif
 #endif //ESAL_VENDOR_API_HEADERS_ESALSAIDIP_H

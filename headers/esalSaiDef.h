@@ -65,6 +65,10 @@ bool esalAddBroadcastPolicer(sai_object_id_t portSai,
                       sai_object_id_t policerSai);
 bool esalAddMulticastPolicer(sai_object_id_t portSai,
                       sai_object_id_t policerSai);
+bool get_policer_counter(uint16_t lPort, uint64_t *bcastGreenStats,
+                         uint64_t *bcastRedStats, uint64_t *mcastGreenStats,
+                         uint64_t *mcastRedStats);
+bool clear_policer_counter(uint16_t lPort);
 bool esalHandleSaiHostRxPacket(
     const void *buffer, sai_size_t bufferSz,
     uint32_t attrCnt, const sai_attribute_t *attrList);
