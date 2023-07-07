@@ -2042,7 +2042,7 @@ int VendorResetPort(uint16_t lPort) {
     if (!useSaiFlag) {
         return ESAL_RC_OK;
     }
-
+#ifndef LARCH_ENVIRON
     // Reset the LCN or PIU port
     if (esalSFPLibrarySupport && esalSFPLibrarySupport(lPort)) {
         if(esalSFPResetPort) {
@@ -2050,7 +2050,7 @@ int VendorResetPort(uint16_t lPort) {
 	    esalSFPResetPort(lPort);
 	}
     }
-
+#endif
     VendorDisablePort(lPort);
     sleep(1);
     VendorEnablePort(lPort);
