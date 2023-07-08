@@ -935,7 +935,6 @@ int DllInit(void) {
         }
     }
 
-
     std::cout << "WARM RESTART: " << WARM_RESTART << "\n" << std::flush;
 #ifndef LARCH_ENVIRON
     // Retrieve the provisioned values for both delay and cycle time
