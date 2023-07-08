@@ -55,7 +55,6 @@ EsalSaiDips dip;
 std::vector<sai_object_id_t> bpdu_port_list;
 bool WARM_RESTART;
 
-
 extern "C" {
 
 #ifndef LARCH_ENVIRON
@@ -921,6 +920,18 @@ int DllInit(void) {
         if ((suppressRestart == "Y") || (suppressRestart == "y")) {
             std::cout << "Suppressing warm restart\n";
             WARM_RESTART = false;
+        }
+    }
+
+    // Check to see if we should reset the switch.
+    if (!WARM_RESTART) {
+        const char *l2swRst = "/usr/bin/l2sw_reset";
+        auto l2swFd = fopen(l2swRst, "r");
+        if (l2swFd) {
+            fclose(l2swFd);
+            if (system(l2swRst)) {
+                std::cout << "l2swreset failed\n";
+            }
         }
     }
 
