@@ -13,7 +13,7 @@
 #include "headers/esalSaiUtils.h"
 
 #include <iostream>
-
+#include <vector>
 #include <string>
 #include <cinttypes>
 #include <map>
@@ -41,14 +41,14 @@ bool SetBroadcastRateLimiting(uint16_t pPort,
               SWERR_FILELINE, "sai_api_query Fail in SetBroadcastRateLimiting\n"));
         std::cout << "sai_api_query fail: " << esalSaiError(retcode)
                   << std::endl;
-        return false; 
+        return false;
     }
 
     // Find the sai port.
     sai_object_id_t portSai;
     if (!esalPortTableFindSai(pPort, &portSai)) {
         std::cout << "SetBroadcastRateLimiting fail pPort: " << pPort << std::endl;
-        return false; 
+        return false;
     }
 
     // Add attributes. 
@@ -87,10 +87,18 @@ bool SetBroadcastRateLimiting(uint16_t pPort,
     attr.value.s32 = SAI_PACKET_ACTION_DROP;
     attributes.push_back(attr);
 
-/*    attr.id = SAI_POLICER_ATTR_ENABLE_COUNTER_PACKET_ACTION_LIST;
-    attr.value.booldata = true;
+    std::vector<int32_t> cntTab;
+    cntTab.push_back(SAI_PACKET_ACTION_FORWARD);
+    cntTab.push_back(SAI_PACKET_ACTION_DROP);
+    sai_s32_list_t cntTabList;
+    cntTabList.count = cntTab.size();
+    cntTabList.list = cntTab.data();
+
+    attr.id = SAI_POLICER_ATTR_ENABLE_COUNTER_PACKET_ACTION_LIST;
+    attr.value.s32list.count = cntTabList.count;
+    attr.value.s32list.list = cntTabList.list;
     attributes.push_back(attr);
-*/
+
     retcode = saiPolicerApi->create_policer(bcSaiPolicer,
                             esalSwitchId, attributes.size(), attributes.data());
 
@@ -168,10 +176,18 @@ bool SetMulticastRateLimiting(uint16_t pPort,
     attr.value.s32 = SAI_PACKET_ACTION_DROP;
     attributes.push_back(attr);
 
-/*    attr.id = SAI_POLICER_ATTR_ENABLE_COUNTER_PACKET_ACTION_LIST;
-    attr.value.booldata = true;
+    std::vector<int32_t> cntTab;
+    cntTab.push_back(SAI_PACKET_ACTION_FORWARD);
+    cntTab.push_back(SAI_PACKET_ACTION_DROP);
+    sai_s32_list_t cntTabList;
+    cntTabList.count = cntTab.size();
+    cntTabList.list = cntTab.data();
+
+    attr.id = SAI_POLICER_ATTR_ENABLE_COUNTER_PACKET_ACTION_LIST;
+    attr.value.s32list.count = cntTabList.count;
+    attr.value.s32list.list = cntTabList.list;
     attributes.push_back(attr);
-*/
+
     retcode = saiPolicerApi->create_policer(mcSaiPolicer,
                             esalSwitchId, attributes.size(), attributes.data());
 
@@ -215,4 +231,109 @@ void processRateLimitsInit(uint32_t lPort) {
         }
     }
 }
+
+bool get_policer_counter(uint16_t lPort, uint64_t *bcastGreenStats,
+                         uint64_t *bcastRedStats, uint64_t *mcastGreenStats,
+                         uint64_t *mcastRedStats) {
+    bool rc = true;
+
+    if (bcPolicers.find(lPort) == bcPolicers.end()) {
+        rc = false;
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE,
+                        "bcPolicer not found for port=" + lPort));
+    } else if (mcPolicers.find(lPort) == mcPolicers.end()) {
+        rc = false;
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE,
+                        "mcPolicer not found for port=" + lPort));
+    } else if ((bcastGreenStats == nullptr) ||
+               (bcastGreenStats == nullptr) ||
+               (mcastGreenStats == nullptr) ||
+               (mcastRedStats == nullptr)) {
+        rc = false;
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE,
+                        "input pointer is null for port=" + lPort));
+    } else {
+        uint64_t stats[3];
+        uint64_t mcstats[3];
+        sai_stat_id_t statsId[3] = {SAI_POLICER_STAT_ATTR_BYTES,
+                                    SAI_POLICER_STAT_GREEN_BYTES,
+                                    SAI_POLICER_STAT_RED_BYTES};
+
+        // Get port table api
+        sai_status_t retcode;
+        sai_policer_api_t *saiPolicerApi;
+        retcode =  sai_api_query(SAI_API_POLICER, (void**) &saiPolicerApi);
+        if (retcode) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE, "sai_api_query Fail in SetBroadcastRateLimiting\n"));
+            std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                << std::endl;
+            return false; 
+        }
+
+        saiPolicerApi->get_policer_stats(bcPolicers[lPort], 3, statsId, stats);
+        *bcastGreenStats = stats[1];
+        *bcastRedStats = stats[2];
+
+        saiPolicerApi->get_policer_stats(mcPolicers[lPort], 3, statsId, mcstats);
+        *mcastGreenStats = mcstats[1];
+        *mcastRedStats = mcstats[2];
+    }
+    return rc;
+}
+
+bool clear_policer_counter(uint16_t lPort) {
+    bool rc = true;
+
+    if (bcPolicers.find(lPort) == bcPolicers.end()) {
+        rc = false;
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE,
+                        "bcPolicer not found for port=" + lPort));
+    } else if (mcPolicers.find(lPort) == mcPolicers.end()) {
+        rc = false;
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE,
+                        "mcPolicer not found for port=" + lPort));
+    } else {
+        sai_status_t retcode;
+        sai_stat_id_t statsId[3] = {SAI_POLICER_STAT_ATTR_BYTES,
+                                    SAI_POLICER_STAT_GREEN_BYTES,
+                                    SAI_POLICER_STAT_RED_BYTES};
+
+        // Get port table api
+        sai_policer_api_t *saiPolicerApi;
+        retcode =  sai_api_query(SAI_API_POLICER, (void**) &saiPolicerApi);
+        if (retcode) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE, "sai_api_query Fail in SetBroadcastRateLimiting\n"));
+            std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                << std::endl;
+            return false; 
+        }
+
+        retcode = saiPolicerApi->clear_policer_stats(
+                                    bcPolicers[lPort], 3, statsId);
+        if (retcode) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE, "BC clear_policer_stats Failed\n"));
+            std::cout << "BC clear_policer_stats fail: " << esalSaiError(retcode)
+                << std::endl;
+        }
+
+        retcode = saiPolicerApi->clear_policer_stats(
+                                    mcPolicers[lPort], 3, statsId);
+        if (retcode) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                        SWERR_FILELINE, "MC clear_policer_stats Failed\n"));
+            std::cout << "MC clear_policer_stats fail: " << esalSaiError(retcode)
+                << std::endl;
+        }
+    }
+    return rc;
+}
+
 };
