@@ -60,7 +60,6 @@ extern "C" {
 
 const int MAC_SIZE = sizeof(sai_mac_t);
 #ifdef LARCH_ENVIRON
-
 struct EsalL2Filter {
     std::string name = "FOO";
 
@@ -107,6 +106,8 @@ static std::mutex filterTableMutex;
 static VendorRxCallback_fp_t rcvrCb;
 static void *rcvrCbId;
 sai_object_id_t hostInterface;
+
+extern bool create_acl_dst_mac_rule(sai_mac_t dstMac);
 
 static void convertMacStringToAddr(std::string &macString,
                                    unsigned char *macAddr) {
@@ -242,7 +243,7 @@ static bool searchFilterTable(
             for (auto i = 0; i < fltr.rawdata_size(); i++){
                 unsigned const char *bufPtr = (unsigned const char*) buffer;
                 auto offset = fltr.rawdata(i).offset(); 
-                if ((offset*sizeof(long))  > bufferSz) {
+                if (offset > bufferSz) {
                     matching = false; 
                     break; 
                 }
@@ -346,6 +347,8 @@ int VendorAddPacketFilter(const char *buf, uint16_t length) {
         return false;
     }
     std::unique_lock<std::mutex> lock(filterTableMutex);
+    uint32_t dev;
+    uint32_t pPort;
 
     // Make sure filter table is not exhausted.
     if (filterTableSize >= MAX_FILTER_TABLE_SIZE) {
@@ -358,6 +361,7 @@ int VendorAddPacketFilter(const char *buf, uint16_t length) {
 
     //  Get App registration message.  It must be set pkt filter message. 
     EsalL2Filter filter;
+
 #ifndef LARCH_ENVIRON
 #ifndef UTS
     filter.ParseFromArray(buf, length);
@@ -373,6 +377,43 @@ int VendorAddPacketFilter(const char *buf, uint16_t length) {
         if (filterTable[i].filterName == filterName) {
             return ESAL_RC_OK;
         }
+    }
+
+// Designation MAC filter check/add
+    uint8_t dstmac[6] = 0;
+    if (fiter.has_mac()) {
+        auto macString = filter.mac();
+        // mac masck ?
+        convertMacStringToAddr(macString, dstmac);
+        create_acl_dst_mac_rule(dstmac);
+    }
+
+// Vilan filter check/add    
+    if (filter.has_vlan()) {
+        auto vlanString = filter.vlan();
+        // create_acl_vlan_rule(int(vlanString));
+    }
+
+// Port filter check/add
+    auto vpsize = filter.vendorport_size(); 
+    if (vpsize) {
+        for(int vpidx = 0; vpidx < vpsize; vpidx++) {
+            if (saiUtils.GetPhysicalPortInfo(vpidx, &dev, &pPort)) {
+                // create_acl_vendorPort_rule(pPort);
+            }
+        } 
+    }
+
+// Raw Data filter check/add
+    auto rdsize = filter.rawdata_size();   
+    if (rdsize) {
+        if ((buf[12] == 0x81) && (buf[13] == 0x00) &&           //EtherType (12 byte offset) = 0x8100
+            ((buf[14] & 0x0f) == 0x07) && (buf[15] == 0xd3) &&  //VLAN ID (14 byte offset) = 2003 (0x7d3)
+            (buf[16] == 0x08) && (buf[17] == 0x00) &&           //Etherytpe (16 byte offset) = 0x800
+            (buf[28] == 0x11) &&                                //IPv4 Protocol (28 byte offset) = UDP/17 (0x11)
+            ((buf[40] == 0x43) || (buf[40] == 0x44))) {         //UDP Destination Port (40 byte offset) = 67 (0x43) or 68 (0x44)
+                // create_acl_rawdata_rule(rddata);
+        }  
     }
 
     // Add in the shadow.
