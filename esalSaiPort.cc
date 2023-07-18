@@ -140,6 +140,116 @@ bool esalPortGetStp(uint32_t lPort, vendor_stp_state_t &stpState) {
     return false;
 }
 
+bool esalPortTableIsCopper(uint16_t portId) {
+    for(auto i = 0; i < portTableSize; i++) {
+        if (portTable[i].portId == portId) {
+            return portTable[i].isCopper;
+        }
+    }
+    return false;
+}
+
+void esalPortSetSpeed(
+    uint16_t portId, vendor_speed_t speed, vendor_duplex_t duplex, bool autoneg) {
+    std::cout << __PRETTY_FUNCTION__ << " port=" << portId << std::endl;
+
+    // Only supported for Copper SFP. 
+    //
+    if (!esalPortTableIsCopper(portId)) {
+        return;
+    }
+
+#ifndef UTS
+    // Get port table api
+    //  
+    sai_status_t retcode;
+    sai_port_api_t *saiPortApi;
+    retcode =  sai_api_query(SAI_API_PORT, (void**) &saiPortApi);
+    if (retcode) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+              SWERR_FILELINE, "sai_api_query Fail in esalPortSetSpeed\n"));
+        std::cout << "sai_api_query fail: " << esalSaiError(retcode)
+                  << std::endl;
+        return; 
+    }
+
+    // Find the sai port.
+    //
+    sai_object_id_t portSai;
+    if (!esalPortTableFindSai(portId, &portSai)) {
+        std::cout << "esalPortTableFindSai fail pPort: " << portId << std::endl;
+        return; 
+    }
+
+    // Add attributes of PORT SPEED and DUPLEX
+    //
+    std::vector<sai_attribute_t> attributes;
+    sai_attribute_t attr;
+
+    attr.id = SAI_PORT_ATTR_SPEED;
+
+    switch (speed) {
+        case VENDOR_SPEED_TEN:
+            attr.value.u32 = 10;
+            break;
+        case VENDOR_SPEED_HUNDRED:
+            attr.value.u32 = 100;
+            break;
+        case VENDOR_SPEED_GIGABIT:
+            attr.value.u32 = 1000;
+            break;
+        case VENDOR_SPEED_TWO_AND_HALF_GIGABIT:
+            attr.value.u32 = 2500;
+            break;
+        case VENDOR_SPEED_TEN_GIGABIT:
+            attr.value.u32 = 10000;
+            break;
+        default:
+            attr.value.u32 = 1000;
+            break; 
+    }
+
+    attributes.push_back(attr); 
+    
+    attr.id = SAI_PORT_ATTR_FULL_DUPLEX_MODE;
+    attr.value.booldata = (duplex == VENDOR_DUPLEX_FULL) ? true : false; 
+    attributes.push_back(attr); 
+#ifdef HAVE_MRVL
+    int cpssDuplexMode = 
+        (duplex == VENDOR_DUPLEX_HALF) ? CPSS_PORT_HALF_DUPLEX_E : CPSS_PORT_FULL_DUPLEX_E;
+
+    GT_BOOL cppsAutoneg = autoneg ? GT_TRUE : GT_FALSE;
+
+    int devNum = 0; 
+    uint16_t portNum = (uint16_t)GET_OID_VAL(portSai);
+    if (speed == VENDOR_SPEED_TEN || speed == VENDOR_SPEED_HUNDRED || speed == VENDOR_SPEED_GIGABIT) {
+        if (cpssDxChPortDuplexModeSet(devNum, portNum, cpssDuplexMode) != 0) {
+              SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                  SWERR_FILELINE, "fail in cpssDxChPortDuplexModeSet\n"));
+              std::cout << "esalPortSetSpeed fail, for pPort: " << portNum << "\n";
+              return;
+        }
+        if (cpssDxChPortInbandAutoNegEnableSet(devNum, portNum, cppsAutoneg) != 0) {
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "fail in cpssDxChPortInbandAutoNegEnableSet\n"));
+                std::cout << "esalPortSetSpeed fail, for pPort: " << portNum << "\n";
+                return;
+        }
+    }
+#endif
+
+    // Set the port attributes
+    for (auto &curAttr : attributes) {
+        retcode = saiPortApi->set_port_attribute(portSai, &curAttr);
+        if (retcode) {
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                SWERR_FILELINE, "set_port_attribute Fail in esalPortSetSpeed\n"));
+            std::cout << "set_port fail: " << esalSaiError(retcode) << std::endl;
+        }
+    }
+#endif
+}
+
 void esalPortSavePortAttr(
     uint16_t portId, uint16_t lPort, bool autoneg, vendor_speed_t speed, vendor_duplex_t duplex) {
     for(auto i = 0; i < portTableSize; i++) {
@@ -2032,8 +2142,15 @@ void esalPortTableState(sai_object_id_t portSai, bool portState){
         std::cout << "VendorGetPortDuplex fail lPort: "
                   << lPort << std::endl;
     }
+
     portStateChangeCb(portStateCbData, lPort, portState,
                       autoneg, speed, duplex);
+
+    // Set port if changed after link become UP.
+    //
+    if (portState) {
+       esalPortSetSpeed(pPort, speed, duplex, autoneg); 
+    }
 }
 
 int VendorResetPort(uint16_t lPort) {
