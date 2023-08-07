@@ -66,6 +66,7 @@ SFPRegisterL2ParamChangeCb_fp_t esalSFPRegisterL2ParamChangeCb;
 SFPSetPort_fp_t esalSFPSetPort;
 SFPGetPort_fp_t esalSFPGetPort;
 SFPResetPort_fp_t esalSFPResetPort;
+SFPDumpPort_t esalSFPDumpPort; 
 #endif
 #ifndef LARCH_ENVIRON
 #ifndef UTS
@@ -234,6 +235,8 @@ void loadSFPLibrary(void) {
         reinterpret_cast<SFPGetPort_fp_t>(sfpDll->getDllFunc("SFPGetPort"));
     esalSFPResetPort =
         reinterpret_cast<SFPResetPort_fp_t>(sfpDll->getDllFunc("SFPResetPort"));
+    esalSFPDumpPort =
+        reinterpret_cast<SFPDumpPort_t>(sfpDll->getDllFunc("SFPDumpPort"));
 #endif
     
     // Initialize the SFP library. 

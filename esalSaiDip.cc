@@ -87,4 +87,25 @@ EsalSaiDipEsalClearPolicerStats::dip_handle_cmd(const std::string & path,
 #endif
 }
 
+void
+EsalSaiDipEsalDumpSfp::dip_handle_cmd(const std::string & path,
+				       const std::vector < std::string >
+				       &args) {
+#ifndef UTS
+    if (args.size() < 2) {
+        cmd_->dip_reply("Invalid arguments esalDumpSfp lPort");
+    } else {
+        uint64_t lPort = std::stoi(std::string(args[1]));
+        if (esalSFPDumpPort) {  
+            std::string outstr; 
+            esalSFPDumpPort(lPort, outstr);
+            cmd_->dip_reply(outstr.c_str());
+        } else {
+            cmd_->dip_reply("SFP Library not present");
+        }
+    }
+    cmd_->dip_reply (DIP_CMD_HANDLED);
+#endif
+}
+
 #endif
