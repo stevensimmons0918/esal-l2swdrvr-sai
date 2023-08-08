@@ -54,6 +54,8 @@ EsalSaiDips dip;
 #endif
 std::vector<sai_object_id_t> bpdu_port_list;
 bool WARM_RESTART;
+sai_object_id_t packetFilterAclTableOid;
+sai_object_id_t packetFilterIpV6AclTableOid;
 
 extern "C" {
 
@@ -734,6 +736,60 @@ int esalInitSwitch(std::vector<sai_attribute_t>& attributes, sai_switch_api_t *s
     }
 
     if (!esalEnableBpduTrapOnPort(bpdu_port_list)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "esalEnableBpduTrapOnPort fail\n"));
+        std::cout << "can't enable bpdu trap acl \n";
+        return ESAL_RC_FAIL;
+    }
+
+    // Init ACl Table for Packet Filters
+    //
+    aclTableAttributes aclTableAttr;
+    memset((void*) &aclTableAttr, 0, sizeof(aclTableAttr));
+
+    aclTableAttr.acl_stage = SAI_ACL_STAGE_INGRESS;
+    aclTableAttr.field_dst_mac = 1;
+    aclTableAttr.field_src_mac = 1;
+    aclTableAttr.field_ether_type = 1;
+    aclTableAttr.field_outer_vlan_id = 1;
+    aclTableAttr.field_in_ports = 1;
+    aclTableAttr.field_l4_dst_port = 1;
+    aclTableAttr.field_l4_src_port = 1;
+    aclTableAttr.field_ip_protocol = 1;
+
+    std::vector<int32_t> actTab;
+    actTab.push_back(SAI_ACL_ACTION_TYPE_PACKET_ACTION);
+    sai_s32_list_t actTabList;
+    actTabList.count = actTab.size();
+    actTabList.list = actTab.data();
+    aclTableAttr.acl_action_type_list_ptr = &actTabList;
+
+    if (!esalCreateAclTable(aclTableAttr, packetFilterAclTableOid)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "esalEnableBpduTrapOnPort fail\n"));
+        std::cout << "can't enable bpdu trap acl \n";
+        return ESAL_RC_FAIL;
+    }
+
+    // Init ACl v6 Table for Packet Filters
+    //
+    memset((void*) &aclTableAttr, 0, sizeof(aclTableAttr));
+
+    aclTableAttr.acl_stage = SAI_ACL_STAGE_INGRESS;
+    aclTableAttr.field_dst_mac = 1;
+    aclTableAttr.field_src_mac = 1;
+    aclTableAttr.field_ether_type = 1;
+    aclTableAttr.field_outer_vlan_id = 1;
+    aclTableAttr.field_in_ports = 1;
+    aclTableAttr.field_l4_dst_port = 1;
+    aclTableAttr.field_l4_src_port = 1;
+    aclTableAttr.field_ip_protocol = 1;
+    aclTableAttr.field_src_ipv6 = 1;
+    aclTableAttr.field_dst_ipv6 = 1;
+
+    aclTableAttr.acl_action_type_list_ptr = &actTabList;
+
+    if (!esalCreateAclTable(aclTableAttr, packetFilterIpV6AclTableOid)) {
         SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
                     SWERR_FILELINE, "esalEnableBpduTrapOnPort fail\n"));
         std::cout << "can't enable bpdu trap acl \n";
