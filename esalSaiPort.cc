@@ -797,6 +797,23 @@ bool esalAddMulticastPolicer(sai_object_id_t portSai,
     return true;
 }
 
+int esalRemoveUnusedPorts() {
+#ifndef UTS
+    CPSS_PORT_MANAGER_STC portEventStc;
+    portEventStc.portEvent = CPSS_PORT_MANAGER_EVENT_DELETE_E;
+    for (auto i = 0; i < portTableSize; i++) {
+        if (portTable[i].adminState == false) {
+            if (cpssDxChPortManagerEventSet(0, portTable[i].portId, &portEventStc)) {
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                            SWERR_FILELINE, "cpssDxChPortManagerEventSet fail1\n"));
+                return ESAL_RC_FAIL;
+            }
+        }
+    }
+#endif
+    return ESAL_RC_OK;
+}
+
 int VendorSetPortRate(uint16_t lPort, bool autoneg,
                       vendor_speed_t speed, vendor_duplex_t duplex) {
     std::cout << __PRETTY_FUNCTION__ << " lPort=" << lPort << std::endl;
