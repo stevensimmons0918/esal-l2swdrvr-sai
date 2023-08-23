@@ -59,37 +59,68 @@ extern "C" {
 // 
 
 const int MAC_SIZE = sizeof(sai_mac_t);
+
+#define VLAN_ETHERTYPE_OFFSET 12
+#define VLAN_ID_OFFSET        14
+#define ETHERTYPE_OFFSET      16
+#define IPV4_PROTO_OFFSET     28
+#define UDP_DST_PORT_OFFSET   40
 #ifdef LARCH_ENVIRON
 
-struct EsalL2Filter {
+class  RawData {
+    int offset_field[5] = {VLAN_ETHERTYPE_OFFSET, VLAN_ID_OFFSET, ETHERTYPE_OFFSET, IPV4_PROTO_OFFSET, UDP_DST_PORT_OFFSET}; 
+    int data_field[5] = {0x8100, 2003, 0x800, 17, 67};
+    int mask_field[5] = {0xffff, 0xfff, 0xffff, 0xffff, 0xffff}; 
+    int index; 
+
+    public:
+    int offset() { return offset_field[index];};
+    int data() { return data_field[index];};
+    int mask() { return mask_field[index];};
+    RawData& operator() (int i)
+    {
+        index = i;
+        return *this;
+    }
+};
+
+class EsalL2Filter {
+    public:
+
     std::string name = "FOO";
 
-    std::string mc = "00:de:ad:be:ef:00";
+    std::string mc = "01:80:C2:00:00:FF";
 
     std::string &mac() { return mc; };
 
-    std::string mcMask = "ff:ff:ff:80:00:00";
+    std::string mcMask = "ff:ff:ff:ff:ff:ff";
 
     std::string &macmask() { return mcMask; };
 
     std::string &filtername() { return name; };
 
-    bool has_mac() { return true; };
+    bool has_mac() { return false; };
 
-    bool has_macmask() { return true; };
+    bool has_macmask() { return false; };
 
-    bool has_vlan() { return true; };
+    bool has_vlan() { return false; };
 
-    bool has_vlanmask() { return true; };
+    bool has_vlanmask() { return false; };
 
-    uint16_t vlan() { return 33; };
+    uint16_t vlan() { return 100; };
 
     uint16_t vlanmask() { return 0xff; } ;
 
     int vendorport_size() { return 1; };
-    uint32_t vendorport(int) { return 1; };
+    uint32_t vendorport(int) { return 28; };
+    
+    RawData rawData;
 
+    int rawdata_size() { return 5;} //rawdata_array.size(); };
+    RawData rawdata(int index) { return rawData(index); };
 };
+// filter.rawdata(i).offset();
+
 #endif
 
 struct FilterEntry{
@@ -98,6 +129,9 @@ struct FilterEntry{
     unsigned char mac[MAC_SIZE];
     unsigned char macMask[MAC_SIZE];
     bool pendingDelete; 
+    sai_object_id_t aclEntryOid;
+    sai_object_id_t aclEntryV6Oid;
+
 };
 
 const int MAX_FILTER_TABLE_SIZE = 32;
@@ -107,6 +141,8 @@ static std::mutex filterTableMutex;
 static VendorRxCallback_fp_t rcvrCb;
 static void *rcvrCbId;
 sai_object_id_t hostInterface;
+
+
 
 static void convertMacStringToAddr(std::string &macString,
                                    unsigned char *macAddr) {
@@ -345,6 +381,19 @@ int VendorAddPacketFilter(const char *buf, uint16_t length) {
     if (!useSaiFlag){
         return false;
     }
+
+    uint16_t vlan = 0;
+    bool matching = false;
+    uint32_t dev;
+    uint32_t lPort;
+    uint32_t pPort;
+    std::vector<sai_object_id_t> port_list;
+    uint16_t VlanTagEtherType;
+    uint16_t VlanId;
+    uint16_t EtherType;
+    uint8_t IPv4Proto;
+    uint16_t UdpDstPort;
+
     std::unique_lock<std::mutex> lock(filterTableMutex);
 
     // Make sure filter table is not exhausted.
@@ -381,16 +430,156 @@ int VendorAddPacketFilter(const char *buf, uint16_t length) {
     newEntry->filterName = filterName;
     newEntry->filter = filter;
 
+    // Entry
+    //
+    aclEntryAttributes aclEntryAttr;
+    memset(&aclEntryAttr, 0, sizeof(aclEntryAttributes));
 
-    // Convert MAC Address to binary representation for optimization.
+    //Convert MAC Address to binary representation for optimization.
     if (filter.has_mac()) {
         auto macString = filter.mac();
         convertMacStringToAddr(macString, newEntry->mac);
+        aclEntryAttr.field_dst_mac.enable = true;
+        memcpy(aclEntryAttr.field_dst_mac.data.mac, newEntry->mac, sizeof(sai_mac_t));
     }
     if (filter.has_macmask()) {
         auto macMaskString = filter.macmask();
         convertMacStringToAddr(macMaskString, newEntry->macMask);
+        memcpy(aclEntryAttr.field_dst_mac.mask.mac, newEntry->macMask, sizeof(sai_mac_t));
     }
+
+    if (filter.has_vlan()) {
+        uint16_t vlanMask = 0xfff;
+        if (filter.has_vlanmask()) {
+            vlanMask = filter.vlanmask();
+        }
+
+        vlan = filter.vlan();
+
+        if ((vlan & vlanMask) != (filter.vlan() & vlanMask)) {
+            matching = false;
+        }
+
+        aclEntryAttr.field_outer_vlan_id.enable = true;
+        aclEntryAttr.field_outer_vlan_id.data.u16 = vlan;
+        aclEntryAttr.field_outer_vlan_id.mask.u16 = vlanMask;
+    }
+
+    if (filter.rawdata_size()) {
+        for (auto i = 0; i < filter.rawdata_size(); i++) {
+            auto offset = filter.rawdata(i).offset();
+            auto data = filter.rawdata(i).data();
+            auto mask = filter.rawdata(i).mask(); 
+            switch (offset) {
+                case VLAN_ETHERTYPE_OFFSET: 
+                    VlanTagEtherType = data;
+                break;
+                
+                case VLAN_ID_OFFSET: 
+                    aclEntryAttr.field_outer_vlan_id.data.u16 = data;
+                    aclEntryAttr.field_outer_vlan_id.mask.u16 = mask;
+                    VlanId = data;
+                break;
+                
+                case ETHERTYPE_OFFSET: 
+                    aclEntryAttr.field_ether_type.data.u16 = data;
+                    aclEntryAttr.field_ether_type.mask.u16 = mask;
+                    EtherType = data;
+                break;
+                
+                case IPV4_PROTO_OFFSET: 
+                    aclEntryAttr.field_ip_protocol.data.u8 = data;
+                    aclEntryAttr.field_ip_protocol.mask.u8 = mask;
+                    IPv4Proto = data;
+                break;
+                
+                case UDP_DST_PORT_OFFSET: 
+                    aclEntryAttr.field_l4_dst_port.data.u16 = data;
+                    aclEntryAttr.field_l4_dst_port.mask.u16 = mask;
+                    UdpDstPort = data;
+                break;
+
+                default:
+                    break;
+            }
+        }
+
+        // Check if it`s DHCP filter
+
+        if (VlanTagEtherType == 0x8100 &&
+            VlanId == 2003 &&
+            EtherType == 0x800 &&
+            IPv4Proto == 17 &&
+            (UdpDstPort == 67 || UdpDstPort == 68)) {
+                aclEntryAttr.field_outer_vlan_id.enable = true;
+                aclEntryAttr.field_ether_type.enable = true;
+                aclEntryAttr.field_ip_protocol.enable = true;
+                aclEntryAttr.field_l4_dst_port.enable = true;
+        }
+    }
+
+    // Check to see if logical port matches.
+    auto vpsize = filter.vendorport_size();
+    if (vpsize) {
+        
+        
+        // Find the sai port.
+        sai_object_id_t portSai;
+
+        for (int vpidx = 0; vpidx < vpsize; vpidx++) {
+            lPort = filter.vendorport(vpidx);
+            if (!saiUtils.GetPhysicalPortInfo(lPort, &dev, &pPort)) {
+                std::string err = "VendorAddPacketFilter, failed to get pPort, " 
+                                "lPort=" + lPort;
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, err.c_str()));
+                return ESAL_RC_FAIL;
+            }
+                    
+            if (!esalPortTableFindSai(pPort, &portSai)) {
+                SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "esalPortTableFindSai fail " \
+                                    "in VendorEnablePort\n"));
+                std::cout << "esalPortTableFindSai fail pPort: " << pPort << std::endl;
+                return ESAL_RC_FAIL;
+            }
+            port_list.push_back(portSai);
+        }
+        sai_acl_field_data_t match_in_ports;
+        match_in_ports.enable = true;
+        match_in_ports.data.objlist.count = (uint32_t)port_list.size();
+        match_in_ports.data.objlist.list = port_list.data();
+        aclEntryAttr.field_in_ports = match_in_ports;
+    }
+
+    aclEntryAttr.table_id = packetFilterAclTableOid;
+
+    aclEntryAttr.action_packet_action.enable = true;
+    aclEntryAttr.action_packet_action.parameter.s32 = SAI_PACKET_ACTION_TRAP;
+
+    sai_object_id_t aclEntryOid;
+    if (!esalCreateAclEntry(aclEntryAttr, aclEntryOid) && matching) {
+        // std::string err = "VendorAddPacketFilter, failed to create Acl entry in Hw, " 
+        //                     "lPort=" + lPort;
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                SWERR_FILELINE, err.c_str()));
+            return ESAL_RC_FAIL;
+    }
+
+    aclEntryAttr.table_id = packetFilterIpV6AclTableOid;
+
+    sai_object_id_t aclEntryV6Oid;
+    if(!esalCreateAclEntry(aclEntryAttr, aclEntryV6Oid) && matching) {
+        // std::string err = "VendorAddPacketFilter, failed to create Acl entry in Hw, " 
+        //                     "lPort=" + lPort;
+            SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                SWERR_FILELINE, err.c_str()));
+            return ESAL_RC_FAIL;
+    }
+    // Save oids for acl in filter table
+    newEntry->aclEntryOid = aclEntryOid;
+    newEntry->aclEntryV6Oid = aclEntryV6Oid;
+    
     filterTableSize++;
 
     return ESAL_RC_OK;
@@ -415,6 +604,20 @@ int VendorDeletePacketFilter(const char *filterName) {
     // Check to see if match is found
     if (idx == filterTableSize) {
         return ESAL_RC_OK;
+    }
+
+    if (!esalRemoveAclEntry(filterTable[idx].aclEntryOid)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "esalRemoveAclEntry failed \n"));
+        std::cout << "esalRemoveAclEntry fail " << std::endl;
+        return ESAL_RC_FAIL;
+    }
+
+    if (!esalRemoveAclEntry(filterTable[idx].aclEntryV6Oid)) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                    SWERR_FILELINE, "esalRemoveAclEntry failed\n"));
+        std::cout << "esalRemoveAclEntry failed" << std::endl;
+        return ESAL_RC_FAIL;
     }
 
     // Update in the shadow.
