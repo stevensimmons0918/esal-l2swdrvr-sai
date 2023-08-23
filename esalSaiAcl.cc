@@ -258,6 +258,15 @@ int VendorSetIngressVlanTranslation(uint16_t lPort,
     std::cout << "phyPort= " << pPort << std::endl;
     std::cout << "trans.oldVlan= " << trans.oldVlan << std::endl;
     std::cout << "trans.newVlan= " << trans.newVlan << std::endl;
+
+    for(auto translation : ingressPortTransMap)
+    if (trans.newVlan == translation.trans.newVlan &&
+        trans.oldVlan == translation.trans.oldVlan &&
+        pPort == translation.portid) {
+        std::cout << "Ingress translation already exists" << std::endl;
+        return ESAL_RC_OK;
+    }
+
     // Grab mutex.
     //
     std::unique_lock<std::mutex> lock(aclMutex);
@@ -526,6 +535,15 @@ int VendorSetEgressVlanTranslation(uint16_t lPort,
     std::cout << "phyPort= " << pPort << std::endl;
     std::cout << "trans.oldVlan= " << trans.oldVlan << std::endl;
     std::cout << "trans.newVlan= " << trans.newVlan << std::endl;
+
+    for(auto translation : egressPortTransMap)
+    if (trans.newVlan == translation.trans.newVlan &&
+        trans.oldVlan == translation.trans.oldVlan &&
+        pPort == translation.portid) {
+        std::cout << "Egress translation already exists" << std::endl;
+        return ESAL_RC_OK;
+    }
+
     // Grab mutex.
     //
     std::unique_lock<std::mutex> lock(aclMutex);
