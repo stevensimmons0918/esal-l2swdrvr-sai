@@ -1186,6 +1186,15 @@ void VendorConfigEnd()
              return;
         }
     }
+
+    status = esalRemoveUnusedPorts();
+    if (status != ESAL_RC_OK) {
+        SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
+                SWERR_FILELINE, "esalRemoveUnusedPorts failed\n"));
+        std::cout << "esalRemoveUnusedPorts fail: "
+                << status << std::endl;
+        return;
+    }
 #endif
     std::cout << "VendorConfigEnd end\n";
     return;

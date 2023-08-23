@@ -65,6 +65,7 @@ bool esalAddBroadcastPolicer(sai_object_id_t portSai,
                       sai_object_id_t policerSai);
 bool esalAddMulticastPolicer(sai_object_id_t portSai,
                       sai_object_id_t policerSai);
+int esalRemoveUnusedPorts();
 bool get_policer_counter(uint16_t lPort, uint64_t *bcastGreenStats,
                          uint64_t *bcastRedStats, uint64_t *mcastGreenStats,
                          uint64_t *mcastRedStats);
