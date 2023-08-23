@@ -211,9 +211,12 @@ void esalPortSetSpeed(
 
     attributes.push_back(attr); 
     
-    attr.id = SAI_PORT_ATTR_FULL_DUPLEX_MODE;
-    attr.value.booldata = (duplex == VENDOR_DUPLEX_FULL) ? true : false; 
-    attributes.push_back(attr); 
+//    MARVELL SAI does not support setting of duplex mode.  The following had
+//    explicit calls to be made. 
+//
+//    attr.id = SAI_PORT_ATTR_FULL_DUPLEX_MODE;
+//    attr.value.booldata = (duplex == VENDOR_DUPLEX_FULL) ? true : false; 
+//    attributes.push_back(attr); 
 #ifdef HAVE_MRVL
     int cpssDuplexMode = 
         (duplex == VENDOR_DUPLEX_HALF) ? CPSS_PORT_HALF_DUPLEX_E : CPSS_PORT_FULL_DUPLEX_E;

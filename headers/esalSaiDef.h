@@ -121,6 +121,7 @@ extern SFPRegisterL2ParamChangeCb_fp_t esalSFPRegisterL2ParamChangeCb;
 extern SFPSetPort_fp_t esalSFPSetPort;
 extern SFPGetPort_fp_t esalSFPGetPort;
 extern SFPResetPort_fp_t esalSFPResetPort;
+extern SFPDumpPort_t esalSFPDumpPort;
 #endif
 
 bool portCfgFlowControlInit();
