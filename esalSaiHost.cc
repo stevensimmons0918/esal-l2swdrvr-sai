@@ -388,11 +388,11 @@ int VendorAddPacketFilter(const char *buf, uint16_t length) {
     uint32_t lPort;
     uint32_t pPort;
     std::vector<sai_object_id_t> port_list;
-    uint16_t VlanTagEtherType;
-    uint16_t VlanId;
-    uint16_t EtherType;
-    uint8_t IPv4Proto;
-    uint16_t UdpDstPort;
+    uint16_t VlanTagEtherType = 0;
+    uint16_t VlanId = 0;
+    uint16_t EtherType = 0;
+    uint8_t IPv4Proto = 0;
+    uint16_t UdpDstPort = 0;
 
     std::unique_lock<std::mutex> lock(filterTableMutex);
 
@@ -465,6 +465,7 @@ int VendorAddPacketFilter(const char *buf, uint16_t length) {
         aclEntryAttr.field_outer_vlan_id.mask.u16 = vlanMask;
     }
 
+#ifndef UTS
     if (filter.rawdata_size()) {
         for (auto i = 0; i < filter.rawdata_size(); i++) {
             auto offset = filter.rawdata(i).offset();
@@ -517,6 +518,13 @@ int VendorAddPacketFilter(const char *buf, uint16_t length) {
                 aclEntryAttr.field_l4_dst_port.enable = true;
         }
     }
+#else
+    (void) VlanTagEtherType;
+    (void) VlanId;
+    (void) EtherType;
+    (void) IPv4Proto;
+    (void) UdpDstPort;
+#endif
 
     // Check to see if logical port matches.
     auto vpsize = filter.vendorport_size();
@@ -562,7 +570,7 @@ int VendorAddPacketFilter(const char *buf, uint16_t length) {
         // std::string err = "VendorAddPacketFilter, failed to create Acl entry in Hw, " 
         //                     "lPort=" + lPort;
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                SWERR_FILELINE, err.c_str()));
+                SWERR_FILELINE, "create acl entry fail"));
             return ESAL_RC_FAIL;
     }
 
@@ -573,7 +581,7 @@ int VendorAddPacketFilter(const char *buf, uint16_t length) {
         // std::string err = "VendorAddPacketFilter, failed to create Acl entry in Hw, " 
         //                     "lPort=" + lPort;
             SWERR(Swerr(Swerr::SwerrLevel::KS_SWERR_ONLY,
-                SWERR_FILELINE, err.c_str()));
+                SWERR_FILELINE, "failure of createAclEntry"));
             return ESAL_RC_FAIL;
     }
     // Save oids for acl in filter table
@@ -631,6 +639,7 @@ int VendorDeletePacketFilter(const char *filterName) {
 int VendorSendPacket(uint16_t lPort, uint16_t length, const void *buf) {
 
 #ifndef UTS
+
     sai_status_t retcode = SAI_STATUS_SUCCESS;
     sai_hostif_api_t *sai_hostif_api;
     uint32_t dev;

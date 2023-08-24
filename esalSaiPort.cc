@@ -800,6 +800,7 @@ bool esalAddMulticastPolicer(sai_object_id_t portSai,
     return true;
 }
 
+
 int esalRemoveUnusedPorts() {
 #ifndef UTS
     CPSS_PORT_MANAGER_STC portEventStc;
@@ -947,7 +948,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         attr.id = SAI_PORT_ATTR_FEC_MODE;
         attr.value.s32 = SAI_PORT_FEC_MODE_FC;
         attributes.push_back(attr);
-            esalPortTableSetChangeable(pPort, true);
+        esalPortTableSetChangeable(pPort, true);
 
     } else if ((uint32_t)esalHostPortId == pPort && hwid_value.compare("ALDRIN2EVAL") == 0) {
         attr.id = SAI_PORT_ATTR_AUTO_NEG_MODE;
@@ -966,6 +967,7 @@ int VendorSetPortRate(uint16_t lPort, bool autoneg,
         attr.id = SAI_PORT_ATTR_FEC_MODE;
         attr.value.s32 = SAI_PORT_FEC_MODE_FC;
         attributes.push_back(attr);
+        esalPortTableSetChangeable(pPort, true);
     }
 #ifdef HAVE_MRVL
     // XXX Direct cpss calls in Legacy mode, PortManager does not aware of this.
@@ -2422,7 +2424,6 @@ static bool restorePorts(SaiPortEntry* portTable, int portTableSize) {
         // Check if state 
         if (ls != portTable[i].operationState) {
             std::cout << "Operation state isn't same on port: " << lPort << std::endl;
-            status &= false;
             continue;
         }
     }
