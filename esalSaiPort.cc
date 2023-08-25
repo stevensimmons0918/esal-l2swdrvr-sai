@@ -153,9 +153,10 @@ void esalPortSetSpeed(
     uint16_t portId, vendor_speed_t speed, vendor_duplex_t duplex, bool autoneg) {
     std::cout << __PRETTY_FUNCTION__ << " port=" << portId << std::endl;
 
-    // Only supported for Copper SFP. 
+
+    // Only supported for Copper SFP and autoneg enabled.
     //
-    if (!esalPortTableIsCopper(portId)) {
+    if (!autoneg || !esalPortTableIsCopper(portId)) {
         return;
     }
 
