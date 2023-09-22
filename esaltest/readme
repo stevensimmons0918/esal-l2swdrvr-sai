@@ -1,0 +1,6 @@
+README for esaltest.py
+
+steps to run tests:
+   1. cd esaltest/
+   2. mkdir TestResults
+   3. sudo python esaltest.py 127.0.0.1 <user-name> <passwdxx> <path to esalApp> esal-fl feature all 1
