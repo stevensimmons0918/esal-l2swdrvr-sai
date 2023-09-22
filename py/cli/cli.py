@@ -85,6 +85,8 @@ def main():
         while True:
             cmd = raw_input('{}CLI: {}'.format(bcolors.RED, bcolors.WHITE))
             if cmd == 'exit': break
+            elif not cmd:
+                pass
             elif cmd == '?':
                 print 'Use TAB for interactive help OR type exit to leave\n' \
                       '<func_name> <arg1> <arg2> ... <argn>'
